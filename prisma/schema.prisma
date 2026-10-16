@@ -1,0 +1,194 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// 1. ADMIN & AUTHENTICATION
+// -------------------------------------------------------------
+model User {
+  id           String             @id @default(uuid())
+  email        String             @unique
+  name         String
+  passwordHash String
+  role         String             @default("SUPER_ADMIN") // SUPER_ADMIN, OPERATOR
+  department   String?            @default("Tool Room & Warehouse")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  loans        LoanTransaction[]  @relation("AdminLoans")
+  returns      ReturnTransaction[] @relation("AdminReturns")
+  auditLogs    AuditLog[]
+}
+
+// -------------------------------------------------------------
+// 2. EMPLOYEES / BORROWERS (MASTER DATA PEMINJAM)
+// -------------------------------------------------------------
+model Employee {
+  id          String            @id @default(uuid())
+  nik         String            @unique // ID Karyawan untuk Barcode / Input e.g. EMP-0012
+  name        String
+  role        String?           @default("Operator CNC") // Operator CNC, Teknisi Moulding, QC Inspector, Maintenance
+  department  String            // Machining CNC, Mould Making, QC, Maintenance
+  shift       String?           @default("Shift 1 (Pagi)") // Shift 1, Shift 2, Shift 3, Non-shift
+  phone       String?           // No. WhatsApp e.g. 628123456789
+  email       String?
+  status      String            @default("AKTIF") // AKTIF, NONAKTIF
+  cardVersion Int               @default(1) // Versi kartu jika hilang / rusak
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  loans       LoanTransaction[]
+}
+
+// -------------------------------------------------------------
+// 3. CATEGORIES
+// -------------------------------------------------------------
+model Category {
+  id          String      @id @default(uuid())
+  code        String      @unique // CUT, MEAS, MOLD, ELEC, SAFE, IT
+  name        String
+  itemType    String      @default("TOOL") // TOOL, INVENTORY
+  description String?
+  createdAt   DateTime    @default(now())
+  tools       Tool[]
+  inventories Inventory[]
+}
+
+// -------------------------------------------------------------
+// 4. MASTER DATA TOOL (PERKAKAS & CUTTING TOOLS)
+// -------------------------------------------------------------
+model Tool {
+  id             String      @id @default(uuid())
+  code           String      @unique // e.g. TOL-001, TOL-002
+  name           String
+  categoryId     String
+  category       Category    @relation(fields: [categoryId], references: [id])
+  specifications String?     // Spesifikasi teknis (toleransi, diameter, material)
+  unit           String      @default("PCS") // PCS, SET, BOX
+  totalStock     Int         @default(0)
+  availableStock Int         @default(0)
+  borrowedStock  Int         @default(0)
+  repairStock    Int         @default(0)
+  scrapStock     Int         @default(0)
+  minStock       Int         @default(5) // Batas stok minimum peringatan
+  location       String      // Lokasi rak / kabinet e.g. Rak A-02-B
+  condition      String      @default("BAIK") // BAIK, PERAWATAN, RUSAK
+  status         String      @default("AKTIF") // AKTIF, NONAKTIF (Soft delete)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  loanItems      LoanItem[]
+}
+
+// -------------------------------------------------------------
+// 5. MASTER DATA INVENTARIS (ASET PERUSAHAAN)
+// -------------------------------------------------------------
+model Inventory {
+  id             String      @id @default(uuid())
+  code           String      @unique // e.g. INV-001, INV-002
+  name           String
+  categoryId     String
+  category       Category    @relation(fields: [categoryId], references: [id])
+  brand          String?     // Merek e.g. Mitutoyo, Zebra, Bosch
+  model          String?     // Model e.g. DS2208, CD-6"CSX
+  serialNumber   String?     // Serial number untuk pelacakan individual
+  trackingType   String      @default("QUANTITATIVE") // INDIVIDUAL vs QUANTITATIVE
+  unit           String      @default("UNIT")
+  totalStock     Int         @default(1)
+  availableStock Int         @default(1)
+  borrowedStock  Int         @default(0)
+  repairStock    Int         @default(0)
+  scrapStock     Int         @default(0)
+  minStock       Int         @default(2) // Batas stok minimum peringatan
+  location       String      // Lokasi penyimpanan e.g. Lemari QC-01
+  condition      String      @default("BAIK")
+  status         String      @default("AKTIF")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  loanItems      LoanItem[]
+}
+
+// -------------------------------------------------------------
+// 6. LOAN TRANSACTIONS (TRANSAKSI PEMINJAMAN)
+// -------------------------------------------------------------
+model LoanTransaction {
+  id                 String              @id @default(uuid())
+  transactionNumber  String              @unique // LOAN-202610-0001
+  employeeId         String
+  employee           Employee            @relation(fields: [employeeId], references: [id])
+  adminId            String
+  admin              User                @relation("AdminLoans", fields: [adminId], references: [id])
+  loanDate           DateTime            @default(now())
+  expectedReturnDate DateTime            // Batas waktu / tenggat pengembalian
+  actualReturnDate   DateTime?
+  status             String              @default("DIPINJAM") // DIPINJAM, MENDEKATI_JATUH_TEMPO, TERLAMBAT, SELESAI
+  notes              String?
+  purpose            String?             // Keperluan / Project shift
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  items              LoanItem[]
+  returns            ReturnTransaction[]
+}
+
+// -------------------------------------------------------------
+// 7. LOAN TRANSACTION ITEMS (DETAIL ITEM PINJAMAN)
+// -------------------------------------------------------------
+model LoanItem {
+  id                String          @id @default(uuid())
+  loanTransactionId String
+  loanTransaction   LoanTransaction @relation(fields: [loanTransactionId], references: [id], onDelete: Cascade)
+  itemType          String          // TOOL or INVENTORY
+  toolId            String?
+  tool              Tool?           @relation(fields: [toolId], references: [id])
+  inventoryId       String?
+  inventory         Inventory?      @relation(fields: [inventoryId], references: [id])
+  quantity          Int             @default(1)
+  returnedQuantity  Int             @default(0)
+  status            String          @default("DIPINJAM") // DIPINJAM, SELESAI, RUSAK
+  createdAt         DateTime        @default(now())
+}
+
+// -------------------------------------------------------------
+// 8. RETURN TRANSACTIONS (PENGEMBALIAN BARANG)
+// -------------------------------------------------------------
+model ReturnTransaction {
+  id                String          @id @default(uuid())
+  returnNumber      String          @unique // RET-202610-0001
+  loanTransactionId String
+  loanTransaction   LoanTransaction @relation(fields: [loanTransactionId], references: [id])
+  adminId           String
+  admin             User            @relation("AdminReturns", fields: [adminId], references: [id])
+  returnDate        DateTime        @default(now())
+  condition         String          @default("BAIK") // BAIK, RUSAK, HILANG
+  quantity          Int             @default(1)
+  notes             String?         // Keterangan kondisi jika rusak/cacat
+  createdAt         DateTime        @default(now())
+}
+
+// -------------------------------------------------------------
+// 9. SYSTEM NOTIFICATIONS (PERINGATAN & JATUH TEMPO)
+// -------------------------------------------------------------
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String   @default("INFO") // WARNING, OVERDUE, STOCK, INFO
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+// -------------------------------------------------------------
+// 10. AUDIT LOGS (KETERTELUSURAN SISTEM OPERASIONAL)
+// -------------------------------------------------------------
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // PINJAM_TOOL, KEMBALI_TOOL, TAMBAH_MASTER, IMPORT_EXCEL, EKSPOR_EXCEL
+  adminId    String?
+  admin      User?    @relation(fields: [adminId], references: [id])
+  adminName  String
+  details    String
+  createdAt  DateTime @default(now())
+}

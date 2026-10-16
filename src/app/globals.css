@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-canvas: #f8fafc;
+    --bg-surface: #ffffff;
+    --border-subtle: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --brand-primary: #1e40af;
+    --brand-primary-hover: #1d4ed8;
+    --brand-primary-light: #eff6ff;
+    
+    --brand-danger: #b91c1c;
+    --brand-danger-hover: #991b1b;
+    --brand-danger-light: #fef2f2;
+    
+    --brand-warning: #d97706;
+    --brand-warning-light: #fffbeb;
+    
+    --brand-charcoal: #1e293b;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-body), Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headings & Menus: IBM Plex Sans Bold */
+  h1, h2, h3, h4, h5, h6, th, nav, .font-heading {
+    font-family: var(--font-heading), "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  /* Monospace Purge: Force any lingering font-mono to render as clean tabular Roboto */
+  .font-mono {
+    font-family: var(--font-body), Roboto, -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Tabular numbers for clean enterprise tables */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom scrollbars for tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
