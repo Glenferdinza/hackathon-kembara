@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -20,12 +20,38 @@ interface DonutChartSectionProps {
 }
 
 export function DonutChartSection({ data }: DonutChartSectionProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   const total = data.reduce((acc, cur) => acc + cur.value, 0);
   const availableItem = data.find((d) => d.name === 'Stok Tersedia');
   const availablePercent = total > 0 ? (((availableItem?.value || 0) / total) * 100).toFixed(1) : '0';
 
+  // Custom Opaque Tooltip that floats cleanly without ghost text underneath
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const item = payload[0].payload;
+      const percent = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
+      return (
+        <div className="bg-white px-3 py-2 border border-slate-300 rounded shadow-md text-xs pointer-events-none z-50">
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-xs inline-block shrink-0"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="font-bold text-slate-900">{item.name}</span>
+          </div>
+          <div className="text-slate-600 font-medium mt-1 tabular-nums">
+            <span className="font-bold text-[#1E40AF]">{item.value.toLocaleString('id-ID')}</span> Unit
+            <span className="text-slate-400 text-[11px] ml-1">({percent}%)</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="py-2">
+    <div className="py-2 w-full">
       <div className="pb-2 border-b border-slate-200">
         <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
           Kamar Stok (Komposisi Fisik Barang)
@@ -35,62 +61,88 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mt-3">
+      {/* Auto-layout responsive container: stacks cleanly on mobile, side-by-side on desktop */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mt-3 w-full">
         {/* Donut Chart with center percentage */}
-        <div className="relative w-44 h-44 shrink-0">
+        <div className="relative w-48 h-48 shrink-0 flex items-center justify-center">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={70}
+                innerRadius={55}
+                outerRadius={75}
                 paddingAngle={3}
                 dataKey="value"
+                onMouseEnter={(_, index) => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.color}
+                    stroke={activeIndex === index ? '#0F172A' : '#FFFFFF'}
+                    strokeWidth={activeIndex === index ? 2 : 1}
+                    className="transition-all duration-150 cursor-pointer"
+                    opacity={activeIndex === null || activeIndex === index ? 1 : 0.65}
+                  />
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{
-                  backgroundColor: '#FFFFFF',
-                  borderColor: '#E2E8F0',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                }}
+                content={<CustomTooltip />}
+                wrapperStyle={{ zIndex: 50 }}
               />
             </PieChart>
           </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-xl font-bold text-slate-900 tabular-nums">
+
+          {/* Center text: smoothly hides during hover so the tooltip box NEVER collides with center numbers */}
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-150 ${
+              activeIndex !== null ? 'opacity-0' : 'opacity-100'
+            }`}
+          >
+            <span className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">
               {availablePercent}%
             </span>
-            <span className="text-[10px] text-slate-500 font-medium">Tersedia</span>
+            <span className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
+              Tersedia
+            </span>
           </div>
         </div>
 
-        {/* Legend list matching ERP Titian */}
-        <div className="flex-1 w-full space-y-2">
-          {data.map((item) => (
+        {/* Legend list with bidirectional hover and auto-layout */}
+        <div className="flex-1 w-full min-w-0 space-y-1.5">
+          {data.map((item, index) => (
             <div
               key={item.name}
-              className="flex items-center justify-between text-xs py-1 px-1 border-b border-slate-50"
+              onMouseEnter={() => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+              className={`flex items-center justify-between text-xs py-1.5 px-2 rounded transition-colors cursor-pointer ${
+                activeIndex === index
+                  ? 'bg-slate-100 font-semibold'
+                  : 'hover:bg-slate-50'
+              }`}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <span
                   className="w-2.5 h-2.5 rounded-xs shrink-0"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-slate-600 font-medium truncate">{item.name}</span>
+                <span className="text-slate-700 truncate">{item.name}</span>
               </div>
-              <span className="font-bold text-slate-900 tabular-nums">
-                {item.value.toLocaleString('id-ID')}
-              </span>
+              <div className="flex items-center gap-2 shrink-0 tabular-nums">
+                <span className="font-bold text-slate-900">
+                  {item.value.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  ({total > 0 ? ((item.value / total) * 100).toFixed(0) : 0}%)
+                </span>
+              </div>
             </div>
           ))}
-          <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-semibold px-1">
+
+          <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-semibold px-2">
             <span className="text-slate-500">Total Unit Terdata</span>
             <span className="text-slate-900 tabular-nums">
               {total.toLocaleString('id-ID')}
