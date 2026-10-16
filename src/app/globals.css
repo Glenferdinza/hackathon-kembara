@@ -36,8 +36,8 @@
     font-family: var(--font-heading), "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  /* Monospace Purge: Force any lingering font-mono to render as clean tabular Roboto */
-  .font-mono {
+  /* Monospace Purge: Force any code/pre/font-mono to render as clean tabular Roboto */
+  code, pre, kbd, samp, .font-mono {
     font-family: var(--font-body), Roboto, -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-variant-numeric: tabular-nums;
   }
