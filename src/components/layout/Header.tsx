@@ -6,9 +6,6 @@ import Link from 'next/link';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
-  onMouseEnterSidebar?: () => void;
-  sidebarOpen?: boolean;
-  isPinned?: boolean;
 }
 
 interface NotificationItem {
@@ -21,12 +18,7 @@ interface NotificationItem {
   createdAt: string;
 }
 
-export function Header({
-  onToggleSidebar,
-  onMouseEnterSidebar,
-  sidebarOpen = true,
-  isPinned = true,
-}: HeaderProps) {
+export function Header({ onToggleSidebar }: HeaderProps) {
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -91,24 +83,18 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-20 h-16 bg-white border-b border-[#E2E8F0] px-4 lg:px-6 flex items-center justify-between gap-4">
-      {/* Left: Sidebar toggle button with Hamburger Icon & breadcrumbs */}
+      {/* Left: Clean Hamburger Icon Toggle Button & breadcrumbs */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
-          onMouseEnter={onMouseEnterSidebar}
-          className="px-2.5 py-1.5 text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded text-xs font-semibold transition-colors flex items-center gap-2"
-          aria-label="Toggle navigation"
-          title={isPinned ? 'Sembunyikan / Lepas Kunci Sidebar' : 'Buka / Kunci Sidebar agar Solid'}
+          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 flex items-center justify-center shrink-0"
+          aria-label="Toggle navigasi sidebar"
+          title="Buka / Tutup Sidebar"
         >
           {/* Authentic 3-line hamburger icon */}
-          <div className="w-4 h-3 flex flex-col justify-between shrink-0" aria-hidden="true">
-            <span className="h-0.5 w-full bg-slate-700 rounded-full" />
-            <span className="h-0.5 w-full bg-slate-700 rounded-full" />
-            <span className="h-0.5 w-full bg-slate-700 rounded-full" />
-          </div>
-          <span className="text-xs font-heading font-semibold">
-            {isPinned ? 'Tutup Menu' : 'Menu'}
-          </span>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
         </button>
 
         <div className="flex flex-col">

@@ -7,21 +7,13 @@ import { usePathname, useRouter } from 'next/navigation';
 interface SidebarProps {
   overdueCount?: number;
   isOpen?: boolean;
-  isPinned?: boolean;
   onClose?: () => void;
-  onTogglePin?: () => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
 }
 
 export function Sidebar({
   overdueCount = 0,
   isOpen = true,
-  isPinned = true,
   onClose,
-  onTogglePin,
-  onMouseEnter,
-  onMouseLeave,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -82,46 +74,19 @@ export function Sidebar({
       )}
 
       <aside
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-all duration-200 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-transform duration-200 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${!isPinned && isOpen ? 'shadow-2xl' : ''}`}
+        }`}
       >
-        {/* Brand Header with Official PT. YPTI Logo & Pin / Close Controls */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-[#E2E8F0] bg-white gap-2">
-          <Link href="/" className="flex items-center min-w-0">
+        {/* Brand Header with Clean Official PT. YPTI Logo */}
+        <div className="h-16 px-6 flex items-center border-b border-[#E2E8F0] bg-white">
+          <Link href="/" className="flex items-center">
             <img
               src="/ypti-logo.png"
               alt="PT. YPTI Logo"
-              className="h-8 w-auto max-w-[140px] object-contain"
+              className="h-9 w-auto max-w-[180px] object-contain"
             />
           </Link>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {onTogglePin && (
-              <button
-                onClick={onTogglePin}
-                className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${
-                  isPinned
-                    ? 'bg-blue-50 text-[#1E40AF] border-blue-200 hover:bg-blue-100'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                }`}
-                title={isPinned ? 'Lepas Kunci (Beralih ke mode auto-hide / hover)' : 'Tahan / Kunci Sidebar agar Tetap Terbuka (Solid)'}
-              >
-                {isPinned ? 'Terkunci' : 'Tahan'}
-              </button>
-            )}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="p-1 text-slate-400 hover:text-slate-700 text-xs font-semibold rounded hover:bg-slate-100 transition-colors"
-                title="Sembunyikan Sidebar"
-                aria-label="Sembunyikan Sidebar"
-              >
-                Tutup
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Navigation list */}
