@@ -310,36 +310,38 @@ export default function EmployeesPage() {
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                        className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                           emp.status === 'AKTIF'
-                            ? 'bg-blue-50 text-[#1E40AF] border border-blue-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                            : 'bg-rose-50 text-rose-800 border border-rose-200'
                         }`}
                       >
                         {emp.status}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5 text-[11px]">
                         <button
                           onClick={() => handleOpenCard(emp)}
-                          className="px-2 py-1 text-[11px] font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50"
+                          className="text-slate-600 hover:text-slate-900 font-medium hover:underline"
                           title="Cetak Kartu Ber-barcode"
                         >
                           Kartu
                         </button>
+                        <span className="text-slate-300">|</span>
                         <button
                           onClick={() => handleOpenEdit(emp)}
-                          className="px-2 py-1 text-[11px] font-medium text-[#1E40AF] bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                          className="text-[#1E40AF] hover:underline font-semibold"
                         >
                           Edit
                         </button>
+                        <span className="text-slate-300">|</span>
                         <button
                           onClick={() => handleReplaceCard(emp)}
-                          className="px-2 py-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100"
+                          className="text-slate-500 hover:text-amber-800 hover:underline font-medium"
                           title="Tandai Hilang/Rusak & Cetak Versi Baru"
                         >
-                          Hilang/Ganti
+                          Ganti Kartu
                         </button>
                       </div>
                     </td>

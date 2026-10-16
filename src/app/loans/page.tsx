@@ -500,15 +500,15 @@ export default function LoansPage() {
                   </p>
                 </div>
 
-                {/* Filter group */}
-                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                {/* Filter group - Clean Segmented Control */}
+                <div className="inline-flex p-0.5 bg-slate-200/70 rounded text-[11px]">
                   <button
                     type="button"
                     onClick={() => setComboboxFilter('ALL')}
-                    className={`px-2.5 py-0.5 text-[11px] rounded transition-colors ${
+                    className={`px-2.5 py-0.5 rounded transition-colors ${
                       comboboxFilter === 'ALL'
-                        ? 'bg-[#1E40AF] text-white font-bold'
-                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-white text-slate-900 font-bold shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 font-medium'
                     }`}
                   >
                     Semua ({allAvailableItems.length})
@@ -516,10 +516,10 @@ export default function LoansPage() {
                   <button
                     type="button"
                     onClick={() => setComboboxFilter('TOOL')}
-                    className={`px-2.5 py-0.5 text-[11px] rounded transition-colors ${
+                    className={`px-2.5 py-0.5 rounded transition-colors ${
                       comboboxFilter === 'TOOL'
-                        ? 'bg-[#1E40AF] text-white font-bold'
-                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-white text-slate-900 font-bold shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 font-medium'
                     }`}
                   >
                     Tools ({availableTools.length})
@@ -527,10 +527,10 @@ export default function LoansPage() {
                   <button
                     type="button"
                     onClick={() => setComboboxFilter('INVENTORY')}
-                    className={`px-2.5 py-0.5 text-[11px] rounded transition-colors ${
+                    className={`px-2.5 py-0.5 rounded transition-colors ${
                       comboboxFilter === 'INVENTORY'
-                        ? 'bg-[#1E40AF] text-white font-bold'
-                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                        ? 'bg-white text-slate-900 font-bold shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 font-medium'
                     }`}
                   >
                     Inventaris ({availableInventories.length})
@@ -673,14 +673,14 @@ export default function LoansPage() {
                   <span className="text-xs font-heading font-bold text-slate-900 uppercase tracking-wider">
                     Pilih Jenis Barang:
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="inline-flex p-0.5 bg-slate-100 rounded border border-slate-200 text-xs">
                     <button
                       type="button"
                       onClick={() => setActiveCatalogTab('TOOL')}
-                      className={`px-3 py-1 text-xs rounded transition-colors ${
+                      className={`px-3 py-1 rounded transition-colors ${
                         activeCatalogTab === 'TOOL'
-                          ? 'bg-[#1E40AF] text-white font-bold'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          ? 'bg-white text-slate-900 font-bold shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 font-medium'
                       }`}
                     >
                       Katalog Tool (Perkakas)
@@ -688,10 +688,10 @@ export default function LoansPage() {
                     <button
                       type="button"
                       onClick={() => setActiveCatalogTab('INVENTORY')}
-                      className={`px-3 py-1 text-xs rounded transition-colors ${
+                      className={`px-3 py-1 rounded transition-colors ${
                         activeCatalogTab === 'INVENTORY'
-                          ? 'bg-[#1E40AF] text-white font-bold'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          ? 'bg-white text-slate-900 font-bold shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 font-medium'
                       }`}
                     >
                       Katalog Inventaris (Non-Tool)
@@ -743,7 +743,7 @@ export default function LoansPage() {
                               type="button"
                               onClick={() => handleAddItem(t, 'TOOL')}
                               disabled={t.availableStock <= 0}
-                              className="px-2.5 py-1 text-xs font-semibold text-[#1E40AF] hover:bg-blue-50 border border-[#1E40AF] disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+                              className="text-[#1E40AF] hover:underline font-bold text-xs disabled:opacity-30 disabled:no-underline"
                             >
                               + Pilih
                             </button>
@@ -766,7 +766,7 @@ export default function LoansPage() {
                               type="button"
                               onClick={() => handleAddItem(i, 'INVENTORY')}
                               disabled={i.availableStock <= 0}
-                              className="px-2.5 py-1 text-xs font-semibold text-[#1E40AF] hover:bg-blue-50 border border-[#1E40AF] disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+                              className="text-[#1E40AF] hover:underline font-bold text-xs disabled:opacity-30 disabled:no-underline"
                             >
                               + Pilih
                             </button>

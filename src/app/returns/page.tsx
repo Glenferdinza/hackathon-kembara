@@ -233,17 +233,17 @@ function ReturnsContent() {
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       {loan.computedStatus === 'TERLAMBAT' && (
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FEF2F2] text-[#D94841] border border-red-200">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
                           Terlambat
                         </span>
                       )}
                       {loan.computedStatus === 'MENDEKATI_JATUH_TEMPO' && (
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FFFBEB] text-amber-700 border border-amber-200">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                           Hari Ini
                         </span>
                       )}
                       {loan.computedStatus === 'DIPINJAM' && (
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#1E40AF] border border-blue-200">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                           Dipinjam
                         </span>
                       )}
@@ -251,7 +251,7 @@ function ReturnsContent() {
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleOpenReturnModal(loan)}
-                        className="px-3 py-1 rounded bg-[#1E40AF] text-white hover:bg-[#1D4ED8] text-[11px] font-semibold transition-colors"
+                        className="text-[#1E40AF] hover:underline font-bold text-xs"
                       >
                         Verifikasi
                       </button>

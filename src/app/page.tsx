@@ -766,24 +766,27 @@ export default function DashboardPage() {
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-2 text-xs">
                               <button
                                 onClick={() => handleOpenExtend(loan)}
-                                className="px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded transition-colors"
+                                className="text-slate-700 hover:text-[#1E40AF] hover:underline font-semibold text-[11px]"
                               >
                                 Perpanjang
                               </button>
                               {loan.borrowerPhone && (
-                                <a
-                                  href={`https://wa.me/${loan.borrowerPhone}?text=${encodeURIComponent(
-                                    `Halo ${loan.borrowerName}, pengingat pengembalian alat PT YPTI untuk transaksi ${loan.transactionNumber} (${loan.itemsSummary}). Jatuh tempo: ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}. Terima kasih.`
-                                  )}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-2 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 border border-slate-300 rounded hover:bg-slate-50 transition-colors"
-                                >
-                                  Hubungi WA
-                                </a>
+                                <>
+                                  <span className="text-slate-300">|</span>
+                                  <a
+                                    href={`https://wa.me/${loan.borrowerPhone}?text=${encodeURIComponent(
+                                      `Halo ${loan.borrowerName}, pengingat pengembalian alat PT YPTI untuk transaksi ${loan.transactionNumber} (${loan.itemsSummary}). Jatuh tempo: ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}. Terima kasih.`
+                                    )}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-slate-500 hover:text-slate-900 hover:underline font-medium text-[11px]"
+                                  >
+                                    Hubungi WA
+                                  </a>
+                                </>
                               )}
                             </div>
                           </td>

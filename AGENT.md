@@ -1,4 +1,4 @@
-# AGENT.MD — MANDATORY SYSTEM & DESIGN INSTRUCTIONS
+# AGENT.MD: MANDATORY SYSTEM & DESIGN INSTRUCTIONS
 **Tool Loan & Inventory Management System (Enterprise ERP - PT YPTI Context)**
 
 Dokumen ini adalah **titik instruksi wajib (single source of truth & primary guardrails)** yang WAJIB ditaati oleh agen AI saat merancang, menulis, memperbarui kode, komponen, dan alur sistem.
@@ -23,16 +23,23 @@ Aplikasi ini adalah **Enterprise Industrial ERP** untuk pengelolaan perkakas ind
 4. **NO NEON / GLOW / CANDY GRADIENTS**: Jangan gunakan background gradient ungu-biru neon (`bg-gradient-to-r from-purple-500 to-pink-500`). Gunakan warna solid clean industrial atau subtle neutral border.
 5. **NO AI-SLOP NUMBERED BADGES**: Dilarang membuat list berurutan dengan bulatan gradasi angka melayang besar khas AI pitch-deck. Gunakan tabel terstruktur rapi dengan nomor baris atau kode referensi.
 6. **NO GENERIC PLACEHOLDERS**: Tidak boleh ada data placeholder "Lorem Ipsum", tombol tanpa aksi, atau mock dummy yang tidak sinkron ke database.
+7. **NO RAINBOW TABLES & NO SOLID BUTTON NOISE IN CELLS**:
+   - Dilarang keras menjejerkan tombol hijau WhatsApp, tombol biru solid, dan badge warna-warni dalam satu baris tabel.
+   - Aksi baris tabel WAJIB menggunakan tautan teks bersih (`Kembalikan | Hubungi`) atau tombol outline netral tipis.
+   - Dilarang memberi background tombol warna neon (`#25D366`) di sel tabel berulang.
+8. **NO CANDY FILTER PILLS**:
+   - Tab filter (Semua, Terlambat, Jatuh Tempo) WAJIB berupa **Segmented Tab Control Netral**: latar slate halus, teks slate, tab aktif ditandai dengan latar putih atau border netral. Dilarang mewarnai tab filter dengan merah, kuning, dan hitam sekaligus.
+9. **NO EM-DASHES (—) AND NO EMOJIS**:
+   - Dilarang memakai karakter em-dash (U+2014) di judul, metadata, atau teks manapun. Gunakan tanda hubung (-) atau titik dua (:).
+   - Dilarang memakai emoji dan simbol emote dalam bentuk apa pun.
 
-### 🎨 COLOR PALETTE & TYPOGRAPHY SYSTEM:
-- **Base Canvas**: Off-white Industrial `#F8FAFC` (Slate 50) untuk area konten utama.
+### COLOR PALETTE & TYPOGRAPHY SYSTEM (90% MONOCHROME):
+- **Base Canvas**: Off-white Industrial `#F8FAFC` (Slate 50).
 - **Surface / Card Background**: Pure White `#FFFFFF` dengan subtle border `#E2E8F0` (Slate 200).
-- **Sidebar & Header Dark Variant**: Charcoal `#1F2937` (Slate 800) atau Crisp Enterprise Light Slate `#FFFFFF` dengan active indicator `#16835D`.
-- **Primary Brand / Positive Action**: Industrial Emerald Green `#16835D` (hover: `#126B4C`, light tint: `#E8F5E9` / `#ECFDF5`).
-- **Warning & Overdue (Keterlambatan)**: Industrial Muted Crimson `#D94841` (hover: `#B83933`, light tint: `#FEF2F2`).
-- **Neutral Accent / Info**: Steel Blue `#2563EB` atau Slate `#475569`.
-- **Typography**: Inter / Outfit / Sans-serif industri, tabular figures (`font-mono` atau `tabular-nums` untuk kode barang, stok, tanggal, dan nomor invoice/transaksi).
-- **Data Density**: High-density UI yang efisien ruang, padding rapi (`px-4 py-3`), baris tabel kompak dengan zebra-striping atau hover highlight halus.
+- **Primary Brand**: PT YPTI Corporate Blue `#1E40AF` (hanya untuk tombol aksi utama halaman dan indikator aktif).
+- **Alert Colors**: Muted Rose `#991B1B` (latar `#FEF2F2`), Muted Amber `#92400E` (latar `#FFFBEB`) - hanya untuk indikator status kritis dengan warna lembut, bukan permen mencolok.
+- **Table Actions**: Neutral slate text links atau clean outline buttons.
+- **Typography**: IBM Plex Sans Bold untuk heading/menu, Roboto untuk body dan tabular numbers (`tabular-nums`). Bebas dari font monospace generic.
 
 ---
 
