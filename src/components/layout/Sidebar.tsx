@@ -75,17 +75,14 @@ export function Sidebar({ overdueCount = 0, isOpen = true, onClose }: SidebarPro
         }`}
       >
         {/* Brand Header with Official PT. YPTI Logo */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-[#E2E8F0] bg-white">
-          <Link href="/" className="flex items-center gap-2">
+        <div className="h-16 px-5 flex items-center border-b border-[#E2E8F0] bg-white">
+          <Link href="/" className="flex items-center">
             <img
               src="/ypti-logo.png"
               alt="PT. YPTI Logo"
-              className="h-8 w-auto max-w-[160px] object-contain"
+              className="h-9 w-auto max-w-[200px] object-contain"
             />
           </Link>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-            ERP
-          </span>
         </div>
 
         {/* Navigation list */}

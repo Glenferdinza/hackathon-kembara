@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 
@@ -42,6 +42,23 @@ export default function LoansPage() {
   const [availableTools, setAvailableTools] = useState<any[]>([]);
   const [availableInventories, setAvailableInventories] = useState<any[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
+
+  // Combobox Dropdown & Manual Typing State
+  const [comboboxQuery, setComboboxQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [comboboxFilter, setComboboxFilter] = useState<'ALL' | 'TOOL' | 'INVENTORY'>('ALL');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close combobox dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Selected Basket Items
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
@@ -177,6 +194,7 @@ export default function LoansPage() {
       const updated = [...selectedItems];
       updated[existingIndex].quantity += 1;
       setSelectedItems(updated);
+      showToast(`+1 ${item.name} (${updated[existingIndex].quantity} ${item.unit})`, 'success');
     } else {
       setSelectedItems([
         ...selectedItems,
@@ -191,6 +209,7 @@ export default function LoansPage() {
           quantity: 1,
         },
       ]);
+      showToast(`${item.name} ditambahkan ke daftar pinjam`, 'success');
     }
   };
 
@@ -211,6 +230,49 @@ export default function LoansPage() {
 
   const handleRemoveItem = (index: number) => {
     setSelectedItems(selectedItems.filter((_, idx) => idx !== index));
+  };
+
+  const allAvailableItems = [
+    ...availableTools.map((t) => ({ ...t, itemType: 'TOOL' as const })),
+    ...availableInventories.map((i) => ({ ...i, itemType: 'INVENTORY' as const })),
+  ];
+
+  const filteredDropdownItems = allAvailableItems.filter((item) => {
+    if (comboboxFilter === 'TOOL' && item.itemType !== 'TOOL') return false;
+    if (comboboxFilter === 'INVENTORY' && item.itemType !== 'INVENTORY') return false;
+    if (!comboboxQuery.trim()) return true;
+    const q = comboboxQuery.toLowerCase();
+    const matchCode = item.code?.toLowerCase().includes(q);
+    const matchName = item.name?.toLowerCase().includes(q);
+    const matchCategory = item.category?.name?.toLowerCase().includes(q);
+    const matchLocation = item.location?.toLowerCase().includes(q);
+    const matchBrand = item.brand?.toLowerCase().includes(q);
+    const matchSpecs = item.specifications?.toLowerCase().includes(q);
+    return Boolean(matchCode || matchName || matchCategory || matchLocation || matchBrand || matchSpecs);
+  });
+
+  const handleSelectFromCombobox = (item: any) => {
+    handleAddItem(item, item.itemType);
+    setComboboxQuery('');
+    setIsDropdownOpen(false);
+  };
+
+  const handleComboboxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredDropdownItems.length > 0) {
+        const available = filteredDropdownItems.find((i) => i.availableStock > 0) || filteredDropdownItems[0];
+        if (available.availableStock > 0) {
+          handleSelectFromCombobox(available);
+        } else {
+          showToast(`Stok "${available.name}" sedang habis!`, 'error');
+        }
+      } else if (comboboxQuery.trim()) {
+        showToast(`Tidak ditemukan alat atau inventaris dengan nama/kode "${comboboxQuery}"`, 'error');
+      }
+    } else if (e.key === 'Escape') {
+      setIsDropdownOpen(false);
+    }
   };
 
   const handleOpenConfirm = () => {
@@ -426,6 +488,186 @@ export default function LoansPage() {
 
           {/* RIGHT COLUMN: Katalog Barang, Parameter, & Keranjang Pinjam */}
           <div className="lg:col-span-8 space-y-5">
+            {/* FITUR UTAMA: Dropdown & Ketik Manual Alat / Inventaris */}
+            <div className="p-4 bg-slate-50 border border-slate-300 rounded space-y-3" ref={dropdownRef}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className="text-xs font-heading font-bold text-slate-900 uppercase tracking-wider block">
+                    Pilih Alat / Inventaris (Dropdown &amp; Ketik Manual)
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Pilih langsung dari dropdown, atau ketik manual nama / kode alat lalu tekan Enter.
+                  </p>
+                </div>
+
+                {/* Filter group */}
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setComboboxFilter('ALL')}
+                    className={`px-2.5 py-0.5 text-[11px] rounded transition-colors ${
+                      comboboxFilter === 'ALL'
+                        ? 'bg-[#1E40AF] text-white font-bold'
+                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Semua ({allAvailableItems.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComboboxFilter('TOOL')}
+                    className={`px-2.5 py-0.5 text-[11px] rounded transition-colors ${
+                      comboboxFilter === 'TOOL'
+                        ? 'bg-[#1E40AF] text-white font-bold'
+                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Tools ({availableTools.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setComboboxFilter('INVENTORY')}
+                    className={`px-2.5 py-0.5 text-[11px] rounded transition-colors ${
+                      comboboxFilter === 'INVENTORY'
+                        ? 'bg-[#1E40AF] text-white font-bold'
+                        : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Inventaris ({availableInventories.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Combobox Input with Dropdown Toggle */}
+              <div className="relative">
+                <div className="flex items-center border border-slate-300 bg-white rounded focus-within:border-[#1E40AF] focus-within:ring-1 focus-within:ring-[#1E40AF] shadow-xs">
+                  <span className="pl-3 text-slate-400 text-xs font-bold">🔍</span>
+                  <input
+                    type="text"
+                    value={comboboxQuery}
+                    onChange={(e) => {
+                      setComboboxQuery(e.target.value);
+                      setIsDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    onKeyDown={handleComboboxKeyDown}
+                    placeholder="Ketik manual nama atau kode alat (contoh: Endmill, Caliper, TOOL-001) atau klik dropdown di kanan..."
+                    className="w-full px-2.5 py-2 text-xs text-slate-900 bg-transparent placeholder-slate-400 focus:outline-none"
+                  />
+                  {comboboxQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setComboboxQuery('');
+                        setIsDropdownOpen(true);
+                      }}
+                      className="px-2 text-slate-400 hover:text-slate-600 text-xs"
+                      title="Bersihkan input"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border-l border-slate-200 text-slate-700 text-xs flex items-center gap-1 font-semibold transition-colors"
+                  >
+                    <span>Pilih Alat</span>
+                    <span className="text-[10px]">{isDropdownOpen ? '▲' : '▼'}</span>
+                  </button>
+                </div>
+
+                {/* Floating Dropdown Menu */}
+                {isDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-xl z-30 max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    <div className="px-3 py-1.5 bg-slate-50 text-[11px] font-bold text-slate-600 flex justify-between items-center sticky top-0 border-b border-slate-200">
+                      <span>Daftar Pilihan ({filteredDropdownItems.length} alat tersedia)</span>
+                      <span className="text-slate-400 font-normal">Klik untuk menambahkan ke daftar pinjam</span>
+                    </div>
+
+                    {filteredDropdownItems.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        Tidak ada alat atau inventaris yang cocok dengan &quot;{comboboxQuery}&quot;.
+                      </div>
+                    ) : (
+                      filteredDropdownItems.map((item) => {
+                        const isOutOfStock = item.availableStock <= 0;
+                        return (
+                          <div
+                            key={`${item.itemType}-${item.id}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (!isOutOfStock) {
+                                handleSelectFromCombobox(item);
+                              }
+                            }}
+                            onClick={() => {
+                              if (!isOutOfStock) {
+                                handleSelectFromCombobox(item);
+                              }
+                            }}
+                            className={`p-2.5 flex items-center justify-between text-xs transition-colors ${
+                              isOutOfStock
+                                ? 'opacity-50 bg-slate-50 cursor-not-allowed'
+                                : 'hover:bg-blue-50/80 hover:border-l-2 hover:border-[#1E40AF] cursor-pointer'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={`px-1.5 py-0.5 text-[9px] font-bold rounded-xs shrink-0 ${
+                                  item.itemType === 'TOOL'
+                                    ? 'bg-blue-100 text-[#1E40AF]'
+                                    : 'bg-indigo-100 text-indigo-700'
+                                }`}
+                              >
+                                {item.itemType === 'TOOL' ? 'TOOL' : 'INV'}
+                              </span>
+                              <div className="truncate">
+                                <span className="font-bold text-slate-900 mr-2">{item.code}</span>
+                                <span className="font-semibold text-slate-800">{item.name}</span>
+                                <span className="text-[11px] text-slate-400 ml-2">
+                                  Lokasi: {item.location || '-'}
+                                  {item.specifications ? ` • ${item.specifications}` : ''}
+                                  {item.brand ? ` • ${item.brand}` : ''}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0 ml-3">
+                              <span
+                                className={`text-[11px] font-bold tabular-nums ${
+                                  isOutOfStock ? 'text-rose-600' : 'text-[#1E40AF]'
+                                }`}
+                              >
+                                {isOutOfStock ? 'Stok Habis' : `Tersedia: ${item.availableStock} ${item.unit}`}
+                              </span>
+                              {!isOutOfStock && (
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleSelectFromCombobox(item);
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectFromCombobox(item);
+                                  }}
+                                  className="px-2 py-0.5 bg-blue-50 text-[#1E40AF] hover:bg-[#1E40AF] hover:text-white border border-[#1E40AF] rounded text-[11px] font-bold transition-colors"
+                                >
+                                  + Pilih
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Catalog Selector */}
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200">

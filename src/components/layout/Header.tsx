@@ -56,7 +56,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
   const getBreadcrumbs = () => {
     switch (pathname) {
       case '/':
-        return { parent: 'ERP Titian / PT YPTI', current: 'Dashboard Beranda' };
+        return { parent: 'PT. YPTI', current: 'Dashboard Beranda' };
       case '/master-tool':
         return { parent: 'Data Master', current: 'Master Data Tool' };
       case '/master-inventory':
@@ -74,7 +74,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       case '/help':
         return { parent: 'Panduan', current: 'Bantuan Sistem' };
       default:
-        return { parent: 'Sistem ERP', current: 'Halaman' };
+        return { parent: 'PT. YPTI', current: 'Halaman' };
     }
   };
 
