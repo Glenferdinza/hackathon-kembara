@@ -70,12 +70,12 @@ export function Sidebar({ overdueCount = 0, isOpen = true, onClose }: SidebarPro
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-transform duration-200 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header with Official PT. YPTI Logo */}
-        <div className="h-16 px-5 flex items-center border-b border-[#E2E8F0] bg-white">
+        <div className="h-16 px-5 flex items-center justify-between border-b border-[#E2E8F0] bg-white">
           <Link href="/" className="flex items-center">
             <img
               src="/ypti-logo.png"
@@ -83,6 +83,16 @@ export function Sidebar({ overdueCount = 0, isOpen = true, onClose }: SidebarPro
               className="h-9 w-auto max-w-[200px] object-contain"
             />
           </Link>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 text-slate-400 hover:text-slate-700 text-xs font-semibold rounded hover:bg-slate-100 transition-colors"
+              title="Sembunyikan Sidebar"
+              aria-label="Sembunyikan Sidebar"
+            >
+              Tutup
+            </button>
+          )}
         </div>
 
         {/* Navigation list */}
@@ -99,7 +109,11 @@ export function Sidebar({ overdueCount = 0, isOpen = true, onClose }: SidebarPro
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={onClose}
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && window.innerWidth < 1024 && onClose) {
+                          onClose();
+                        }
+                      }}
                       className={`flex items-center justify-between px-3 py-2 rounded text-xs font-heading transition-colors ${
                         isActive
                           ? 'bg-blue-50/70 text-[#1E40AF] font-bold border-l-2 border-[#1E40AF]'
@@ -122,14 +136,9 @@ export function Sidebar({ overdueCount = 0, isOpen = true, onClose }: SidebarPro
           ))}
         </div>
 
-        {/* Environment & Local DB Status */}
+        {/* System Links */}
         <div className="p-3 border-t border-[#E2E8F0] bg-slate-50">
-          <div className="flex items-center justify-between px-2.5 py-1.5 rounded bg-white border border-[#E2E8F0] text-[11px]">
-            <span className="font-medium text-slate-600">Database:</span>
-            <span className="font-semibold text-[#1E40AF]">Relasional Lokal</span>
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-between px-1">
+          <div className="flex items-center justify-between px-2">
             <Link
               href="/help"
               className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"

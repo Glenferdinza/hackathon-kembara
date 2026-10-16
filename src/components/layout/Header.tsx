@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
+  sidebarOpen?: boolean;
 }
 
 interface NotificationItem {
@@ -18,7 +19,7 @@ interface NotificationItem {
   createdAt: string;
 }
 
-export function Header({ onToggleSidebar }: HeaderProps) {
+export function Header({ onToggleSidebar, sidebarOpen = true }: HeaderProps) {
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -83,14 +84,15 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-20 h-16 bg-white border-b border-[#E2E8F0] px-4 lg:px-6 flex items-center justify-between gap-4">
-      {/* Left: Mobile hamburger & breadcrumbs */}
+      {/* Left: Sidebar toggle button & breadcrumbs */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
-          className="lg:hidden px-2.5 py-1 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded text-xs font-semibold transition-colors"
+          className="px-2.5 py-1 text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded text-xs font-semibold transition-colors flex items-center gap-1.5"
           aria-label="Toggle navigation"
+          title={sidebarOpen ? 'Sembunyikan Sidebar' : 'Tampilkan Sidebar'}
         >
-          Menu
+          <span>{sidebarOpen ? 'Tutup Menu' : 'Buka Menu'}</span>
         </button>
 
         <div className="flex flex-col">

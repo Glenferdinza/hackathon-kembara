@@ -32,6 +32,15 @@ Aplikasi ini adalah **Enterprise Industrial ERP** untuk pengelolaan perkakas ind
 9. **NO EM-DASHES (—) AND NO EMOJIS**:
    - Dilarang memakai karakter em-dash (U+2014) di judul, metadata, atau teks manapun. Gunakan tanda hubung (-) atau titik dua (:).
    - Dilarang memakai emoji dan simbol emote dalam bentuk apa pun.
+10. **NO AI-SLOP ACCENT STRIPES (border-l-2/4)**:
+    - Dilarang membuat kartu peringatan dengan garis samping warna tipis di sisi kiri (border-l-2) khas template AI generic.
+    - Gunakan struktur tabel antrean tindakan operasional (Action Queue Table) atau panel netral berbingkai tipis seragam.
+11. **STRICT SINGLE-LINE DATA (NO AWKWARD 2-LINE CELL WRAP)**:
+    - Kode barang (TOL-001, INV-001), kuantitas unit (15 PCS), dan header tabel wajib menggunakan `whitespace-nowrap` dan kontainer tabel wajib memiliki `min-w-[1100px]`.
+12. **NO MOCK / UNNECESSARY DATABASE BADGES**:
+    - Dilarang memasang badge status database lokal di sidebar navigasi.
+13. **COLLAPSIBLE SIDEBAR WITH FULL-WIDTH EXPANSION**:
+    - Sidebar wajib dapat ditutup/disembunyikan (collapsed) di desktop agar area kerja data tabel dapat memanfaatkan lebar layar 100%.
 
 ### COLOR PALETTE & TYPOGRAPHY SYSTEM (90% MONOCHROME):
 - **Base Canvas**: Off-white Industrial `#F8FAFC` (Slate 50).

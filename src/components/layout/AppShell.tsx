@@ -5,10 +5,15 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [overdueCount, setOverdueCount] = useState(0);
 
   useEffect(() => {
+    // Default closed on small screens (< 1024px)
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+
     // Quick poll for overdue count to display in badge
     const fetchStats = async () => {
       try {
@@ -36,8 +41,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main Content Area */}
-      <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
-        <Header onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <div
+        className={`flex flex-col flex-1 min-w-0 transition-[padding] duration-200 ${
+          sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
+        }`}
+      >
+        <Header
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
         <main className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">
           {children}
         </main>

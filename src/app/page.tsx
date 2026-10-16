@@ -482,40 +482,71 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Action Items Alert Strip if any (Muted calm accents) */}
+        {/* Action Items Queue: Structured ERP Operational Table */}
         {actionItems.length > 0 && (
           <div className="border-t border-slate-200 pt-4 space-y-2">
-            <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Menunggu Tindakan Prioritas Admin:
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Menunggu Tindakan Prioritas Admin ({actionItems.length})
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Antrean tugas mendesak yang memerlukan penanganan admin
+              </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {actionItems.map((act: any) => (
-                <div
-                  key={act.id}
-                  className="p-3 border-l-2 bg-slate-50 text-xs flex flex-col justify-between"
-                  style={{
-                    borderColor:
+
+            <div className="overflow-x-auto border border-slate-200 rounded bg-white">
+              <table className="w-full text-left text-xs min-w-[760px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 font-semibold">
+                    <th className="py-2.5 px-3 w-28 whitespace-nowrap">PRIORITAS</th>
+                    <th className="py-2.5 px-3 w-56 whitespace-nowrap">AGENDA TINDAKAN</th>
+                    <th className="py-2.5 px-3">KETERANGAN &amp; DAMPAK</th>
+                    <th className="py-2.5 px-3 text-right w-36 whitespace-nowrap">AKSI LANGSUNG</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {actionItems.map((act: any) => {
+                    const badgeClass =
                       act.type === 'DANGER'
-                        ? '#991B1B'
+                        ? 'bg-rose-50 text-rose-800 border-rose-200'
                         : act.type === 'WARNING'
-                        ? '#D97706'
-                        : '#475569',
-                  }}
-                >
-                  <div>
-                    <span className="font-bold text-slate-900">{act.title}</span>
-                    <p className="text-[11px] text-slate-600 mt-1 leading-snug">
-                      {act.description}
-                    </p>
-                  </div>
-                  <Link
-                    href={act.link}
-                    className="text-[11px] font-semibold text-[#1E40AF] hover:underline mt-2 self-start"
-                  >
-                    Tindak Lanjuti &rarr;
-                  </Link>
-                </div>
-              ))}
+                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                        : 'bg-slate-100 text-slate-700 border-slate-300';
+                    const priorityLabel =
+                      act.type === 'DANGER'
+                        ? 'MENDESAK'
+                        : act.type === 'WARNING'
+                        ? 'PERHATIAN'
+                        : 'INFO';
+
+                    return (
+                      <tr key={act.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${badgeClass}`}
+                          >
+                            {priorityLabel}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
+                          {act.title}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-600 text-[11px] leading-relaxed">
+                          {act.description}
+                        </td>
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                          <Link
+                            href={act.link}
+                            className="inline-block px-2.5 py-1 text-xs font-semibold text-[#1E40AF] hover:text-white hover:bg-[#1E40AF] border border-[#1E40AF]/30 rounded transition-colors"
+                          >
+                            Tindak Lanjuti &rarr;
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -619,20 +650,20 @@ export default function DashboardPage() {
 
               {/* Table without box container */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[1150px]">
                   <thead>
                     <tr className="border-b-2 border-slate-200 text-slate-600 font-semibold bg-slate-50/50">
-                      <th className="py-2.5 px-3">KODE</th>
-                      <th className="py-2.5 px-3">NAMA BARANG</th>
-                      <th className="py-2.5 px-3">TIPE</th>
-                      <th className="py-2.5 px-3">KATEGORI</th>
-                      <th className="py-2.5 px-3">LOKASI RAK</th>
-                      <th className="py-2.5 px-3 text-center">TOTAL</th>
-                      <th className="py-2.5 px-3 text-center">TERSEDIA</th>
-                      <th className="py-2.5 px-3 text-center">DIPINJAM</th>
-                      <th className="py-2.5 px-3 text-center">PERAWATAN</th>
-                      <th className="py-2.5 px-3 text-center">MIN. STOK</th>
-                      <th className="py-2.5 px-3">STATUS PERSEDIAAN</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">KODE</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">NAMA BARANG</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">TIPE</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">KATEGORI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">LOKASI RAK</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">TOTAL</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">TERSEDIA</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">DIPINJAM</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">PERAWATAN</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">MIN. STOK</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">STATUS PERSEDIAAN</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -648,43 +679,43 @@ export default function DashboardPage() {
                           key={item.id}
                           className="hover:bg-slate-50/80 transition-colors"
                         >
-                          <td className="py-2.5 px-3 font-bold text-slate-900">
+                          <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
                             {item.code}
                           </td>
-                          <td className="py-2.5 px-3 font-medium text-slate-800">
+                          <td className="py-2.5 px-3 font-medium text-slate-800 whitespace-nowrap">
                             {item.name}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500">
+                          <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
                             {item.type}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-600">
+                          <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
                             {item.category}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-600">
+                          <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
                             {item.location}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-bold text-slate-900 tabular-nums">
+                          <td className="py-2.5 px-3 text-center font-bold text-slate-900 tabular-nums whitespace-nowrap">
                             {item.totalStock} {item.unit}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-bold text-slate-900 tabular-nums">
+                          <td className="py-2.5 px-3 text-center font-bold text-slate-900 tabular-nums whitespace-nowrap">
                             {item.availableStock}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-bold text-slate-600 tabular-nums">
+                          <td className="py-2.5 px-3 text-center font-bold text-slate-600 tabular-nums whitespace-nowrap">
                             {item.borrowedStock}
                           </td>
-                          <td className="py-2.5 px-3 text-center font-bold text-amber-700 tabular-nums">
+                          <td className="py-2.5 px-3 text-center font-bold text-amber-700 tabular-nums whitespace-nowrap">
                             {item.repairStock}
                           </td>
-                          <td className="py-2.5 px-3 text-center text-slate-500 tabular-nums">
+                          <td className="py-2.5 px-3 text-center text-slate-500 tabular-nums whitespace-nowrap">
                             {item.minStock} {item.unit}
                           </td>
-                          <td className="py-2.5 px-3">
+                          <td className="py-2.5 px-3 whitespace-nowrap">
                             {item.isLowStock ? (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
                                 Stok Menipis (&le; {item.minStock})
                               </span>
                             ) : (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-600">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-600 whitespace-nowrap">
                                 Stok Aman
                               </span>
                             )}
@@ -702,16 +733,16 @@ export default function DashboardPage() {
           {activeTab === 'LOANS' && (
             <div className="space-y-3">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[950px]">
                   <thead>
                     <tr className="border-b-2 border-slate-200 text-slate-600 font-semibold bg-slate-50/50">
-                      <th className="py-2.5 px-3">NO. TRANSAKSI</th>
-                      <th className="py-2.5 px-3">PEMINJAM</th>
-                      <th className="py-2.5 px-3">BARANG &amp; JUMLAH</th>
-                      <th className="py-2.5 px-3">TGL PINJAM</th>
-                      <th className="py-2.5 px-3">JATUH TEMPO</th>
-                      <th className="py-2.5 px-3">STATUS JATUH TEMPO</th>
-                      <th className="py-2.5 px-3 text-right">TINDAKAN</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">BARANG &amp; JUMLAH</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">JATUH TEMPO</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">STATUS JATUH TEMPO</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap">TINDAKAN</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -724,19 +755,19 @@ export default function DashboardPage() {
                     ) : (
                       upcomingLoans.map((loan: any) => (
                         <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2.5 px-3 font-bold text-slate-900">
+                          <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
                             {loan.transactionNumber}
                           </td>
-                          <td className="py-2.5 px-3">
+                          <td className="py-2.5 px-3 whitespace-nowrap">
                             <span className="font-semibold text-slate-900">{loan.borrowerName}</span>
                             <span className="text-[11px] text-slate-500 block">
                               {loan.borrowerNik} | {loan.borrowerDept}
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-slate-800">
+                          <td className="py-2.5 px-3 text-slate-800 whitespace-nowrap">
                             {loan.itemsSummary}
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500 tabular-nums">
+                          <td className="py-2.5 px-3 text-slate-500 tabular-nums whitespace-nowrap">
                             {new Date(loan.loanDate).toLocaleDateString('id-ID', {
                               day: '2-digit',
                               month: 'short',
@@ -744,7 +775,7 @@ export default function DashboardPage() {
                               minute: '2-digit',
                             })}
                           </td>
-                          <td className="py-2.5 px-3 font-medium text-slate-800 tabular-nums">
+                          <td className="py-2.5 px-3 font-medium text-slate-800 tabular-nums whitespace-nowrap">
                             {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
                               day: '2-digit',
                               month: 'short',
@@ -752,7 +783,7 @@ export default function DashboardPage() {
                               minute: '2-digit',
                             })}
                           </td>
-                          <td className="py-2.5 px-3">
+                          <td className="py-2.5 px-3 whitespace-nowrap">
                             <span
                               className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
                                 loan.statusLabel === 'Terlambat'
@@ -803,14 +834,14 @@ export default function DashboardPage() {
           {activeTab === 'NOTIF' && (
             <div className="space-y-3">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[850px]">
                   <thead>
                     <tr className="border-b-2 border-slate-200 text-slate-600 font-semibold bg-slate-50/50">
-                      <th className="py-2.5 px-3">WAKTU SISTEM</th>
-                      <th className="py-2.5 px-3">JENIS PERINGATAN</th>
-                      <th className="py-2.5 px-3">JUDUL NOTIFIKASI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">WAKTU SISTEM</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">JENIS PERINGATAN</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">JUDUL NOTIFIKASI</th>
                       <th className="py-2.5 px-3">PESAN RINCIAN SCHEDULER</th>
-                      <th className="py-2.5 px-3 text-right">TAUTAN</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap">TAUTAN</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
