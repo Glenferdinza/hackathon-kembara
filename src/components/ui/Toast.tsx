@@ -59,9 +59,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div className="flex-1 text-xs font-medium leading-snug">{toast.message}</div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="text-slate-400 hover:text-slate-700 font-bold transition-colors text-xs p-0.5"
+              className="text-slate-400 hover:text-slate-700 text-[11px] font-semibold transition-colors px-1"
             >
-              ✕
+              Tutup
             </button>
           </div>
         ))}

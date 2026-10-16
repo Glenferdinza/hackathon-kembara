@@ -198,7 +198,7 @@ function ReturnsContent() {
                     <td className="py-2.5 px-3">
                       <div className="font-semibold text-slate-900">{loan.employee?.name}</div>
                       <div className="text-[10px] text-slate-500 tabular-nums">
-                        {loan.employee?.nik} • {loan.employee?.department}
+                        {loan.employee?.nik} | {loan.employee?.department}
                       </div>
                     </td>
                     <td className="py-2.5 px-3">
@@ -271,8 +271,8 @@ function ReturnsContent() {
               <h2 className="text-sm font-bold font-heading text-slate-900">
                 Verifikasi Pengembalian: {selectedLoan.transactionNumber}
               </h2>
-              <button onClick={() => setSelectedLoan(null)} className="text-slate-400 hover:text-slate-700 text-sm font-bold">
-                ✕
+              <button onClick={() => setSelectedLoan(null)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
+                Tutup
               </button>
             </div>
 
@@ -282,7 +282,7 @@ function ReturnsContent() {
                 <div>
                   <span className="font-bold text-slate-900">{selectedLoan.employee?.name}</span>
                   <p className="text-[11px] text-slate-500 tabular-nums">
-                    NIK: {selectedLoan.employee?.nik} • {selectedLoan.employee?.department}
+                    NIK: {selectedLoan.employee?.nik} | {selectedLoan.employee?.department}
                   </p>
                 </div>
                 <div className="text-right text-[11px] text-slate-500">

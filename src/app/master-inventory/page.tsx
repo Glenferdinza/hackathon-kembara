@@ -438,8 +438,8 @@ export default function MasterInventoryPage() {
               <h2 className="text-sm font-heading font-bold text-slate-900">
                 {editingInv ? `Edit Inventaris: ${editingInv.code}` : 'Tambah Inventaris Baru'}
               </h2>
-              <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-700 text-sm font-bold">
-                ✕
+              <button onClick={() => setIsAddOpen(false)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
+                Tutup
               </button>
             </div>
 
@@ -650,8 +650,8 @@ export default function MasterInventoryPage() {
               <h2 className="text-sm font-heading font-bold text-slate-900">
                 Detail Inventaris: {detailInv.code} - {detailInv.name}
               </h2>
-              <button onClick={() => setDetailInv(null)} className="text-slate-400 hover:text-slate-700 text-sm font-bold">
-                ✕
+              <button onClick={() => setDetailInv(null)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
+                Tutup
               </button>
             </div>
 

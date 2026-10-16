@@ -368,7 +368,7 @@ export default function LoansPage() {
                 Transaksi Berhasil Dicatat: {completedTx.transactionNumber}
               </span>
               <span className="text-emerald-800 ml-2">
-                Peminjam: {completedTx.employee?.name} • Tenggat:{' '}
+                Peminjam: {completedTx.employee?.name} | Tenggat:{' '}
                 {new Date(completedTx.expectedReturnDate).toLocaleString('id-ID')}
               </span>
             </div>
@@ -541,7 +541,6 @@ export default function LoansPage() {
               {/* Combobox Input with Dropdown Toggle */}
               <div className="relative">
                 <div className="flex items-center border border-slate-300 bg-white rounded focus-within:border-[#1E40AF] focus-within:ring-1 focus-within:ring-[#1E40AF] shadow-xs">
-                  <span className="pl-3 text-slate-400 text-xs font-bold">🔍</span>
                   <input
                     type="text"
                     value={comboboxQuery}
@@ -551,8 +550,8 @@ export default function LoansPage() {
                     }}
                     onFocus={() => setIsDropdownOpen(true)}
                     onKeyDown={handleComboboxKeyDown}
-                    placeholder="Ketik manual nama atau kode alat (contoh: Endmill, Caliper, TOOL-001) atau klik dropdown di kanan..."
-                    className="w-full px-2.5 py-2 text-xs text-slate-900 bg-transparent placeholder-slate-400 focus:outline-none"
+                    placeholder="Ketik manual nama atau kode alat (contoh: Endmill, Caliper, TOOL-001) atau klik tombol di samping..."
+                    className="w-full px-3 py-2 text-xs text-slate-900 bg-transparent placeholder-slate-400 focus:outline-none"
                   />
                   {comboboxQuery && (
                     <button
@@ -561,19 +560,18 @@ export default function LoansPage() {
                         setComboboxQuery('');
                         setIsDropdownOpen(true);
                       }}
-                      className="px-2 text-slate-400 hover:text-slate-600 text-xs"
+                      className="px-2.5 py-1 text-slate-500 hover:text-slate-800 text-[11px] font-medium"
                       title="Bersihkan input"
                     >
-                      ✕
+                      Reset
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border-l border-slate-200 text-slate-700 text-xs flex items-center gap-1 font-semibold transition-colors"
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border-l border-slate-200 text-slate-700 text-xs font-semibold transition-colors"
                   >
-                    <span>Pilih Alat</span>
-                    <span className="text-[10px]">{isDropdownOpen ? '▲' : '▼'}</span>
+                    {isDropdownOpen ? 'Tutup Pilihan' : 'Pilih Alat'}
                   </button>
                 </div>
 
@@ -627,8 +625,8 @@ export default function LoansPage() {
                                 <span className="font-semibold text-slate-800">{item.name}</span>
                                 <span className="text-[11px] text-slate-400 ml-2">
                                   Lokasi: {item.location || '-'}
-                                  {item.specifications ? ` • ${item.specifications}` : ''}
-                                  {item.brand ? ` • ${item.brand}` : ''}
+                                  {item.specifications ? ` | ${item.specifications}` : ''}
+                                  {item.brand ? ` | ${item.brand}` : ''}
                                 </span>
                               </div>
                             </div>
@@ -962,16 +960,16 @@ export default function LoansPage() {
               </h2>
               <button
                 onClick={() => setIsConfirmModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 font-bold"
+                className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-1 rounded bg-slate-100 hover:bg-slate-200"
               >
-                ✕
+                Tutup
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-1">
                 <div><span className="text-slate-500">Peminjam:</span> <span className="font-bold text-slate-900">{employee.name} ({employee.nik})</span></div>
-                <div><span className="text-slate-500">Departemen:</span> <span className="text-slate-800">{employee.department} • {employee.shift || 'Shift 1'}</span></div>
+                <div><span className="text-slate-500">Departemen:</span> <span className="text-slate-800">{employee.department}, {employee.shift || 'Shift 1'}</span></div>
                 <div><span className="text-slate-500">Tenggat Waktu:</span> <span className="font-bold text-[#1E40AF] tabular-nums">{new Date(expectedReturnDate).toLocaleString('id-ID')}</span></div>
                 <div><span className="text-slate-500">Keperluan:</span> <span className="text-slate-800">{purpose || '-'}</span></div>
               </div>

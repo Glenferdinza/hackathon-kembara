@@ -69,7 +69,7 @@ export function UpcomingDueTable({ loans }: UpcomingDueTableProps) {
                   <td className="py-2.5 px-3">
                     <div className="font-semibold text-slate-900">{loan.borrowerName}</div>
                     <div className="text-[10px] text-slate-500 tabular-nums">
-                      {loan.borrowerNik} • {loan.borrowerDept}
+                      {loan.borrowerNik} | {loan.borrowerDept}
                     </div>
                   </td>
                   <td className="py-2.5 px-3 max-w-[200px] truncate text-slate-700">

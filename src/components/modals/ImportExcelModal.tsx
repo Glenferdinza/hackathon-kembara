@@ -100,9 +100,9 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 font-bold transition-colors text-sm"
+            className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors"
           >
-            ✕
+            Tutup
           </button>
         </div>
 

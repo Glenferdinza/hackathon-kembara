@@ -160,7 +160,7 @@ export default function MonitoringPage() {
                       <td className="py-2.5 px-3">
                         <div className="font-semibold text-slate-900">{loan.employee?.name}</div>
                         <div className="text-[10px] text-slate-500 tabular-nums">
-                          {loan.employee?.nik} • {loan.employee?.department}
+                          {loan.employee?.nik} | {loan.employee?.department}
                         </div>
                       </td>
                       <td className="py-2.5 px-3 max-w-[240px] truncate font-medium text-slate-800" title={loan.itemsList}>

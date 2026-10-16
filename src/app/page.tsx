@@ -290,7 +290,7 @@ export default function DashboardPage() {
                           {scannedResult.data.nik}
                         </span>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                          v{scannedResult.data.cardVersion || 1} • {scannedResult.data.status}
+                          v{scannedResult.data.cardVersion || 1} | {scannedResult.data.status}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
@@ -730,7 +730,7 @@ export default function DashboardPage() {
                           <td className="py-2.5 px-3">
                             <span className="font-semibold text-slate-900">{loan.borrowerName}</span>
                             <span className="text-[11px] text-slate-500 block">
-                              {loan.borrowerNik} • {loan.borrowerDept}
+                              {loan.borrowerNik} | {loan.borrowerDept}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-slate-800">
@@ -877,8 +877,8 @@ export default function DashboardPage() {
                 <h2 className="text-xs font-heading font-bold text-slate-900 uppercase">Perpanjang Tenggat Pengembalian</h2>
                 <p className="text-[11px] text-slate-500 font-semibold">{extendingLoan.transactionNumber}</p>
               </div>
-              <button onClick={() => setExtendingLoan(null)} className="text-slate-400 hover:text-slate-700 text-sm font-bold">
-                ✕
+              <button onClick={() => setExtendingLoan(null)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
+                Tutup
               </button>
             </div>
 

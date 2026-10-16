@@ -18,8 +18,8 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "PT YPTI — Tool Loan & Inventory Management ERP",
-  description: "Enterprise Tool Room & Inventory Management System PT Yogyakarta Precision Tooling Industries",
+  title: "PT YPTI",
+  description: "Tool Room and Inventory Management PT YPTI",
 };
 
 export default function RootLayout({
