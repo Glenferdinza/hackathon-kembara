@@ -352,7 +352,7 @@ export default function LoansPage() {
         <div className="pb-3 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h1 className="text-sm lg:text-base font-bold text-slate-900 uppercase tracking-tight">
-              Peminjaman Perkakas &amp; Inventaris (Hal. 3)
+              Peminjaman Perkakas &amp; Inventaris
             </h1>
             <p className="text-xs text-slate-500">
               Validasi barcode ID card peminjam, pemilihan jenis barang, cek stok real-time, dan simpan transaksi atomik
@@ -381,9 +381,9 @@ export default function LoansPage() {
           </div>
         )}
 
-        {/* Flat 2-Column Layout (Matching Flowchart Hal. 3: Panel Samping Identitas + Katalog) */}
+        {/* Flat 2-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* LEFT COLUMN: Panel Samping Identitas Peminjam (Flowchart Hal. 3 Langkah 5-10) */}
+          {/* LEFT COLUMN: Panel Samping Identitas Peminjam */}
           <div className="lg:col-span-4 space-y-4">
             <div className="pb-2 border-b border-slate-200">
               <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
@@ -953,10 +953,10 @@ export default function LoansPage() {
       {/* Confirmation Modal */}
       {isConfirmModalOpen && employee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full p-5 space-y-4 border-t-4 border-t-[#1E40AF]">
+          <div className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full p-5 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <h2 className="text-sm font-heading font-bold text-slate-900">
-                Ringkasan Transaksi Peminjaman (Langkah 4)
+                Ringkasan Transaksi Peminjaman
               </h2>
               <button
                 onClick={() => setIsConfirmModalOpen(false)}

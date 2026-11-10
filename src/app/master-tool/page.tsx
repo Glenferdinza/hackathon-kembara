@@ -413,7 +413,7 @@ export default function MasterToolPage() {
       {/* Modal Add / Edit Master Tool - Clean Enterprise Precision Form */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full overflow-hidden border-t-4 border-t-[#1E40AF]">
+          <div className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <h2 className="text-sm font-heading font-bold text-slate-900">
                 {editingTool ? `Edit Master Tool: ${editingTool.code}` : 'Tambah Master Tool Baru'}
@@ -566,7 +566,7 @@ export default function MasterToolPage() {
       {/* Modal Detail & Histori Tool */}
       {detailTool && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded border border-slate-300 shadow-xl max-w-2xl w-full overflow-hidden border-t-4 border-t-[#1E40AF]">
+          <div className="bg-white rounded border border-slate-300 shadow-xl max-w-2xl w-full overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <h2 className="text-sm font-heading font-bold text-slate-900">
                 Detail &amp; Histori: {detailTool.code} - {detailTool.name}

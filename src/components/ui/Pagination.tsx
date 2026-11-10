@@ -26,10 +26,12 @@ export function Pagination({
   className = '',
 }: PaginationProps) {
   const [jumpPageInput, setJumpPageInput] = useState(String(currentPage));
+  const [prevCurrentPage, setPrevCurrentPage] = useState(currentPage);
 
-  useEffect(() => {
+  if (prevCurrentPage !== currentPage) {
+    setPrevCurrentPage(currentPage);
     setJumpPageInput(String(currentPage));
-  }, [currentPage]);
+  }
 
   if (totalItems <= 0 || totalPages <= 0) {
     return null;

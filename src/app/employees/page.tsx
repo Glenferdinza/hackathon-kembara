@@ -360,14 +360,14 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* MODAL 1: TAMBAH ANGGOTA (Hal. 7) */}
+      {/* MODAL 1: TAMBAH ANGGOTA */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#1E40AF] shadow-xl max-w-lg w-full overflow-hidden">
+          <div className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">Tambah Anggota Baru</h2>
-                <p className="text-[11px] text-slate-500">SOP Hal. 7: Pendaftaran NIK & Pembuatan Barcode Otomatis</p>
+                <p className="text-[11px] text-slate-500">Pendaftaran NIK & Pembuatan Barcode Otomatis</p>
               </div>
               <button onClick={() => setIsAddOpen(false)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
                 Tutup
@@ -504,10 +504,10 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* MODAL 2: EDIT ANGGOTA & STATUS BLOKIR (Hal. 7) */}
+      {/* MODAL 2: EDIT ANGGOTA & STATUS BLOKIR */}
       {isEditOpen && selectedEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#1E40AF] shadow-xl max-w-lg w-full overflow-hidden">
+          <div className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">
@@ -652,10 +652,10 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* MODAL 3: CETAK KARTU ANGGOTA DENGAN BARCODE CODE 128 (Hal. 7 Flowchart) */}
+      {/* MODAL 3: CETAK KARTU ANGGOTA DENGAN BARCODE CODE 128 */}
       {isCardModalOpen && selectedEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded border border-slate-200 border-t-4 border-t-[#1E40AF] shadow-xl max-w-sm w-full overflow-hidden">
+          <div className="bg-white rounded border border-slate-200 shadow-xl max-w-sm w-full overflow-hidden">
             <div className="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <span className="text-xs font-bold font-heading text-slate-900 uppercase">
                 Pratinjau Kartu Anggota (Code 128)

@@ -266,7 +266,7 @@ function ReturnsContent() {
       {/* Return Process Modal */}
       {selectedLoan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-md border border-slate-200 border-t-4 border-t-[#1E40AF] shadow-xl max-w-xl w-full overflow-hidden">
+          <div className="bg-white rounded-md border border-slate-200 shadow-xl max-w-xl w-full overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
               <h2 className="text-sm font-bold font-heading text-slate-900">
                 Verifikasi Pengembalian: {selectedLoan.transactionNumber}
