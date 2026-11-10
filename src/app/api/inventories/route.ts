@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       prisma.inventory.count({ where }),
     ]);
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       data: inventories,
       pagination: {
         total,
@@ -63,6 +63,8 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(total / limit),
       },
     });
+    res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    return res;
   } catch (err) {
     return NextResponse.json({ error: 'Gagal memuat master data inventaris: ' + String(err) }, { status: 500 });
   }

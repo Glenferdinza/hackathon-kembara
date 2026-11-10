@@ -36,6 +36,8 @@ export default function MasterInventoryPage() {
   const { confirm } = useConfirm();
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [trackingFilter, setTrackingFilter] = useState('');
@@ -44,6 +46,15 @@ export default function MasterInventoryPage() {
   const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Debounce search to prevent query spam and eliminate loading flicker
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Modals state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -70,6 +81,7 @@ export default function MasterInventoryPage() {
     if (typeof window !== 'undefined') {
       const urlSearch = new URLSearchParams(window.location.search).get('search');
       if (urlSearch !== null) {
+        setSearchInput(urlSearch);
         setSearch(urlSearch);
         setPage(1);
       }
@@ -77,6 +89,7 @@ export default function MasterInventoryPage() {
     const handleGlobalSearchEvent = (e: Event) => {
       const custom = e as CustomEvent<{ search?: string }>;
       if (custom.detail && typeof custom.detail.search === 'string') {
+        setSearchInput(custom.detail.search);
         setSearch(custom.detail.search);
         setPage(1);
       }
@@ -100,7 +113,7 @@ export default function MasterInventoryPage() {
   }, [formCategory]);
 
   const fetchInventories = useCallback(async () => {
-    setLoading(true);
+    setIsFetching(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -120,6 +133,7 @@ export default function MasterInventoryPage() {
       showToast('Gagal memuat master inventaris.', 'error');
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   }, [search, categoryFilter, trackingFilter, page, pageSize, showToast]);
 
@@ -291,17 +305,19 @@ export default function MasterInventoryPage() {
 
         {/* Filters - Flat inline layout */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-          <div className="w-full sm:max-w-xs">
+          <div className="w-full sm:max-w-xs relative">
             <input
               type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Cari kode, nama, serial number..."
               className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors"
             />
+            {isFetching && (
+              <span className="absolute right-2.5 top-2 text-[10px] text-slate-400 font-semibold animate-pulse">
+                Memuat...
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -336,8 +352,8 @@ export default function MasterInventoryPage() {
           </div>
         </div>
 
-        {/* Table View */}
-        {loading ? (
+        {/* Table View with persistent rows during background fetch */}
+        {loading && inventories.length === 0 ? (
           <div className="border-t border-slate-200 mt-2">
             <SkeletonTable rows={8} cols={12} />
           </div>
@@ -346,11 +362,11 @@ export default function MasterInventoryPage() {
             title="Inventaris Tidak Ditemukan"
             description="Tidak ada data inventaris yang cocok dengan filter kategori, pelacakan, atau kata kunci pencarian."
             actionLabel="Reset Filter"
-            onAction={() => { setSearch(''); setCategoryFilter(''); setTrackingFilter(''); setPage(1); }}
+            onAction={() => { setSearchInput(''); setSearch(''); setCategoryFilter(''); setTrackingFilter(''); setPage(1); }}
             className="border-t border-slate-200 mt-2"
           />
         ) : (
-          <div className="overflow-x-auto border-t border-slate-200 mt-2">
+          <div className={`overflow-x-auto border-t border-slate-200 mt-2 transition-opacity duration-150 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
             <table className="min-w-[1100px] w-full text-left text-xs">
               <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
                 <tr>

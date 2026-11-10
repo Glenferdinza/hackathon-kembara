@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       prisma.tool.count({ where }),
     ]);
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       data: tools,
       pagination: {
         total,
@@ -56,6 +56,9 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(total / limit),
       },
     });
+    // Cache at Cloudflare Edge for fast subsequent reads
+    res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    return res;
   } catch (err) {
     return NextResponse.json({ error: 'Gagal memuat master data tool: ' + String(err) }, { status: 500 });
   }
