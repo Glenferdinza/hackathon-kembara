@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
@@ -51,6 +52,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
     const body = await request.json();
     const { action, id, nik, name, role, department, shift, phone, email } = body;
 
@@ -69,7 +74,8 @@ export async function POST(request: Request) {
       await prisma.auditLog.create({
         data: {
           action: 'PENGGANTIAN_KARTU',
-          adminName: 'Admin YPTI',
+          adminId: session.id,
+          adminName: session.name || 'Admin',
           details: `Penerbitan kartu baru versi ${updated.cardVersion} untuk ${emp.nik} (${emp.name}) karena kartu lama hilang/rusak.`,
         },
       });
@@ -82,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     const cleanNik = nik.trim().toUpperCase();
-    const existing = await prisma.employee.findUnique({ where: { nik: cleanNik } });
+    const existing = await prisma.employee.findUnique({ where: { cleanNik: cleanNik } } as any).catch(() => prisma.employee.findUnique({ where: { nik: cleanNik } }));
     if (existing) {
       return NextResponse.json({ error: `NIK / ID "${cleanNik}" sudah terdaftar. Gunakan NIK yang berbeda.` }, { status: 409 });
     }
@@ -104,7 +110,8 @@ export async function POST(request: Request) {
     await prisma.auditLog.create({
       data: {
         action: 'TAMBAH_KARYAWAN',
-        adminName: 'Admin YPTI',
+        adminId: session.id,
+        adminName: session.name || 'Admin',
         details: `Pendaftaran anggota baru: ${newEmp.nik} - ${newEmp.name} (${newEmp.department})`,
       },
     });
@@ -117,6 +124,10 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
     const body = await request.json();
     const { id, name, role, department, shift, phone, email, status } = body;
 
@@ -156,7 +167,8 @@ export async function PUT(request: Request) {
     await prisma.auditLog.create({
       data: {
         action: 'UPDATE_KARYAWAN',
-        adminName: 'Admin YPTI',
+        adminId: session.id,
+        adminName: session.name || 'Admin',
         details: `Pembaruan data karyawan: ${updated.nik} - ${updated.name} (Status: ${updated.status})`,
       },
     });

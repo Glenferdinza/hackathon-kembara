@@ -13,12 +13,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'ID transaksi peminjaman dan daftar unit yang dikembalikan wajib diisi.' }, { status: 400 });
     }
 
-    const admin = session
-      ? await prisma.user.findUnique({ where: { id: session.id } })
-      : await prisma.user.findFirst();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi autentikasi tidak valid.' }, { status: 401 });
+    }
 
-    if (!admin) {
-      return NextResponse.json({ error: 'Sesi admin tidak valid.' }, { status: 401 });
+    const admin = await prisma.user.findUnique({ where: { id: session.id } });
+    if (!admin || admin.status === 'NONAKTIF') {
+      return NextResponse.json({ error: 'Akun petugas tidak aktif atau tidak ditemukan.' }, { status: 403 });
     }
 
     const datePrefix = new Date().toISOString().slice(0, 7).replace('-', '');

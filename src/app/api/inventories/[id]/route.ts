@@ -34,6 +34,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
     const { id } = await context.params;
     const body = await request.json();
 
@@ -90,6 +93,12 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
+    if (session.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya Super Admin yang diizinkan menghapus master inventaris.' }, { status: 403 });
+    }
     const { id } = await context.params;
 
     const inventory = await prisma.inventory.findUnique({

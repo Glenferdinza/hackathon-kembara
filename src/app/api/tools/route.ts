@@ -67,6 +67,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi autentikasi tidak valid.' }, { status: 401 });
+    }
     const body = await request.json();
 
     const { code, name, categoryId, specifications, unit, totalStock, location, condition } = body;

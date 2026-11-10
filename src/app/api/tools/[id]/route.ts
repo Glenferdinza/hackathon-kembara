@@ -34,6 +34,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi autentikasi tidak valid.' }, { status: 401 });
+    }
     const { id } = await context.params;
     const body = await request.json();
 
@@ -87,6 +90,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
+    if (!session || session.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya Super Admin yang diizinkan menghapus master tool.' }, { status: 403 });
+    }
     const { id } = await context.params;
 
     const tool = await prisma.tool.findUnique({

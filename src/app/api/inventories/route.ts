@@ -73,6 +73,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
     const body = await request.json();
 
     const { code, name, categoryId, brand, model, serialNumber, trackingType, unit, totalStock, location, condition } = body;

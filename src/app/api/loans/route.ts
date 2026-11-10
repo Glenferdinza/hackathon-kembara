@@ -107,13 +107,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Format tenggat pengembalian tidak valid.' }, { status: 400 });
     }
 
-    // Get an admin user id for record
-    const admin = session
-      ? await prisma.user.findUnique({ where: { id: session.id } })
-      : await prisma.user.findFirst();
+    // Sesi petugas loket wajib valid
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi autentikasi tidak valid.' }, { status: 401 });
+    }
 
-    if (!admin) {
-      return NextResponse.json({ error: 'Sesi admin tidak valid.' }, { status: 401 });
+    const admin = await prisma.user.findUnique({ where: { id: session.id } });
+    if (!admin || admin.status === 'NONAKTIF') {
+      return NextResponse.json({ error: 'Akun petugas tidak aktif atau tidak ditemukan.' }, { status: 403 });
     }
 
     // Generate unique transaction number with year and sequence: LOAN-YYYYMM-XXXX
@@ -252,7 +253,15 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const session = await getSession();
-    const admin = session || { id: 'admin-fallback', name: 'Agung Setiawan' };
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi autentikasi tidak valid.' }, { status: 401 });
+    }
+
+    const admin = await prisma.user.findUnique({ where: { id: session.id } });
+    if (!admin || admin.status === 'NONAKTIF') {
+      return NextResponse.json({ error: 'Akun petugas tidak aktif atau tidak ditemukan.' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { loanId, newExpectedReturnDate, reason } = body;
 

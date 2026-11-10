@@ -3,9 +3,22 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import * as XLSX from 'xlsx';
 
+function sanitizeCell(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  let str = String(val).trim();
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = str.replace(/^[=+\-@\t\r]+/, '');
+  }
+  return str;
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const type = (formData.get('type') as string) || 'tool';
@@ -13,6 +26,10 @@ export async function POST(request: Request) {
 
     if (!file) {
       return NextResponse.json({ error: 'File Excel (.xlsx) wajib diunggah.' }, { status: 400 });
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Ukuran file melebihi batas maksimal 5 MB.' }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -35,14 +52,14 @@ export async function POST(request: Request) {
       const existingCodes = new Set(existingTools.map((t) => t.code.toUpperCase()));
 
       const parsedRows = rows.map((r, index) => {
-        const code = String(r['KODE TOOL'] || r['KODE'] || r['code'] || '').trim().toUpperCase();
-        const name = String(r['NAMA TOOL'] || r['NAMA'] || r['name'] || '').trim();
-        const catCode = String(r['KODE KATEGORI'] || r['KATEGORI'] || '').trim().toUpperCase();
-        const specs = String(r['SPESIFIKASI'] || '').trim();
-        const unit = String(r['SATUAN'] || 'PCS').trim().toUpperCase();
-        const stockStr = String(r['JUMLAH STOK'] || r['STOK'] || '1').trim();
-        const location = String(r['LOKASI RAK'] || r['LOKASI'] || 'Gudang Utama').trim();
-        const condition = String(r['KONDISI'] || 'BAIK').trim().toUpperCase();
+        const code = sanitizeCell(r['KODE TOOL'] || r['KODE'] || r['code']).toUpperCase();
+        const name = sanitizeCell(r['NAMA TOOL'] || r['NAMA'] || r['name']);
+        const catCode = sanitizeCell(r['KODE KATEGORI'] || r['KATEGORI']).toUpperCase();
+        const specs = sanitizeCell(r['SPESIFIKASI']);
+        const unit = (sanitizeCell(r['SATUAN']) || 'PCS').toUpperCase();
+        const stockStr = sanitizeCell(r['JUMLAH STOK'] || r['STOK'] || '1');
+        const location = sanitizeCell(r['LOKASI RAK'] || r['LOKASI']) || 'Gudang Utama';
+        const condition = (sanitizeCell(r['KONDISI']) || 'BAIK').toUpperCase();
 
         const errors: string[] = [];
         if (!code) errors.push('Kode tool wajib diisi');
@@ -124,17 +141,17 @@ export async function POST(request: Request) {
       const existingCodes = new Set(existingInvs.map((i) => i.code.toUpperCase()));
 
       const parsedRows = rows.map((r, index) => {
-        const code = String(r['KODE INVENTARIS'] || r['KODE'] || '').trim().toUpperCase();
-        const name = String(r['NAMA BARANG'] || r['NAMA'] || '').trim();
-        const catCode = String(r['KODE KATEGORI'] || '').trim().toUpperCase();
-        const brand = String(r['MEREK'] || '').trim();
-        const model = String(r['MODEL'] || '').trim();
-        const serialNumber = String(r['SERIAL NUMBER'] || '').trim();
-        const trackingType = String(r['TIPE TRACKING'] || (serialNumber ? 'INDIVIDUAL' : 'QUANTITATIVE')).trim().toUpperCase();
-        const unit = String(r['SATUAN'] || 'UNIT').trim().toUpperCase();
-        const stockStr = String(r['JUMLAH STOK'] || '1').trim();
-        const location = String(r['LOKASI'] || 'Gudang Pusat').trim();
-        const condition = String(r['KONDISI'] || 'BAIK').trim().toUpperCase();
+        const code = sanitizeCell(r['KODE INVENTARIS'] || r['KODE']).toUpperCase();
+        const name = sanitizeCell(r['NAMA BARANG'] || r['NAMA']);
+        const catCode = sanitizeCell(r['KODE KATEGORI']).toUpperCase();
+        const brand = sanitizeCell(r['MEREK']);
+        const model = sanitizeCell(r['MODEL']);
+        const serialNumber = sanitizeCell(r['SERIAL NUMBER']);
+        const trackingType = (sanitizeCell(r['TIPE TRACKING']) || (serialNumber ? 'INDIVIDUAL' : 'QUANTITATIVE')).toUpperCase();
+        const unit = (sanitizeCell(r['SATUAN']) || 'UNIT').toUpperCase();
+        const stockStr = sanitizeCell(r['JUMLAH STOK'] || '1');
+        const location = sanitizeCell(r['LOKASI']) || 'Gudang Pusat';
+        const condition = (sanitizeCell(r['KONDISI']) || 'BAIK').toUpperCase();
 
         const errors: string[] = [];
         if (!code) errors.push('Kode inventaris wajib diisi');
