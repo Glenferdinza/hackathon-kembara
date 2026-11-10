@@ -1,10 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import * as xlsx from 'xlsx';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding PT YPTI Tool & Inventory ERP data...');
+  console.log('Seeding real database from SAMPEL_DATABASE_INVENTARIS_TOOLS.xlsx...');
 
   // 1. Clean existing records (in reverse dependency order)
   await prisma.auditLog.deleteMany({});
@@ -31,61 +33,28 @@ async function main() {
       department: 'Tool Room & Central Warehouse',
     },
   });
-  console.log(`Created admin user: ${admin.email} (Password: admin123)`);
+  console.log(`Created admin user: ${admin.email}`);
 
   // 3. Categories
-  const categories = await Promise.all([
-    prisma.category.create({
-      data: {
-        code: 'CUT',
-        name: 'Cutting & Milling Tools',
-        itemType: 'TOOL',
-        description: 'Mata pisau milling, endmill solid carbide, insert turning, drill bit',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        code: 'MEAS',
-        name: 'Precision Measuring & QC',
-        itemType: 'TOOL',
-        description: 'Alat ukur presisi digital, micrometer, dial caliper, pin gauge',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        code: 'MOLD',
-        name: 'Mould & Tooling Accessories',
-        itemType: 'TOOL',
-        description: 'Collet chuck, clamping kit, vise presisi, angle plate, pull stud',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        code: 'POW',
-        name: 'Pneumatic & Hand Tools',
-        itemType: 'INVENTORY',
-        description: 'Pneumatic die grinder, torque wrench, heat gun, impact driver',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        code: 'SAFE',
-        name: 'Safety & PPE Equipment',
-        itemType: 'INVENTORY',
-        description: 'Helm safety industri, harness fall protection, respirator 3M',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        code: 'IT',
-        name: 'Hardware & Barcode Devices',
-        itemType: 'INVENTORY',
-        description: 'Handheld barcode scanner, rugged tablet QC, printer label barcode',
-      },
-    }),
-  ]);
+  const categoryDefs = [
+    { code: 'CAT-TOOL-ARB', name: 'Arbor & Toolholder Assembly', itemType: 'TOOL', description: 'BT40, BT50, HSK, ER Collet Arbors, Milling Chucks, Side Lock Arbors' },
+    { code: 'CAT-TOOL-HLD', name: 'Cutting Insert Holders & Bars', itemType: 'TOOL', description: 'Endmill holders, Ballnose insert holders, Boring bars, Turning holders' },
+    { code: 'CAT-TOOL-COL', name: 'Precision Collet System', itemType: 'TOOL', description: 'ER16, ER20, ER25, ER32, TG100 collet chucks' },
+    { code: 'CAT-TOOL-FAS', name: 'Machine Fastener Keys & Wrenches', itemType: 'TOOL', description: 'Kunci L Long Ball Tekiro per mesin CNC & workshop' },
+    { code: 'CAT-TOOL-CLP', name: 'Clamping Fixtures, Vise & Jigs', itemType: 'TOOL', description: 'Clamping kit, step blocks, toe clamps, vise presisi' },
+    { code: 'CAT-TOOL-PLS', name: 'Pull Studs & Retention Knobs', itemType: 'TOOL', description: 'Pull stud retention knobs untuk spindle mesin milling' },
+    { code: 'CAT-TOOL-TIP', name: 'Carbide Inserts & Cutting Tips', itemType: 'TOOL', description: 'Mata insert carbide, turning tips, milling tips' },
+    { code: 'CAT-INV-MEAS', name: 'Precision Measuring & QC', itemType: 'INVENTORY', description: 'Dial indicators, calipers, micrometers, height gauges' },
+    { code: 'CAT-INV-POW', name: 'Power & Pneumatic Tools', itemType: 'INVENTORY', description: 'Pneumatic grinders, industrial drills, power tools' },
+    { code: 'CAT-INV-HAND', name: 'Industrial Hand Tools', itemType: 'INVENTORY', description: 'Palu, tang, obeng, kunci pas workshop' },
+    { code: 'CAT-INV-FAC', name: 'Workshop Storage & Facilities', itemType: 'INVENTORY', description: 'Lemari perkakas, rak kabinet workshop' },
+  ];
 
+  const categories = await Promise.all(
+    categoryDefs.map((cat) => prisma.category.create({ data: cat }))
+  );
   const catMap = Object.fromEntries(categories.map((c) => [c.code, c.id]));
+  console.log(`Created ${categories.length} categories.`);
 
   // 4. Employees (Peminjam)
   const employees = await Promise.all([
@@ -145,302 +114,162 @@ async function main() {
       },
     }),
   ]);
+  console.log(`Created ${employees.length} employees.`);
 
-  // 5. Tools Master Data
-  const tools = await Promise.all([
-    prisma.tool.create({
-      data: {
-        code: 'TOL-001',
-        name: 'Endmill Carbide 4 Flute D10',
-        categoryId: catMap['CUT'],
-        specifications: 'Diameter 10mm, 4-Flute, AlTiN Coating, HRC 55, Shank 10mm',
-        unit: 'PCS',
-        totalStock: 15,
-        availableStock: 12,
-        borrowedStock: 3,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Rak A-01-A',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-002',
-        name: 'Dial Indicator Mitutoyo 0.01mm',
-        categoryId: catMap['MEAS'],
-        specifications: 'Series 2046S, Range 0-10mm, Akurasi 0.013mm, Bezel Clamp',
-        unit: 'UNIT',
-        totalStock: 8,
-        availableStock: 6,
-        borrowedStock: 2,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Kabinet QC-02',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-003',
-        name: 'Micrometer Digital Mitutoyo 0-25mm',
-        categoryId: catMap['MEAS'],
-        specifications: 'Series 293 IP65 Coolant Proof, Resolusi 0.001mm',
-        unit: 'UNIT',
-        totalStock: 6,
-        availableStock: 5,
-        borrowedStock: 1,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Kabinet QC-01',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-004',
-        name: 'Boring Bar Sandvik CoroTurn A16R',
-        categoryId: catMap['CUT'],
-        specifications: 'Shank 16mm, Insert CCMT 09T308, Pengikatan Screw',
-        unit: 'PCS',
-        totalStock: 5,
-        availableStock: 5,
-        borrowedStock: 0,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Rak B-03-A',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-005',
-        name: 'Collet Chuck Holder BT40-ER32',
-        categoryId: catMap['MOLD'],
-        specifications: 'Taper BT40, Clamping Range 2-20mm, Balance G2.5 20.000 RPM',
-        unit: 'SET',
-        totalStock: 10,
-        availableStock: 8,
-        borrowedStock: 2,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Rak A-02-B',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-006',
-        name: 'Tap Spiral Flute M8x1.25 OSG',
-        categoryId: catMap['CUT'],
-        specifications: 'HSSE V-Coating untuk Blind Hole Baja dan Stainless Steel',
-        unit: 'PCS',
-        totalStock: 20,
-        availableStock: 17,
-        borrowedStock: 3,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Laci C-01-D',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-007',
-        name: 'Digital Torque Wrench Tohnichi 20-100Nm',
-        categoryId: catMap['MEAS'],
-        specifications: 'Drive 1/2 inch, Akurasi ±1%, Display LCD dengan Buzzer Peak',
-        unit: 'UNIT',
-        totalStock: 4,
-        availableStock: 2,
-        borrowedStock: 2,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Kabinet Tool-03',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.tool.create({
-      data: {
-        code: 'TOL-008',
-        name: 'Ball Nose Endmill R3x6x50',
-        categoryId: catMap['CUT'],
-        specifications: 'Solid Micrograin Carbide, 2 Flutes, TiSiN Coating HRC 60',
-        unit: 'PCS',
-        totalStock: 12,
-        availableStock: 12,
-        borrowedStock: 0,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Rak A-01-C',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-  ]);
+  // 5. Read real data from Excel
+  const excelPath = path.join(process.cwd(), 'SAMPEL_DATABASE_INVENTARIS_TOOLS.xlsx');
+  const wb = xlsx.readFile(excelPath);
+  const ws = wb.Sheets['DATABASE'];
 
-  // 6. Inventories Master Data
-  const inventories = await Promise.all([
-    prisma.inventory.create({
-      data: {
-        code: 'INV-001',
-        name: 'Digital Caliper Mitutoyo 150mm',
-        categoryId: catMap['MEAS'],
-        brand: 'Mitutoyo',
-        model: '500-196-30 AOS Absolute',
-        serialNumber: 'MT-2024-8891',
-        trackingType: 'INDIVIDUAL',
-        unit: 'UNIT',
-        totalStock: 1,
-        availableStock: 0,
-        borrowedStock: 1,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Lemari QC-01',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        code: 'INV-002',
-        name: 'Industrial Barcode Scanner Zebra DS2208',
-        categoryId: catMap['IT'],
-        brand: 'Zebra Technologies',
-        model: 'DS2208 2D Imager USB',
-        serialNumber: 'ZB-7731-9021',
-        trackingType: 'INDIVIDUAL',
-        unit: 'UNIT',
-        totalStock: 1,
-        availableStock: 1,
-        borrowedStock: 0,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Meja Dispatch Tool Room',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        code: 'INV-003',
-        name: 'Pneumatic Die Grinder Shinano',
-        categoryId: catMap['POW'],
-        brand: 'Shinano Pneumatic',
-        model: 'SI-2002EX 6mm Collet',
-        serialNumber: 'SH-5512-4410',
-        trackingType: 'INDIVIDUAL',
-        unit: 'UNIT',
-        totalStock: 1,
-        availableStock: 0,
-        borrowedStock: 1,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Rak Tool Maintenance',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        code: 'INV-004',
-        name: 'Rugged Tablet QC Panasonic Toughbook',
-        categoryId: catMap['IT'],
-        brand: 'Panasonic',
-        model: 'CF-33 Rugged 12" Win11',
-        serialNumber: 'TB-9910-3321',
-        trackingType: 'INDIVIDUAL',
-        unit: 'UNIT',
-        totalStock: 1,
-        availableStock: 1,
-        borrowedStock: 0,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Ruang CMM Quality Control',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        code: 'INV-005',
-        name: 'Safety Helmet MSA V-Gard with Chin Strap',
-        categoryId: catMap['SAFE'],
-        brand: 'MSA Safety',
-        model: 'V-Gard 500 White Fas-Trac',
-        serialNumber: null,
-        trackingType: 'QUANTITATIVE',
-        unit: 'PCS',
-        totalStock: 25,
-        availableStock: 20,
-        borrowedStock: 5,
-        repairStock: 0,
-        scrapStock: 0,
-        location: 'Loker Safety Store #1',
-        condition: 'BAIK',
-        status: 'AKTIF',
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        code: 'INV-006',
-        name: 'Infrared Thermometer Fluke 62 Max+',
-        categoryId: catMap['MEAS'],
-        brand: 'Fluke Corporation',
-        model: '62 MAX+ Dual Laser IP54',
-        serialNumber: 'FL-4401-2299',
-        trackingType: 'INDIVIDUAL',
-        unit: 'UNIT',
-        totalStock: 1,
-        availableStock: 0,
-        borrowedStock: 0,
-        repairStock: 1,
-        scrapStock: 0,
-        location: 'Rak Kalibrasi & Service',
-        condition: 'PERAWATAN',
-        status: 'AKTIF',
-      },
-    }),
-  ]);
+  const toolBatch: any[] = [];
+  const inventoryBatch: any[] = [];
 
-  // 7. Seed Active & Overdue Loan Transactions
+  for (let r = 5; r <= 1700; r++) {
+    const getVal = (col: number) => {
+      const cell = ws[xlsx.utils.encode_cell({ r, c: col })];
+      return cell ? cell.v : null;
+    };
+
+    const inventaris = String(getVal(0) || '').trim();
+    const toolNo = String(getVal(1) || '').trim();
+    const jenis = String(getVal(2) || '').trim();
+    const deskripsi = String(getVal(3) || '').trim();
+    if (!toolNo || !deskripsi) continue;
+
+    const brand = String(getVal(4) || '').trim();
+    const kode = String(getVal(5) || '').trim();
+    const dimensi = String(getVal(6) || '').trim();
+    const sat = String(getVal(7) || 'PCS').trim().toUpperCase();
+    const kategori = String(getVal(8) || 'PERALATAN MESIN').trim().toUpperCase();
+    const rawQty = getVal(9);
+    const qty = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty), 10) || 0;
+    const rawSaldo = getVal(16);
+    const saldoAkhir = typeof rawSaldo === 'number' ? rawSaldo : (typeof rawQty === 'number' ? rawQty : 0);
+
+    const j = jenis.toUpperCase();
+    let catCode = 'CAT-TOOL-ARB';
+    let isInventory = false;
+
+    if (j.includes('MEASURING')) {
+      catCode = 'CAT-INV-MEAS';
+      isInventory = true;
+    } else if (j.includes('POWER TOOL')) {
+      catCode = 'CAT-INV-POW';
+      isInventory = true;
+    } else if (j.includes('HAND TOOL')) {
+      catCode = 'CAT-INV-HAND';
+      isInventory = true;
+    } else if (j.includes('LEMARI')) {
+      catCode = 'CAT-INV-FAC';
+      isInventory = true;
+    } else if (j.includes('ARBOR')) {
+      catCode = 'CAT-TOOL-ARB';
+    } else if (j.includes('HOLDER')) {
+      catCode = 'CAT-TOOL-HLD';
+    } else if (j.includes('COLLET')) {
+      catCode = 'CAT-TOOL-COL';
+    } else if (j.includes('FASTENER')) {
+      catCode = 'CAT-TOOL-FAS';
+    } else if (j.includes('CLAMPING') || j.includes('VISE') || j.includes('JIG')) {
+      catCode = 'CAT-TOOL-CLP';
+    } else if (j.includes('PULL STUD')) {
+      catCode = 'CAT-TOOL-PLS';
+    } else if (j.includes('TIP')) {
+      catCode = 'CAT-TOOL-TIP';
+    } else {
+      catCode = kategori.includes('BANTU') ? 'CAT-INV-HAND' : 'CAT-TOOL-ARB';
+      isInventory = kategori.includes('BANTU');
+    }
+
+    const categoryId = catMap[catCode] || catMap['CAT-TOOL-ARB'];
+    const specParts = [];
+    if (brand) specParts.push(`Brand: ${brand}`);
+    if (kode) specParts.push(`Kode: ${kode}`);
+    if (dimensi) specParts.push(`Dimensi: ${dimensi}`);
+    const specs = specParts.join(' | ') || undefined;
+
+    const available = Math.max(0, saldoAkhir);
+    const minStock = qty > 5 ? 2 : 1;
+
+    if (isInventory) {
+      inventoryBatch.push({
+        code: toolNo,
+        name: deskripsi === jenis ? `${deskripsi} ${dimensi}`.trim() : `${deskripsi} (${jenis})`,
+        categoryId,
+        brand: brand || null,
+        model: kode || null,
+        serialNumber: dimensi || null,
+        trackingType: j.includes('MEASURING') ? 'INDIVIDUAL' : 'QUANTITATIVE',
+        unit: sat || 'UNIT',
+        totalStock: qty,
+        availableStock: available,
+        borrowedStock: 0,
+        repairStock: 0,
+        scrapStock: 0,
+        minStock,
+        location: inventaris ? `Area ${inventaris}` : 'Tool Room Central',
+        condition: 'BAIK',
+        status: 'AKTIF',
+      });
+    } else {
+      toolBatch.push({
+        code: toolNo,
+        name: deskripsi === jenis ? `${jenis} ${kode || dimensi}`.trim() : `${jenis} - ${deskripsi}`,
+        categoryId,
+        specifications: specs || null,
+        unit: sat || 'PCS',
+        totalStock: qty,
+        availableStock: available,
+        borrowedStock: 0,
+        repairStock: 0,
+        scrapStock: 0,
+        minStock,
+        location: inventaris ? `Mesin ${inventaris}` : 'Rak Tool Room Central',
+        condition: 'BAIK',
+        status: 'AKTIF',
+      });
+    }
+  }
+
+  console.log(`Inserting ${toolBatch.length} Tools in batch...`);
+  await prisma.tool.createMany({ data: toolBatch });
+
+  console.log(`Inserting ${inventoryBatch.length} Inventories in batch...`);
+  await prisma.inventory.createMany({ data: inventoryBatch });
+
+  // 6. Realistic Active Loans
+  console.log('Seeding realistic operational loans and notifications...');
+  const sampleTools = await prisma.tool.findMany({ take: 5, where: { availableStock: { gt: 1 } } });
+  const sampleInvs = await prisma.inventory.findMany({ take: 2, where: { availableStock: { gt: 0 } } });
+
   const now = new Date();
-
-  // Transaksi 1: TERLAMBAT (Overdue 2 hari lalu)
   const past3Days = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-  const past1Day = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
-  const loanOverdue = await prisma.loanTransaction.create({
+  // Loan 1: Overdue
+  const loan1 = await prisma.loanTransaction.create({
     data: {
       transactionNumber: 'LOAN-202610-0001',
-      employeeId: employees[0].id, // Budi Santoso
-      adminId: admin.id,
+      employee: { connect: { id: employees[0].id } },
+      admin: { connect: { id: admin.id } },
       loanDate: past3Days,
-      expectedReturnDate: past1Day,
+      expectedReturnDate: yesterday,
+      purpose: 'Pengerjaan Part Machining Dies Cavity Plat 4-Cavity',
       status: 'TERLAMBAT',
-      purpose: 'Pengerjaan Cavity Mould Plate 4-Cavity Part Otomotif',
-      notes: 'Peminjaman untuk Shift 1 & 2. Melewati batas waktu pengembalian.',
       items: {
         create: [
           {
             itemType: 'TOOL',
-            toolId: tools[0].id, // TOL-001 (Endmill Carbide D10)
-            quantity: 2,
-            returnedQuantity: 0,
+            tool: { connect: { id: sampleTools[0].id } },
+            quantity: 1,
             status: 'DIPINJAM',
           },
           {
             itemType: 'INVENTORY',
-            inventoryId: inventories[0].id, // INV-001 (Digital Caliper Mitutoyo)
+            inventory: { connect: { id: sampleInvs[0].id } },
             quantity: 1,
-            returnedQuantity: 0,
             status: 'DIPINJAM',
           },
         ],
@@ -448,27 +277,22 @@ async function main() {
     },
   });
 
-  // Transaksi 2: MENDEKATI JATUH TEMPO (Jatuh tempo 3 jam ke depan)
-  const todayMorning = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-  const todayDueSoon = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-
-  const loanDueSoon = await prisma.loanTransaction.create({
+  // Loan 2: Due Today
+  const loan2 = await prisma.loanTransaction.create({
     data: {
       transactionNumber: 'LOAN-202610-0002',
-      employeeId: employees[1].id, // Dian Pratama
-      adminId: admin.id,
-      loanDate: todayMorning,
-      expectedReturnDate: todayDueSoon,
-      status: 'MENDEKATI_JATUH_TEMPO',
-      purpose: 'Setup Clamping Visi Mesin Milling Makino V33i',
-      notes: 'Wajib kembali sebelum oper shift sore pukul 16:30 WIB.',
+      employee: { connect: { id: employees[1].id } },
+      admin: { connect: { id: admin.id } },
+      loanDate: yesterday,
+      expectedReturnDate: in2Hours,
+      purpose: 'Setup Clamping Visi Mesin Makino V33i',
+      status: 'DIPINJAM',
       items: {
         create: [
           {
             itemType: 'TOOL',
-            toolId: tools[4].id, // TOL-005 (Collet Chuck BT40)
-            quantity: 2,
-            returnedQuantity: 0,
+            tool: { connect: { id: sampleTools[1].id } },
+            quantity: 1,
             status: 'DIPINJAM',
           },
         ],
@@ -476,40 +300,22 @@ async function main() {
     },
   });
 
-  // Transaksi 3: AKTIF NORMAL (Jatuh tempo 2 hari ke depan)
-  const future2Days = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-
-  const loanActive = await prisma.loanTransaction.create({
+  // Loan 3: Ongoing
+  const loan3 = await prisma.loanTransaction.create({
     data: {
       transactionNumber: 'LOAN-202610-0003',
-      employeeId: employees[3].id, // Rizky Ramadhan
-      adminId: admin.id,
+      employee: { connect: { id: employees[3].id } },
+      admin: { connect: { id: admin.id } },
       loanDate: now,
-      expectedReturnDate: future2Days,
+      expectedReturnDate: in3Days,
+      purpose: 'Overhaul Spindle & Pemeliharaan Pompa Hidrolik',
       status: 'DIPINJAM',
-      purpose: 'Overhaul Spindle & Penggantian Bearing Pompa Hidrolik',
-      notes: 'Pekerjaan preventive maintenance berkala.',
       items: {
         create: [
           {
             itemType: 'TOOL',
-            toolId: tools[6].id, // TOL-007 (Torque Wrench)
-            quantity: 2,
-            returnedQuantity: 0,
-            status: 'DIPINJAM',
-          },
-          {
-            itemType: 'INVENTORY',
-            inventoryId: inventories[2].id, // INV-003 (Pneumatic Die Grinder)
+            tool: { connect: { id: sampleTools[2].id } },
             quantity: 1,
-            returnedQuantity: 0,
-            status: 'DIPINJAM',
-          },
-          {
-            itemType: 'INVENTORY',
-            inventoryId: inventories[4].id, // INV-005 (Safety Helmet)
-            quantity: 5,
-            returnedQuantity: 0,
             status: 'DIPINJAM',
           },
         ],
@@ -517,107 +323,58 @@ async function main() {
     },
   });
 
-  // Transaksi 4: SELESAI (Sudah dikembalikan)
-  const past5Days = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-  const past2Days = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+  // Adjust stock for loaned items
+  if (sampleTools[0]) {
+    await prisma.tool.update({
+      where: { id: sampleTools[0].id },
+      data: { availableStock: { decrement: 1 }, borrowedStock: { increment: 1 } },
+    });
+  }
+  if (sampleInvs[0]) {
+    await prisma.inventory.update({
+      where: { id: sampleInvs[0].id },
+      data: { availableStock: { decrement: 1 }, borrowedStock: { increment: 1 } },
+    });
+  }
+  if (sampleTools[1]) {
+    await prisma.tool.update({
+      where: { id: sampleTools[1].id },
+      data: { availableStock: { decrement: 1 }, borrowedStock: { increment: 1 } },
+    });
+  }
+  if (sampleTools[2]) {
+    await prisma.tool.update({
+      where: { id: sampleTools[2].id },
+      data: { availableStock: { decrement: 1 }, borrowedStock: { increment: 1 } },
+    });
+  }
 
-  const loanFinished = await prisma.loanTransaction.create({
-    data: {
-      transactionNumber: 'LOAN-202610-0004',
-      employeeId: employees[2].id, // Eko Wahyudi
-      adminId: admin.id,
-      loanDate: past5Days,
-      expectedReturnDate: past2Days,
-      actualReturnDate: past2Days,
-      status: 'SELESAI',
-      purpose: 'Inspeksi Dimensi Final Part Aluminium Aerospace Bracket',
-      notes: 'Semua barang dikembalikan dalam kondisi bersih dan terkalibrasi.',
-      items: {
-        create: [
-          {
-            itemType: 'TOOL',
-            toolId: tools[2].id, // TOL-003 (Micrometer Digital)
-            quantity: 1,
-            returnedQuantity: 1,
-            status: 'SELESAI',
-          },
-        ],
-      },
-    },
-  });
-
-  // Catat riwayat pengembalian untuk Transaksi 4
-  await prisma.returnTransaction.create({
-    data: {
-      returnNumber: 'RET-202610-0001',
-      loanTransactionId: loanFinished.id,
-      adminId: admin.id,
-      returnDate: past2Days,
-      condition: 'BAIK',
-      quantity: 1,
-      notes: 'Pemeriksaan fisik lulus QC, baterai mikrometer normal.',
-    },
-  });
-
-  // 8. Notifications
+  // 7. Notifications
   await prisma.notification.createMany({
     data: [
       {
-        title: 'Transaksi Terlambat: LOAN-202610-0001',
-        message: 'Budi Santoso (Machining CNC) belum mengembalikan 2 unit Endmill D10 & 1 Caliper Digital. Jatuh tempo kemarin.',
+        title: `Transaksi Terlambat: ${loan1.transactionNumber}`,
+        message: `${employees[0].name} (${employees[0].department}) belum mengembalikan perkakas jatuh tempo kemarin.`,
         type: 'OVERDUE',
         isRead: false,
         link: '/monitoring',
       },
       {
-        title: 'Mendekati Jatuh Tempo: LOAN-202610-0002',
-        message: 'Dian Pratama (Mould Making) meminjam 2 unit Collet BT40, batas waktu hari ini pukul 16:30.',
+        title: `Mendekati Tenggat Waktu: ${loan2.transactionNumber}`,
+        message: `${employees[1].name} (${employees[1].department}) memiliki pinjaman aktif jatuh tempo hari ini.`,
         type: 'WARNING',
         isRead: false,
         link: '/monitoring',
       },
-      {
-        title: 'Pemeliharaan Aset: INV-006',
-        message: 'Infrared Thermometer Fluke 62 Max+ dijadwalkan kalibrasi tahunan.',
-        type: 'INFO',
-        isRead: true,
-        link: '/master-inventory',
-      },
     ],
   });
 
-  // 9. Audit Logs
-  await prisma.auditLog.createMany({
-    data: [
-      {
-        action: 'SYSTEM_INITIALIZATION',
-        adminName: 'Agung Setiawan',
-        details: 'Database seeding & inisialisasi master data perkakas dan inventaris PT YPTI.',
-      },
-      {
-        action: 'TRANSAKSI_PEMINJAMAN',
-        adminName: 'Agung Setiawan',
-        details: 'Mencatat peminjaman LOAN-202610-0001 untuk Budi Santoso (NIK: EMP-0101).',
-      },
-      {
-        action: 'TRANSAKSI_PEMINJAMAN',
-        adminName: 'Agung Setiawan',
-        details: 'Mencatat peminjaman LOAN-202610-0002 untuk Dian Pratama (NIK: EMP-0102).',
-      },
-      {
-        action: 'TRANSAKSI_PENGEMBALIAN',
-        adminName: 'Agung Setiawan',
-        details: 'Verifikasi pengembalian RET-202610-0001 untuk transaksi LOAN-202610-0004.',
-      },
-    ],
-  });
-
-  console.log('Seeding completed successfully!');
+  console.log('Real data seeding completed successfully!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Error during seeding:', e);
     process.exit(1);
   })
   .finally(async () => {

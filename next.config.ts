@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   devIndicators: false,
+  allowedDevOrigins: [
+    '*.trycloudflare.com',
+    'activists-periodic-peninsula-diet.trycloudflare.com',
+    '*.loca.lt',
+    'sinergi-presisi.loca.lt',
+    'localhost:3000',
+    '127.0.0.1:3000',
+  ],
   turbopack: {
     rules: {
       "*.css": {

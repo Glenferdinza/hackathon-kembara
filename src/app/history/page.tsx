@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
+import { Pagination } from '@/components/ui/Pagination';
 
 type ReportTab = 'riwayat' | 'pemakaian' | 'keterlambatan' | 'umur_pakai';
 
@@ -15,6 +16,7 @@ export default function HistoryPage() {
   // Tab 1: Riwayat Transaksi
   const [transactions, setTransactions] = useState<any[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
   const [totalPages, setTotalPages] = useState(1);
   const [totalTransactions, setTotalTransactions] = useState(0);
 
@@ -35,7 +37,7 @@ export default function HistoryPage() {
     setLoading(true);
     try {
       if (activeTab === 'riwayat') {
-        const res = await fetch(`/api/history?tab=transactions&search=${encodeURIComponent(search)}&page=${page}&limit=15`);
+        const res = await fetch(`/api/history?tab=transactions&search=${encodeURIComponent(search)}&page=${page}&limit=${pageSize}`);
         if (res.ok) {
           const json = await res.json();
           setTransactions(json.data || []);
@@ -66,7 +68,7 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, search, page, showToast]);
+  }, [activeTab, search, page, pageSize, showToast]);
 
   useEffect(() => {
     fetchData();
@@ -281,30 +283,20 @@ export default function HistoryPage() {
               </table>
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
-                <span className="text-slate-500">
-                  Halaman {page} dari {totalPages}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                    className="px-2.5 py-1 border border-slate-300 rounded disabled:opacity-40 hover:bg-slate-50"
-                  >
-                    Sebelumnya
-                  </button>
-                  <button
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-2.5 py-1 border border-slate-300 rounded disabled:opacity-40 hover:bg-slate-50"
-                  >
-                    Berikutnya
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Reusable Enterprise Pagination */}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalTransactions}
+              pageSize={pageSize}
+              onPageChange={(p) => setPage(p)}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 15, 25, 50]}
+              itemName="transaksi"
+            />
           </div>
         )}
 

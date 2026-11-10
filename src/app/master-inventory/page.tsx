@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { Pagination } from '@/components/ui/Pagination';
 
 interface Inventory {
   id: string;
@@ -27,6 +29,7 @@ interface Inventory {
 
 export default function MasterInventoryPage() {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -34,6 +37,7 @@ export default function MasterInventoryPage() {
   const [trackingFilter, setTrackingFilter] = useState('');
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -79,7 +83,7 @@ export default function MasterInventoryPage() {
         category: categoryFilter,
         trackingType: trackingFilter,
         page: String(page),
-        limit: '10',
+        limit: String(pageSize),
       });
       const res = await fetch(`/api/inventories?${query.toString()}`);
       if (res.ok) {
@@ -93,7 +97,7 @@ export default function MasterInventoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter, trackingFilter, page, showToast]);
+  }, [search, categoryFilter, trackingFilter, page, pageSize, showToast]);
 
   useEffect(() => {
     fetchInventories();
@@ -196,7 +200,14 @@ export default function MasterInventoryPage() {
   };
 
   const handleDeleteInventory = async (id: string, code: string) => {
-    if (!confirm(`Konfirmasi penonaktifan / penghapusan inventaris "${code}"?`)) return;
+    const ok = await confirm({
+      title: 'Konfirmasi Penonaktifan Inventaris',
+      message: `Konfirmasi penonaktifan / penghapusan master inventaris "${code}"? Data terkait unit ini tidak akan dapat dipinjamkan kembali.`,
+      confirmText: 'Nonaktifkan Inventaris',
+      cancelText: 'Batal',
+      type: 'danger',
+    });
+    if (!ok) return;
 
     setIsDeleting(id);
     try {
@@ -406,28 +417,20 @@ export default function MasterInventoryPage() {
           </table>
         </div>
 
-        {/* Pagination - Flat row */}
-        <div className="py-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
-          <span>
-            Hal. {page} / {totalPages}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-              className="px-2.5 py-1 rounded bg-white border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-medium transition-colors"
-            >
-              &lt; Sebelumnya
-            </button>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage(page + 1)}
-              className="px-2.5 py-1 rounded bg-white border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-medium transition-colors"
-            >
-              Berikutnya &gt;
-            </button>
-          </div>
-        </div>
+        {/* Reusable Enterprise Pagination */}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalCount}
+          pageSize={pageSize}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          pageSizeOptions={[10, 25, 50, 100]}
+          itemName="inventaris"
+        />
       </div>
 
       {/* Modal Add / Edit Inventaris - Clean Enterprise Precision Form */}

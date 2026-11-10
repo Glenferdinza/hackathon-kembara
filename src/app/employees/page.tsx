@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface Employee {
   id: string;
@@ -19,6 +20,7 @@ interface Employee {
 
 export default function EmployeesPage() {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -162,9 +164,14 @@ export default function EmployeesPage() {
 
   // Kartu Hilang / Rusak (Hal. 7 Flowchart: Blokir kartu lama, versi +1)
   const handleReplaceCard = async (emp: Employee) => {
-    if (!confirm(`Konfirmasi penerbitan kartu baru untuk ${emp.nik} (${emp.name})? Versi kartu saat ini (v${emp.cardVersion}) akan dibatalkan dan dinaikkan menjadi v${emp.cardVersion + 1}.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Konfirmasi Penerbitan Kartu Pengganti',
+      message: `Konfirmasi penerbitan kartu baru untuk ${emp.nik} (${emp.name})? Versi kartu saat ini (v${emp.cardVersion}) akan dibatalkan/diblokir dan dinaikkan menjadi v${emp.cardVersion + 1}.`,
+      confirmText: `Terbitkan Kartu v${emp.cardVersion + 1}`,
+      cancelText: 'Batal',
+      type: 'warning',
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch('/api/employees', {

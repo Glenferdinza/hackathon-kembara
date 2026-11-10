@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { Pagination } from '@/components/ui/Pagination';
 
 interface Tool {
   id: string;
@@ -24,12 +26,14 @@ interface Tool {
 
 export default function MasterToolPage() {
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [tools, setTools] = useState<Tool[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -72,7 +76,7 @@ export default function MasterToolPage() {
         search,
         category: categoryFilter,
         page: String(page),
-        limit: '10',
+        limit: String(pageSize),
       });
       const res = await fetch(`/api/tools?${query.toString()}`);
       if (res.ok) {
@@ -86,7 +90,7 @@ export default function MasterToolPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, categoryFilter, page, showToast]);
+  }, [search, categoryFilter, page, pageSize, showToast]);
 
   useEffect(() => {
     fetchTools();
@@ -180,7 +184,14 @@ export default function MasterToolPage() {
   };
 
   const handleDeleteTool = async (toolId: string, toolCode: string) => {
-    if (!confirm(`Konfirmasi penonaktifan / penghapusan tool "${toolCode}"?`)) return;
+    const ok = await confirm({
+      title: 'Konfirmasi Penonaktifan Tool',
+      message: `Konfirmasi penonaktifan / penghapusan master tool "${toolCode}"? Data terkait unit ini tidak akan dapat dipinjamkan kembali.`,
+      confirmText: 'Nonaktifkan Tool',
+      cancelText: 'Batal',
+      type: 'danger',
+    });
+    if (!ok) return;
 
     setIsDeleting(toolId);
     try {
@@ -383,28 +394,20 @@ export default function MasterToolPage() {
           </table>
         </div>
 
-          {/* Pagination - Flat row */}
-          <div className="py-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
-            <span>
-              Hal. {page} / {totalPages}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-                className="px-2.5 py-1 rounded bg-white border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-medium transition-colors"
-              >
-                &lt; Sebelumnya
-              </button>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage(page + 1)}
-                className="px-2.5 py-1 rounded bg-white border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 font-medium transition-colors"
-              >
-                Berikutnya &gt;
-              </button>
-            </div>
-          </div>
+          {/* Reusable Enterprise Pagination */}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={pageSize}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            pageSizeOptions={[10, 25, 50, 100]}
+            itemName="perkakas / tools"
+          />
       </div>
 
       {/* Modal Add / Edit Master Tool - Clean Enterprise Precision Form */}

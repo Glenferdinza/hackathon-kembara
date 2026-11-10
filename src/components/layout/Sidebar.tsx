@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface SidebarProps {
   overdueCount?: number;
@@ -17,8 +18,18 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { confirm } = useConfirm();
 
   const handleLogout = async () => {
+    const ok = await confirm({
+      title: 'Konfirmasi Keluar dari Sistem',
+      message: 'Apakah Anda yakin ingin keluar dari sesi aplikasi Tool Room PT. YPTI?',
+      confirmText: 'Keluar Sekarang',
+      cancelText: 'Tetap di Sini',
+      type: 'warning',
+    });
+    if (!ok) return;
+
     try {
       await fetch('/api/auth', { method: 'DELETE' });
       router.push('/login');
@@ -74,9 +85,14 @@ export function Sidebar({
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-transform duration-200 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col ${
+          isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
+        style={{
+          transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'transform',
+        }}
       >
         {/* Brand Header with Clean Official PT. YPTI Logo */}
         <div className="h-16 px-6 flex items-center border-b border-[#E2E8F0] bg-white">

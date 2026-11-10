@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, Roboto } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ConfirmDialogProvider } from "@/components/ui/ConfirmDialog";
 
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -30,7 +31,9 @@ export default function RootLayout({
   return (
     <html lang="id" className={`${ibmPlexSans.variable} ${roboto.variable} h-full antialiased`}>
       <body className="min-h-full bg-[#F8FAFC] text-slate-800 flex flex-col font-sans">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+        </ToastProvider>
       </body>
     </html>
   );

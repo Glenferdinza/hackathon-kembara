@@ -42,9 +42,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area: expands smoothly to 100% width when sidebar is collapsed */}
       <div
-        className={`flex flex-col flex-1 min-w-0 transition-[padding] duration-200 ease-in-out ${
+        className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ease-in-out ${
           sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
         }`}
+        style={{
+          transition: 'padding-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
         <Header onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
         <main className="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">

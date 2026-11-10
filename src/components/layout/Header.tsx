@@ -86,13 +86,14 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       {/* Left: Clean Hamburger Icon Toggle Button & breadcrumbs */}
       <div className="flex items-center gap-3">
         <button
+          id="sidebar-toggle-btn"
           onClick={onToggleSidebar}
-          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 flex items-center justify-center shrink-0"
+          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
           aria-label="Toggle navigasi sidebar"
           title="Buka / Tutup Sidebar"
         >
           {/* Authentic 3-line hamburger icon */}
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>

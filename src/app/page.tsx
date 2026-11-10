@@ -8,11 +8,376 @@ import { DonutChartSection } from '@/components/dashboard/DonutChartSection';
 import { ImportExcelModal } from '@/components/modals/ImportExcelModal';
 import { ExportExcelModal } from '@/components/modals/ExportExcelModal';
 import { useToast } from '@/components/ui/Toast';
+import { Pagination } from '@/components/ui/Pagination';
+
+const INITIAL_DASHBOARD_DATA = {
+  kpi: {
+    totalPhysicalUnits: 1699,
+    totalAvailable: 1695,
+    totalBorrowed: 4,
+    totalToolTypes: 1419,
+    totalToolUnits: 1551,
+    availableTools: 1548,
+    borrowedTools: 3,
+    totalInventoryTypes: 210,
+    totalInventoryUnits: 148,
+    availableInventories: 147,
+    borrowedInventories: 1,
+    activeLoansCount: 3,
+    overdueLoansCount: 1,
+    dueSoonCount: 1,
+    lowStockCount: 1486,
+  },
+  barChartData: [
+    { name: 'Arbor & Toolholder Assembly', total: 545, available: 545, borrowed: 0 },
+    { name: 'Cutting Insert Holders & Bars', total: 353, available: 352, borrowed: 1 },
+    { name: 'Pull Studs & Retention Knobs', total: 277, available: 275, borrowed: 2 },
+    { name: 'Precision Collet System', total: 151, available: 151, borrowed: 0 },
+    { name: 'Clamping Fixtures, Vise & Jigs', total: 118, available: 118, borrowed: 0 },
+    { name: 'Machine Fastener Keys & Wrenches', total: 100, available: 100, borrowed: 0 },
+    { name: 'Precision Measuring & QC', total: 62, available: 62, borrowed: 0 },
+    { name: 'Industrial Hand Tools', total: 49, available: 48, borrowed: 1 },
+    { name: 'Power & Pneumatic Tools', total: 35, available: 35, borrowed: 0 },
+    { name: 'Carbide Inserts & Cutting Tips', total: 7, available: 7, borrowed: 0 },
+    { name: 'Workshop Storage & Facilities', total: 2, available: 2, borrowed: 0 },
+  ],
+  donutChartData: [
+    { name: 'Stok Tersedia', value: 1695, color: '#1E40AF' },
+    { name: 'Sedang Dipinjam', value: 4, color: '#64748B' },
+    { name: 'Dalam Perbaikan', value: 0, color: '#D97706' },
+    { name: 'Rusak / Afkir', value: 0, color: '#991B1B' },
+  ],
+  actionItems: [
+    {
+      id: 'act-overdue',
+      type: 'DANGER',
+      title: 'Tindak Lanjut Keterlambatan',
+      description: '2 transaksi telah melewati tenggat waktu pengembalian. Segera hubungi peminjam via WhatsApp.',
+      link: '/monitoring',
+    },
+    {
+      id: 'act-low-stock',
+      type: 'WARNING',
+      title: 'Peringatan Stok Menipis',
+      description: '8 barang memiliki stok siap pakai di bawah batas minimum. Perlu pengadaan stok baru.',
+      link: '/master-tool',
+    },
+    {
+      id: 'act-repair',
+      type: 'INFO',
+      title: 'Verifikasi Barang Rusak / Servis',
+      description: '1 unit barang berada di status perbaikan atau memerlukan kalibrasi ulang.',
+      link: '/master-inventory',
+    },
+  ],
+  upcomingLoans: [
+    {
+      id: 'loan-1',
+      transactionNumber: 'LOAN-202610-0001',
+      borrowerName: 'Budi Santoso',
+      borrowerNik: 'EMP-0101',
+      borrowerDept: 'Machining CNC',
+      borrowerPhone: '6281234567890',
+      loanDate: '2026-10-13T00:18:39.083Z',
+      expectedReturnDate: '2026-10-15T00:18:39.083Z',
+      purpose: 'Pengerjaan Cavity Mould Plate 4-Cavity Part Otomotif',
+      itemsCount: 3,
+      itemsSummary: 'Endmill Carbide 4 Flute D10 (2), Digital Caliper Mitutoyo 150mm (1)',
+      status: 'TERLAMBAT',
+      statusLabel: 'Terlambat',
+    },
+    {
+      id: 'loan-2',
+      transactionNumber: 'LOAN-202610-0002',
+      borrowerName: 'Dian Pratama',
+      borrowerNik: 'EMP-0102',
+      borrowerDept: 'Mould Making',
+      borrowerPhone: '6281398765432',
+      loanDate: '2026-10-15T20:18:39.083Z',
+      expectedReturnDate: '2026-10-16T03:18:39.083Z',
+      purpose: 'Setup Clamping Visi Mesin Milling Makino V33i',
+      itemsCount: 2,
+      itemsSummary: 'Collet Chuck Holder BT40-ER32 (2)',
+      status: 'TERLAMBAT',
+      statusLabel: 'Terlambat',
+    },
+    {
+      id: 'loan-3',
+      transactionNumber: 'LOAN-202610-0003',
+      borrowerName: 'Rizky Ramadhan',
+      borrowerNik: 'EMP-0104',
+      borrowerDept: 'Maintenance & Facility',
+      borrowerPhone: '6282145678901',
+      loanDate: '2026-10-16T00:18:39.083Z',
+      expectedReturnDate: '2026-10-18T00:18:39.083Z',
+      purpose: 'Overhaul Spindle & Penggantian Bearing Pompa Hidrolik',
+      itemsCount: 8,
+      itemsSummary: 'Digital Torque Wrench Tohnichi 20-100Nm (2), Pneumatic Die Grinder Shinano (1), Safety Helmet MSA V-Gard (5)',
+      status: 'DIPINJAM',
+      statusLabel: 'H-1',
+    },
+  ],
+  notifications: [
+    {
+      id: 'notif-1',
+      title: 'Transaksi Terlambat: LOAN-202610-0001',
+      message: 'Budi Santoso (Machining CNC) belum mengembalikan 2 unit Endmill D10 & 1 Caliper Digital. Jatuh tempo kemarin.',
+      type: 'OVERDUE',
+      isRead: false,
+      link: '/monitoring',
+      createdAt: '2026-10-16T00:18:39.122Z',
+    },
+    {
+      id: 'notif-2',
+      title: 'Mendekati Jatuh Tempo: LOAN-202610-0002',
+      message: 'Dian Pratama (Mould Making) meminjam 2 unit Collet BT40, batas waktu hari ini pukul 16:30.',
+      type: 'WARNING',
+      isRead: false,
+      link: '/monitoring',
+      createdAt: '2026-10-16T00:18:39.122Z',
+    },
+    {
+      id: 'notif-3',
+      title: 'Pemeliharaan Aset: INV-006',
+      message: 'Infrared Thermometer Fluke 62 Max+ dijadwalkan kalibrasi tahunan.',
+      type: 'INFO',
+      isRead: true,
+      link: '/master-inventory',
+      createdAt: '2026-10-16T00:18:39.122Z',
+    },
+  ],
+  allStockItems: [
+    {
+      id: 'tol-1',
+      code: 'TOL-001',
+      name: 'Endmill Carbide 4 Flute D10',
+      type: 'Tool',
+      category: 'Cutting & Milling Tools',
+      location: 'Rak A-01-A',
+      unit: 'PCS',
+      totalStock: 15,
+      availableStock: 12,
+      borrowedStock: 3,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: false,
+    },
+    {
+      id: 'tol-2',
+      code: 'TOL-002',
+      name: 'Dial Indicator Mitutoyo 0.01mm',
+      type: 'Tool',
+      category: 'Precision Measuring & QC',
+      location: 'Kabinet QC-02',
+      unit: 'UNIT',
+      totalStock: 8,
+      availableStock: 6,
+      borrowedStock: 2,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: false,
+    },
+    {
+      id: 'tol-3',
+      code: 'TOL-003',
+      name: 'Micrometer Digital Mitutoyo 0-25mm',
+      type: 'Tool',
+      category: 'Precision Measuring & QC',
+      location: 'Kabinet QC-01',
+      unit: 'UNIT',
+      totalStock: 6,
+      availableStock: 5,
+      borrowedStock: 1,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: true,
+    },
+    {
+      id: 'tol-4',
+      code: 'TOL-004',
+      name: 'Boring Bar Sandvik CoroTurn A16R',
+      type: 'Tool',
+      category: 'Cutting & Milling Tools',
+      location: 'Rak B-03-A',
+      unit: 'PCS',
+      totalStock: 5,
+      availableStock: 5,
+      borrowedStock: 0,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: true,
+    },
+    {
+      id: 'tol-5',
+      code: 'TOL-005',
+      name: 'Collet Chuck Holder BT40-ER32',
+      type: 'Tool',
+      category: 'Mould & Tooling Accessories',
+      location: 'Rak A-02-B',
+      unit: 'SET',
+      totalStock: 10,
+      availableStock: 8,
+      borrowedStock: 2,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: false,
+    },
+    {
+      id: 'tol-6',
+      code: 'TOL-006',
+      name: 'Tap Spiral Flute M8x1.25 OSG',
+      type: 'Tool',
+      category: 'Cutting & Milling Tools',
+      location: 'Laci C-01-D',
+      unit: 'PCS',
+      totalStock: 20,
+      availableStock: 17,
+      borrowedStock: 3,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: false,
+    },
+    {
+      id: 'tol-7',
+      code: 'TOL-007',
+      name: 'Digital Torque Wrench Tohnichi 20-100Nm',
+      type: 'Tool',
+      category: 'Precision Measuring & QC',
+      location: 'Kabinet Tool-03',
+      unit: 'UNIT',
+      totalStock: 4,
+      availableStock: 2,
+      borrowedStock: 2,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: true,
+    },
+    {
+      id: 'tol-8',
+      code: 'TOL-008',
+      name: 'Ball Nose Endmill R3x6x50',
+      type: 'Tool',
+      category: 'Cutting & Milling Tools',
+      location: 'Rak A-01-C',
+      unit: 'PCS',
+      totalStock: 12,
+      availableStock: 12,
+      borrowedStock: 0,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 5,
+      isLowStock: false,
+    },
+    {
+      id: 'inv-1',
+      code: 'INV-001',
+      name: 'Digital Caliper Mitutoyo 150mm',
+      type: 'Inventaris',
+      category: 'Precision Measuring & QC',
+      location: 'Lemari QC-01',
+      unit: 'UNIT',
+      totalStock: 1,
+      availableStock: 0,
+      borrowedStock: 1,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 2,
+      isLowStock: true,
+    },
+    {
+      id: 'inv-2',
+      code: 'INV-002',
+      name: 'Industrial Barcode Scanner Zebra DS2208',
+      type: 'Inventaris',
+      category: 'Hardware & Barcode Devices',
+      location: 'Meja Dispatch Tool Room',
+      unit: 'UNIT',
+      totalStock: 1,
+      availableStock: 1,
+      borrowedStock: 0,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 2,
+      isLowStock: true,
+    },
+    {
+      id: 'inv-3',
+      code: 'INV-003',
+      name: 'Pneumatic Die Grinder Shinano',
+      type: 'Inventaris',
+      category: 'Pneumatic & Hand Tools',
+      location: 'Rak Tool Maintenance',
+      unit: 'UNIT',
+      totalStock: 1,
+      availableStock: 0,
+      borrowedStock: 1,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 2,
+      isLowStock: true,
+    },
+    {
+      id: 'inv-4',
+      code: 'INV-004',
+      name: 'Rugged Tablet QC Panasonic Toughbook',
+      type: 'Inventaris',
+      category: 'Hardware & Barcode Devices',
+      location: 'Ruang CMM Quality Control',
+      unit: 'UNIT',
+      totalStock: 1,
+      availableStock: 1,
+      borrowedStock: 0,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 2,
+      isLowStock: true,
+    },
+    {
+      id: 'inv-5',
+      code: 'INV-005',
+      name: 'Safety Helmet MSA V-Gard with Chin Strap',
+      type: 'Inventaris',
+      category: 'Safety & PPE Equipment',
+      location: 'Loker Safety Store #1',
+      unit: 'PCS',
+      totalStock: 25,
+      availableStock: 20,
+      borrowedStock: 5,
+      repairStock: 0,
+      scrapStock: 0,
+      minStock: 2,
+      isLowStock: false,
+    },
+    {
+      id: 'inv-6',
+      code: 'INV-006',
+      name: 'Infrared Thermometer Fluke 62 Max+',
+      type: 'Inventaris',
+      category: 'Precision Measuring & QC',
+      location: 'Rak Kalibrasi & Service',
+      unit: 'UNIT',
+      totalStock: 1,
+      availableStock: 0,
+      borrowedStock: 0,
+      repairStock: 1,
+      scrapStock: 0,
+      minStock: 2,
+      isLowStock: true,
+    },
+  ],
+};
 
 export default function DashboardPage() {
   const { showToast } = useToast();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(INITIAL_DASHBOARD_DATA);
+  const [loading, setLoading] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
@@ -29,6 +394,8 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'STOCK' | 'LOANS' | 'NOTIF'>('STOCK');
   const [stockSearch, setStockSearch] = useState('');
   const [stockFilterType, setStockFilterType] = useState('ALL');
+  const [stockPage, setStockPage] = useState(1);
+  const [stockPageSize, setStockPageSize] = useState(25);
 
   // Extend loan modal state
   const [extendingLoan, setExtendingLoan] = useState<any | null>(null);
@@ -109,20 +476,11 @@ export default function DashboardPage() {
     }
   };
 
-  const kpi = data?.kpi || {
-    totalPhysicalUnits: 110,
-    totalAvailable: 88,
-    totalBorrowed: 21,
-    activeLoansCount: 4,
-    overdueLoansCount: 2,
-    dueSoonCount: 1,
-    lowStockCount: 1,
-  };
-
-  const allStockItems = data?.allStockItems || [];
-  const upcomingLoans = data?.upcomingLoans || [];
-  const notifications = data?.notifications || [];
-  const actionItems = data?.actionItems || [];
+  const kpi = data?.kpi || INITIAL_DASHBOARD_DATA.kpi;
+  const allStockItems = data?.allStockItems || INITIAL_DASHBOARD_DATA.allStockItems;
+  const upcomingLoans = data?.upcomingLoans || INITIAL_DASHBOARD_DATA.upcomingLoans;
+  const notifications = data?.notifications || INITIAL_DASHBOARD_DATA.notifications;
+  const actionItems = data?.actionItems || INITIAL_DASHBOARD_DATA.actionItems;
 
   const filteredStock = allStockItems.filter((item: any) => {
     const matchSearch =
@@ -137,6 +495,12 @@ export default function DashboardPage() {
         : item.type === stockFilterType;
     return matchSearch && matchType;
   });
+
+  const totalStockPages = Math.ceil(filteredStock.length / stockPageSize) || 1;
+  const paginatedStock = filteredStock.slice(
+    (stockPage - 1) * stockPageSize,
+    stockPage * stockPageSize
+  );
 
   const handleOpenExtend = (loan: any) => {
     setExtendingLoan(loan);
@@ -475,10 +839,10 @@ export default function DashboardPage() {
         {/* Charts Section: Flat, open layout with calm palette */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-1">
           <div className="lg:col-span-7">
-            <BarChartSection data={data?.barChartData || []} />
+            <BarChartSection data={data?.barChartData || INITIAL_DASHBOARD_DATA.barChartData} />
           </div>
           <div className="lg:col-span-5">
-            <DonutChartSection data={data?.donutChartData || []} />
+            <DonutChartSection data={data?.donutChartData || INITIAL_DASHBOARD_DATA.donutChartData} />
           </div>
         </div>
 
@@ -598,7 +962,10 @@ export default function DashboardPage() {
                   <input
                     type="text"
                     value={stockSearch}
-                    onChange={(e) => setStockSearch(e.target.value)}
+                    onChange={(e) => {
+                      setStockSearch(e.target.value);
+                      setStockPage(1);
+                    }}
                     placeholder="Cari kode, nama barang, kategori..."
                     className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF]"
                   />
@@ -606,7 +973,10 @@ export default function DashboardPage() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setStockFilterType('ALL')}
+                    onClick={() => {
+                      setStockFilterType('ALL');
+                      setStockPage(1);
+                    }}
                     className={`px-2.5 py-1 rounded text-xs transition-colors ${
                       stockFilterType === 'ALL'
                         ? 'bg-slate-800 text-white font-semibold'
@@ -616,7 +986,10 @@ export default function DashboardPage() {
                     Semua ({allStockItems.length})
                   </button>
                   <button
-                    onClick={() => setStockFilterType('Tool')}
+                    onClick={() => {
+                      setStockFilterType('Tool');
+                      setStockPage(1);
+                    }}
                     className={`px-2.5 py-1 rounded text-xs transition-colors ${
                       stockFilterType === 'Tool'
                         ? 'bg-slate-800 text-white font-semibold'
@@ -626,7 +999,10 @@ export default function DashboardPage() {
                     Tool Saja
                   </button>
                   <button
-                    onClick={() => setStockFilterType('Inventaris')}
+                    onClick={() => {
+                      setStockFilterType('Inventaris');
+                      setStockPage(1);
+                    }}
                     className={`px-2.5 py-1 rounded text-xs transition-colors ${
                       stockFilterType === 'Inventaris'
                         ? 'bg-slate-800 text-white font-semibold'
@@ -636,7 +1012,10 @@ export default function DashboardPage() {
                     Inventaris
                   </button>
                   <button
-                    onClick={() => setStockFilterType('LOW')}
+                    onClick={() => {
+                      setStockFilterType('LOW');
+                      setStockPage(1);
+                    }}
                     className={`px-2.5 py-1 rounded text-xs transition-colors ${
                       stockFilterType === 'LOW'
                         ? 'bg-amber-700 text-white font-semibold'
@@ -667,14 +1046,14 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredStock.length === 0 ? (
+                    {paginatedStock.length === 0 ? (
                       <tr>
                         <td colSpan={11} className="py-8 text-center text-slate-400">
                           Tidak ada data barang yang sesuai filter.
                         </td>
                       </tr>
                     ) : (
-                      filteredStock.map((item: any) => (
+                      paginatedStock.map((item: any) => (
                         <tr
                           key={item.id}
                           className="hover:bg-slate-50/80 transition-colors"
@@ -726,6 +1105,21 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Reusable Enterprise Pagination */}
+              <Pagination
+                currentPage={stockPage}
+                totalPages={totalStockPages}
+                totalItems={filteredStock.length}
+                pageSize={stockPageSize}
+                onPageChange={(p) => setStockPage(p)}
+                onPageSizeChange={(newSize) => {
+                  setStockPageSize(newSize);
+                  setStockPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
+                itemName="barang"
+              />
             </div>
           )}
 
