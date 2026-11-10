@@ -96,8 +96,8 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     if (!session || !session.id) {
       return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
     }
-    if (session.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Akses ditolak. Hanya Super Admin yang diizinkan menghapus master inventaris.' }, { status: 403 });
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(session.role)) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi login tidak memiliki izin menghapus master inventaris.' }, { status: 403 });
     }
     const { id } = await context.params;
 

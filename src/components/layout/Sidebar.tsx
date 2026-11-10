@@ -55,7 +55,7 @@ export function Sidebar({
         {
           label: 'Beranda',
           href: '/',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
       ],
     },
@@ -65,17 +65,17 @@ export function Sidebar({
         {
           label: 'Data Tool',
           href: '/master-tool',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
         {
           label: 'Data Inventaris',
           href: '/master-inventory',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
         {
           label: 'Data Karyawan',
           href: '/employees',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
       ],
     },
@@ -85,12 +85,12 @@ export function Sidebar({
         {
           label: 'Peminjaman',
           href: '/loans',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
         {
           label: 'Pengembalian',
           href: '/returns',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
       ],
     },
@@ -102,12 +102,12 @@ export function Sidebar({
           href: '/monitoring',
           badge: overdueCount > 0 ? `${overdueCount}` : undefined,
           badgeColor: 'bg-slate-100 text-slate-800 border border-slate-200',
-          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
         {
           label: 'Riwayat & Laporan',
           href: '/history',
-          allowedRoles: ['SUPER_ADMIN', 'SUPERVISOR'],
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
         {
           label: 'Manajemen Akun',

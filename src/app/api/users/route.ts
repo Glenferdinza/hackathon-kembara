@@ -108,8 +108,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const validRoles = ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'];
-    const targetRole = validRoles.includes(role) ? role : 'OPERATOR';
+    const validRoles = ['SUPER_ADMIN', 'ADMIN'];
+    const targetRole = validRoles.includes(role) ? role : 'ADMIN';
     const targetStatus = status === 'NONAKTIF' ? 'NONAKTIF' : 'AKTIF';
 
     const salt = await bcrypt.genSalt(10);

@@ -90,8 +90,8 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Akses ditolak. Hanya Super Admin yang diizinkan menghapus master tool.' }, { status: 403 });
+    if (!session || !['SUPER_ADMIN', 'ADMIN'].includes(session.role)) {
+      return NextResponse.json({ error: 'Akses ditolak. Sesi login tidak memiliki izin menghapus master tool.' }, { status: 403 });
     }
     const { id } = await context.params;
 

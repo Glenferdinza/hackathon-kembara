@@ -39,19 +39,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           const user: ActiveUser = authJson.user;
           setCurrentUser(user);
 
-          // Proteksi rute berdasarkan Role
+          // Proteksi rute khusus Super Admin (Manajemen Akun Pengguna)
           if (pathname === '/users' && user.role !== 'SUPER_ADMIN') {
-            router.replace('/');
-            return;
-          }
-          if (
-            user.role === 'SUPERVISOR' &&
-            (pathname === '/loans' || pathname === '/returns' || pathname === '/employees')
-          ) {
-            router.replace('/');
-            return;
-          }
-          if (user.role === 'OPERATOR' && pathname === '/history') {
             router.replace('/');
             return;
           }

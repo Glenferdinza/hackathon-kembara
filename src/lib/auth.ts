@@ -8,17 +8,17 @@ export interface AdminSession {
   id: string;
   name: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'OPERATOR' | 'SUPERVISOR' | string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | string;
   department: string;
   status: string;
 }
 
 export async function ensureDefaultUsers() {
-  // Migrasi otomatis akun email lama ke ID angka murni (10001, 10002, 10003)
+  // Migrasi otomatis akun email lama ke ID angka murni (10001, 10002)
   const legacyMigrations = [
     { oldId: 'admin@ypti.co.id', newId: '10001' },
     { oldId: 'operator@ypti.co.id', newId: '10002' },
-    { oldId: 'supervisor@ypti.co.id', newId: '10003' },
+    { oldId: 'supervisor@ypti.co.id', newId: '10002' },
   ];
 
   for (const mig of legacyMigrations) {
@@ -36,6 +36,14 @@ export async function ensureDefaultUsers() {
     }
   }
 
+  // Migrasi role lama (OPERATOR, SUPERVISOR) menjadi ADMIN
+  await prisma.user
+    .updateMany({
+      where: { role: { in: ['OPERATOR', 'SUPERVISOR'] } },
+      data: { role: 'ADMIN' },
+    })
+    .catch(() => {});
+
   const count = await prisma.user.count();
   if (count === 0) {
     const salt = await bcrypt.genSalt(10);
@@ -47,52 +55,50 @@ export async function ensureDefaultUsers() {
           name: 'Agung Setiawan',
           passwordHash,
           role: 'SUPER_ADMIN',
-          department: 'Tool Room & Central Warehouse',
+          department: 'Pimpinan & Tool Room Head',
           status: 'AKTIF',
         },
         {
           email: '10002',
           name: 'Rizky Pratama',
           passwordHash,
-          role: 'OPERATOR',
-          department: 'Loket Dispatch Tool Room',
-          status: 'AKTIF',
-        },
-        {
-          email: '10003',
-          name: 'Hendra Wijaya',
-          passwordHash,
-          role: 'SUPERVISOR',
-          department: 'Production & Quality Control',
+          role: 'ADMIN',
+          department: 'Admin Tool Room & Gudang',
           status: 'AKTIF',
         },
       ],
     });
   } else {
-    const hasOperator = await prisma.user.findUnique({ where: { email: '10002' } });
-    if (!hasOperator) {
+    // Pastikan akun 10001 adalah SUPER_ADMIN
+    await prisma.user
+      .update({
+        where: { email: '10001' },
+        data: { role: 'SUPER_ADMIN' },
+      })
+      .catch(() => {});
+
+    // Pastikan akun 10002 terdaftar sebagai ADMIN
+    const hasAdmin = await prisma.user.findUnique({ where: { email: '10002' } });
+    if (!hasAdmin) {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash('admin123', salt);
       await prisma.user
-        .createMany({
-          data: [
-            {
-              email: '10002',
-              name: 'Rizky Pratama',
-              passwordHash,
-              role: 'OPERATOR',
-              department: 'Loket Dispatch Tool Room',
-              status: 'AKTIF',
-            },
-            {
-              email: '10003',
-              name: 'Hendra Wijaya',
-              passwordHash,
-              role: 'SUPERVISOR',
-              department: 'Production & Quality Control',
-              status: 'AKTIF',
-            },
-          ],
+        .create({
+          data: {
+            email: '10002',
+            name: 'Rizky Pratama',
+            passwordHash,
+            role: 'ADMIN',
+            department: 'Admin Tool Room & Gudang',
+            status: 'AKTIF',
+          },
+        })
+        .catch(() => {});
+    } else if (hasAdmin.role !== 'ADMIN' && hasAdmin.role !== 'SUPER_ADMIN') {
+      await prisma.user
+        .update({
+          where: { id: hasAdmin.id },
+          data: { role: 'ADMIN' },
         })
         .catch(() => {});
     }

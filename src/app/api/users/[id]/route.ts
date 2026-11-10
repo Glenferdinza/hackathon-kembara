@@ -63,7 +63,7 @@ export async function PUT(
       }
     }
     if (department !== undefined) updateData.department = String(department).trim();
-    if (role && ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'].includes(role)) {
+    if (role && ['SUPER_ADMIN', 'ADMIN'].includes(role)) {
       updateData.role = role;
     }
     if (status && ['AKTIF', 'NONAKTIF'].includes(status)) {

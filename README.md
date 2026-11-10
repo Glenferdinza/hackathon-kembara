@@ -31,20 +31,15 @@ Jika ingin menjalankan server dengan jendela terminal terbuka dan membukanya di 
 
 Gunakan ID pengguna angka dan kata sandi bawaan berikut untuk masuk ke sistem.
 
-### Akun Super Admin (Akses Penuh Seluruh Menu)
+### Akun Super Admin (Pimpinan / Boss)
 - ID Pengguna angka 10001
 - Kata Sandi admin123
-- Mengelola seluruh master data, transaksi, audit log, dan manajemen akun pengguna
+- Hak akses penuh mencakup seluruh master data, transaksi, audit log, serta memberi hak akses dan mengelola akun pengguna
 
-### Akun Operator Loket (Operasional Transaksi Harian)
+### Akun Admin (Operasional & Master Data)
 - ID Pengguna angka 10002
 - Kata Sandi admin123
-- Melayani loket peminjaman cepat barcode, pengembalian fisik, monitoring, dan data anggota
-
-### Akun Supervisor (Pemantauan dan Audit)
-- ID Pengguna angka 10003
-- Kata Sandi admin123
-- Memantau grafik analitik ketersediaan stok dan mengunduh laporan riwayat transaksi Excel
+- Mengelola operasional peminjaman cepat barcode, pengembalian fisik, monitoring keterlambatan, data karyawan, serta master tool dan inventaris (tanpa hak akses manajemen pengguna)
 
 ---
 

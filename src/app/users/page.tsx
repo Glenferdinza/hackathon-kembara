@@ -12,7 +12,7 @@ interface UserAccount {
   id: string;
   name: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'OPERATOR' | 'SUPERVISOR' | string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | string;
   department: string;
   status: 'AKTIF' | 'NONAKTIF' | string;
   createdAt: string;
@@ -36,7 +36,7 @@ export default function UsersAccessPage() {
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formDepartment, setFormDepartment] = useState('Tool Room & Central Warehouse');
-  const [formRole, setFormRole] = useState<'SUPER_ADMIN' | 'OPERATOR' | 'SUPERVISOR'>('OPERATOR');
+  const [formRole, setFormRole] = useState<'SUPER_ADMIN' | 'ADMIN'>('ADMIN');
   const [formStatus, setFormStatus] = useState<'AKTIF' | 'NONAKTIF'>('AKTIF');
   const [formPassword, setFormPassword] = useState('');
   const [showFormPassword, setShowFormPassword] = useState(false);
@@ -70,21 +70,17 @@ export default function UsersAccessPage() {
   }, [fetchUsers]);
 
   const getRoleLabel = (role: string) => {
-    if (role === 'SUPER_ADMIN') return 'Super Admin';
-    if (role === 'OPERATOR') return 'Operator Loket';
-    if (role === 'SUPERVISOR') return 'Supervisor / Viewer';
+    if (role === 'SUPER_ADMIN') return 'Super Admin (Pimpinan)';
+    if (role === 'ADMIN') return 'Admin (Operasional & Master)';
     return role;
   };
 
   const getRoleScopeSummary = (role: string) => {
     if (role === 'SUPER_ADMIN') {
-      return 'Akses penuh seluruh menu, master data, transaksi, audit log, dan kelola akun';
+      return 'Akses penuh seluruh sistem termasuk manajemen pengguna dan hak akses';
     }
-    if (role === 'OPERATOR') {
-      return 'Akses Beranda, Peminjaman, Pengembalian, Monitoring, Karyawan, dan Katalog';
-    }
-    if (role === 'SUPERVISOR') {
-      return 'Akses Beranda, Monitoring Keterlambatan, Riwayat Audit, dan Lihat Katalog';
+    if (role === 'ADMIN') {
+      return 'Mengelola operasional transaksi, monitoring, karyawan, serta master tool dan inventaris tanpa akses manajemen akun pengguna';
     }
     return 'Akses standar';
   };
@@ -94,7 +90,7 @@ export default function UsersAccessPage() {
     setFormName('');
     setFormEmail('');
     setFormDepartment('Loket Dispatch Tool Room');
-    setFormRole('OPERATOR');
+    setFormRole('ADMIN');
     setFormStatus('AKTIF');
     setFormPassword('');
     setShowFormPassword(false);
@@ -106,11 +102,7 @@ export default function UsersAccessPage() {
     setFormName(u.name);
     setFormEmail(u.email);
     setFormDepartment(u.department || 'Tool Room & Warehouse');
-    setFormRole(
-      (['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'].includes(u.role)
-        ? u.role
-        : 'OPERATOR') as 'SUPER_ADMIN' | 'OPERATOR' | 'SUPERVISOR'
-    );
+    setFormRole(u.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'ADMIN');
     setFormStatus((u.status === 'NONAKTIF' ? 'NONAKTIF' : 'AKTIF') as 'AKTIF' | 'NONAKTIF');
     setFormPassword('');
     setShowFormPassword(false);
@@ -221,33 +213,24 @@ export default function UsersAccessPage() {
           </div>
         </div>
 
-        {/* Ringkasan Cakupan 3 Role */}
-        <div className="grid grid-cols-1 md:grid-cols-3 bg-white border border-slate-200 rounded divide-y md:divide-y-0 md:divide-x divide-slate-200 text-xs">
+        {/* Ringkasan Cakupan 2 Role */}
+        <div className="grid grid-cols-1 md:grid-cols-2 bg-white border border-slate-200 rounded divide-y md:divide-y-0 md:divide-x divide-slate-200 text-xs">
           <div className="p-3.5 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 font-heading">Super Admin</span>
-              <span className="text-[11px] font-semibold text-[#1E40AF]">Akses Penuh</span>
+              <span className="font-bold text-slate-900 font-heading">Super Admin (Boss / Pimpinan)</span>
+              <span className="text-[11px] font-semibold text-[#1E40AF]">Akses Penuh &amp; Kelola Pengguna</span>
             </div>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              Mengelola seluruh Master Data, Transaksi Peminjaman &amp; Pengembalian, Laporan Audit, serta menambah atau menonaktifkan akun pengguna.
+              Memiliki wewenang tertinggi untuk mengelola seluruh master data, transaksi, audit log, serta menambah, memberi hak akses, dan menonaktifkan akun pengguna sistem.
             </p>
           </div>
           <div className="p-3.5 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 font-heading">Operator Loket</span>
-              <span className="text-[11px] font-semibold text-slate-700">Operasional Harian</span>
+              <span className="font-bold text-slate-900 font-heading">Admin (Operasional &amp; Master Data)</span>
+              <span className="text-[11px] font-semibold text-slate-700">Operasional Lengkap</span>
             </div>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              Mengoperasikan Loket Peminjaman, Pengembalian, Monitoring Keterlambatan, Data Karyawan, dan Katalog tanpa akses pengaturan akun.
-            </p>
-          </div>
-          <div className="p-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 font-heading">Supervisor / Viewer</span>
-              <span className="text-[11px] font-semibold text-slate-700">Pemantauan &amp; Audit</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Memantau Beranda Dashboard, Katalog Stok, Monitoring Keterlambatan, serta mengekspor Riwayat &amp; Audit Log tanpa akses loket transaksi.
+              Mengelola seluruh operasional peminjaman, pengembalian, monitoring keterlambatan, data karyawan, serta master tool dan inventaris tanpa wewenang mengelola akun pengguna.
             </p>
           </div>
         </div>
@@ -270,10 +253,9 @@ export default function UsersAccessPage() {
                 aria-label="Filter Role Akses"
                 className="bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
               >
-                <option value="">Semua Role Akses</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="OPERATOR">Operator Loket</option>
-                <option value="SUPERVISOR">Supervisor / Viewer</option>
+                <option value="">Semua Level Akses</option>
+                <option value="SUPER_ADMIN">Super Admin (Pimpinan)</option>
+                <option value="ADMIN">Admin (Operasional &amp; Master)</option>
               </select>
 
               <select
@@ -470,13 +452,12 @@ export default function UsersAccessPage() {
                   <select
                     value={formRole}
                     onChange={(e) =>
-                      setFormRole(e.target.value as 'SUPER_ADMIN' | 'OPERATOR' | 'SUPERVISOR')
+                      setFormRole(e.target.value as 'SUPER_ADMIN' | 'ADMIN')
                     }
                     className="w-full bg-white border border-slate-300 text-slate-800 font-semibold rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
                   >
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                    <option value="OPERATOR">Operator Loket</option>
-                    <option value="SUPERVISOR">Supervisor / Viewer</option>
+                    <option value="SUPER_ADMIN">Super Admin (Pimpinan)</option>
+                    <option value="ADMIN">Admin (Operasional &amp; Master)</option>
                   </select>
                 </div>
 

@@ -45,6 +45,24 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // 4. Pembatasan akses khusus Super Admin (Manajemen Akun Pengguna)
+  if (pathname.startsWith('/users') || pathname.startsWith('/api/users')) {
+    try {
+      const parsed = JSON.parse(sessionCookie);
+      if (parsed?.role !== 'SUPER_ADMIN') {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            { error: 'Akses ditolak. Hanya Super Admin yang berhak mengelola akun pengguna.' },
+            { status: 403 }
+          );
+        }
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

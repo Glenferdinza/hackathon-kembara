@@ -76,7 +76,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Ringkasan metrik operasional, grafik stok, dan antrean prioritas',
     keywords: 'beranda dashboard home grafik ringkasan utama stok',
     href: '/',
-    roles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-loans',
@@ -84,7 +84,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Formulir peminjaman cepat barcode scanner untuk tool dan inventaris',
     keywords: 'peminjaman pinjam loket dispatch barcode keranjang form baru',
     href: '/loans',
-    roles: ['SUPER_ADMIN', 'OPERATOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-returns',
@@ -92,7 +92,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Inspeksi fisik pengembalian barang kondisi baik, aus, atau rusak',
     keywords: 'pengembalian kembali return verifikasi inspeksi fisik selesai',
     href: '/returns',
-    roles: ['SUPER_ADMIN', 'OPERATOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-monitoring',
@@ -100,7 +100,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Pantau pinjaman lewat tenggat waktu dan kirim pengingat WhatsApp',
     keywords: 'monitoring keterlambatan terlambat overdue jatuh tempo whatsapp wa pengingat',
     href: '/monitoring',
-    roles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-tool',
@@ -108,7 +108,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Katalog perkakas mesin CNC, endmill, collet, boring bar, dan lokasi rak',
     keywords: 'master data tool perkakas mesin endmill arbor collet katalog alat',
     href: '/master-tool',
-    roles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-inventory',
@@ -116,7 +116,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Katalog aset pabrik, alat ukur digital, scanner, dan nomor seri',
     keywords: 'master data inventaris inventory aset barang elektronik caliper ukur serial',
     href: '/master-inventory',
-    roles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-employees',
@@ -124,7 +124,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Daftar NIK peminjam, departemen, shift kerja, dan cetak kartu ID',
     keywords: 'data anggota karyawan pekerja peminjam nik kartu id barcode',
     href: '/employees',
-    roles: ['SUPER_ADMIN', 'OPERATOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-history',
@@ -132,7 +132,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Log ketertelusuran transaksi, frekuensi pemakaian, dan servis regrind',
     keywords: 'riwayat histori laporan audit log servis regrind perawatan umur pakai',
     href: '/history',
-    roles: ['SUPER_ADMIN', 'SUPERVISOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-users',
@@ -148,7 +148,7 @@ const MENU_SUGGESTIONS = [
     subtitle: 'Dokumentasi tata cara penggunaan sistem Tool Room PT YPTI',
     keywords: 'panduan bantuan sop cara pakai manual aturan',
     href: '/help',
-    roles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+    roles: ['SUPER_ADMIN', 'ADMIN'],
   },
 ];
 
@@ -181,11 +181,9 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
   const effectiveRole = userRole || 'SUPER_ADMIN';
   const displayName = userName || 'Agung Setiawan';
   const displayRole =
-    effectiveRole === 'OPERATOR'
-      ? 'Operator Loket'
-      : effectiveRole === 'SUPERVISOR'
-      ? 'Supervisor / Viewer'
-      : 'Super Admin';
+    effectiveRole === 'SUPER_ADMIN'
+      ? 'Super Admin (Boss)'
+      : 'Admin';
   const initials = displayName
     .split(' ')
     .map((p) => p[0])
@@ -298,9 +296,8 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
       });
     }
 
-    // 4. Matching Employees (if role allows /employees)
-    if (effectiveRole !== 'SUPERVISOR') {
-      for (const emp of apiResults.employees) {
+    // 4. Matching Employees
+    for (const emp of apiResults.employees) {
         list.push({
           id: `emp-${emp.id}`,
           category: 'EMPLOYEE',
@@ -312,7 +309,6 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
           searchQuery: emp.nik,
         });
       }
-    }
 
     // 5. Matching Active Loans
     for (const ln of apiResults.loans) {
