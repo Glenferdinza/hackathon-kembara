@@ -4,8 +4,8 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { ConfirmDialogProvider } from "@/components/ui/ConfirmDialog";
 
 export const metadata: Metadata = {
-  title: "PT YPTI - Tool Room & Inventory Management ERP",
-  description: "Enterprise Tool Room & Inventory Management System - PT Yogyakarta Precision Tooling Industries",
+  title: "PT YPTI - Sistem Manajemen Tool Room & Inventaris",
+  description: "Enterprise Tool Room & Inventory Management System PT Yogya Presisi Tehnikatama Industri",
 };
 
 export default function RootLayout({
@@ -15,7 +15,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id" className="h-full antialiased">
-      <body className="min-h-full bg-[#F8FAFC] text-slate-800 flex flex-col font-sans">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-full bg-[#F8FAFC] text-slate-800 flex flex-col">
         <ToastProvider>
           <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
         </ToastProvider>

@@ -46,8 +46,8 @@ export function UpcomingDueTable({ loans }: UpcomingDueTableProps) {
           <thead>
             <tr className="border-b border-slate-200 text-slate-600 font-semibold font-heading uppercase bg-slate-50/50">
               <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
-              <th className="py-2.5 px-3">PEMINJAM</th>
-              <th className="py-2.5 px-3">BARANG DIPINJAM</th>
+              <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM</th>
+              <th className="py-2.5 px-3 whitespace-nowrap">BARANG DIPINJAM</th>
               <th className="py-2.5 px-3 whitespace-nowrap">TENGGAT KEMBALI</th>
               <th className="py-2.5 px-3 whitespace-nowrap">STATUS</th>
               <th className="py-2.5 px-3 text-right whitespace-nowrap">TINDAKAN</th>
@@ -85,17 +85,17 @@ export function UpcomingDueTable({ loans }: UpcomingDueTableProps) {
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
                     {loan.status === 'TERLAMBAT' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#FEF2F2] text-[#D94841] border border-red-200">
+                      <span className="text-xs font-bold text-slate-900">
                         Terlambat
                       </span>
                     )}
                     {loan.status === 'MENDEKATI_JATUH_TEMPO' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#FFFBEB] text-amber-700 border border-amber-200">
+                      <span className="text-xs font-semibold text-[#1E40AF]">
                         Hari Ini
                       </span>
                     )}
                     {loan.status === 'DIPINJAM' && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-[#1E40AF] border border-blue-200">
+                      <span className="text-xs font-medium text-slate-600">
                         Dipinjam
                       </span>
                     )}

@@ -38,20 +38,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={toast.id}
             className={`pointer-events-auto flex items-start gap-3 p-3 rounded-md border shadow-md transition-all animate-in slide-in-from-right duration-200 ${
-              toast.type === 'success'
-                ? 'bg-white border-blue-300 text-slate-800'
-                : toast.type === 'error'
-                ? 'bg-white border-red-300 text-slate-800'
+              toast.type === 'error'
+                ? 'bg-white border-slate-400 text-slate-900'
                 : 'bg-white border-blue-300 text-slate-800'
             }`}
           >
             <span
-              className={`px-1.5 py-0.5 text-[10px] font-bold rounded-xs uppercase shrink-0 mt-0.5 ${
-                toast.type === 'success'
-                  ? 'bg-blue-100 text-[#1E40AF]'
-                  : toast.type === 'error'
-                  ? 'bg-red-100 text-[#D94841]'
-                  : 'bg-blue-100 text-[#1E40AF]'
+              className={`text-[10px] font-bold uppercase shrink-0 mt-0.5 ${
+                toast.type === 'error'
+                  ? 'text-slate-900'
+                  : 'text-[#1E40AF]'
               }`}
             >
               {toast.type === 'success' ? 'SUKSES' : toast.type === 'error' ? 'ERROR' : 'INFO'}

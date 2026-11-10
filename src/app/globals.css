@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Public Sans", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: "IBM Plex Sans", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 @layer base {
   :root {
     --bg-canvas: #f8fafc;
@@ -22,28 +27,39 @@
     
     --brand-charcoal: #1e293b;
 
-    --font-heading: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --font-body: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    --font-heading: "IBM Plex Sans", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-body: "Public Sans", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
-  body {
+  html, body {
+    margin: 0;
+    padding: 0;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
-    font-family: var(--font-body), Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-family: var(--font-body);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Headings & Menus: IBM Plex Sans Bold */
+  /* Headings & Section Titles: Crisp IBM Plex Sans SemiBold (600 instead of heavy 700) */
   h1, h2, h3, h4, h5, h6, th, nav, .font-heading {
-    font-family: var(--font-heading), "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
   }
 
-  /* Monospace Purge: Force any code/pre/font-mono to render as clean tabular Roboto */
+  /* Force any code/pre/font-mono to render as clean tabular Inter/IBM */
   code, pre, kbd, samp, .font-mono {
-    font-family: var(--font-body), Roboto, -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--font-body) !important;
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Soften heavy 700 bold across high-density UI to clean 600 SemiBold */
+.font-bold, strong, b {
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
 }
 
 /* Tabular numbers for clean enterprise tables */
@@ -65,4 +81,30 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Print ID Card Isolation */
+@media print {
+  body {
+    background-color: #ffffff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #printable-employee-card,
+  #printable-employee-card * {
+    visibility: visible;
+  }
+  #printable-employee-card {
+    position: fixed;
+    left: 20mm;
+    top: 20mm;
+    width: 85.6mm !important;
+    max-width: 85.6mm !important;
+    margin: 0 !important;
+    border: 1.5px solid #0f172a !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
 }

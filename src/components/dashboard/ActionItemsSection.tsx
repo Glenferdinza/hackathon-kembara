@@ -27,7 +27,7 @@ export function ActionItemsSection({ items }: ActionItemsSectionProps) {
             Daftar tugas operasional prioritas admin
           </p>
         </div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+        <span className="text-[11px] font-bold text-slate-600 tabular-nums">
           {items.length} Aksi
         </span>
       </div>
@@ -42,17 +42,17 @@ export function ActionItemsSection({ items }: ActionItemsSectionProps) {
             <div key={item.id} className="py-3 flex items-start justify-between gap-3 group">
               <div className="flex items-start gap-2.5">
                 {item.type === 'DANGER' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FEF2F2] text-[#D94841] border border-red-200 shrink-0 mt-0.5">
+                  <span className="text-[10px] font-bold text-slate-900 uppercase shrink-0 mt-0.5">
                     Keterlambatan
                   </span>
                 )}
                 {item.type === 'WARNING' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FFFBEB] text-amber-700 border border-amber-200 shrink-0 mt-0.5">
+                  <span className="text-[10px] font-bold text-slate-700 uppercase shrink-0 mt-0.5">
                     Jatuh Tempo
                   </span>
                 )}
                 {item.type === 'INFO' && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-[#1E40AF] border border-blue-200 shrink-0 mt-0.5">
+                  <span className="text-[10px] font-bold text-[#1E40AF] uppercase shrink-0 mt-0.5">
                     Perawatan
                   </span>
                 )}

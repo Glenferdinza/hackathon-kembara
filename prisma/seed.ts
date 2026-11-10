@@ -26,12 +26,34 @@ async function main() {
 
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@ypti.co.id',
+      email: '10001',
       name: 'Agung Setiawan',
       passwordHash,
       role: 'SUPER_ADMIN',
       department: 'Tool Room & Central Warehouse',
+      status: 'AKTIF',
     },
+  });
+
+  await prisma.user.createMany({
+    data: [
+      {
+        email: '10002',
+        name: 'Rizky Pratama',
+        passwordHash,
+        role: 'OPERATOR',
+        department: 'Loket Dispatch Tool Room',
+        status: 'AKTIF',
+      },
+      {
+        email: '10003',
+        name: 'Hendra Wijaya',
+        passwordHash,
+        role: 'SUPERVISOR',
+        department: 'Production & Quality Control',
+        status: 'AKTIF',
+      },
+    ],
   });
   console.log(`Created admin user: ${admin.email}`);
 

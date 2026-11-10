@@ -16,9 +16,9 @@ export default function HelpPage() {
       steps: [
         {
           num: '01',
-          title: 'Verifikasi Identitas Karyawan (Scanner Barcode USB atau NIK Manual)',
-          text: 'Posisikan kursor pada kolom ID Karyawan lalu scan barcode pada kartu identitas peminjam menggunakan scanner USB kasir. Jika kartu tidak terbawa, ketik NIK atau nama karyawan secara manual. Sistem otomatis memvalidasi nama, departemen, dan kontak WhatsApp peminjam.',
-          note: 'Catatan Petugas: Pastikan departemen peminjam sesuai dengan penugasan kerja sebelum melanjutkan.',
+          title: 'Pemilihan Identitas Karyawan (Dropdown atau Pencarian Manual)',
+          text: 'Pilih nama peminjam dari daftar karyawan terdaftar atau ketik NIK / nama pada kolom pencarian manual. Jika karyawan belum terdaftar di database, klik tombol "+ Tambah Karyawan Baru" langsung dari halaman peminjaman untuk mendaftarkan dan memilih anggota seketika.',
+          note: 'Catatan Petugas: Pastikan departemen dan nomor WhatsApp peminjam sesuai sebelum menyerahkan perkakas.',
         },
         {
           num: '02',
@@ -86,7 +86,7 @@ export default function HelpPage() {
           num: '01',
           title: 'Standar Penomoran Kode Unik Barang',
           text: 'Setiap barang wajib memiliki kode registrasi yang unik. Gunakan awalan TOL-XXX untuk perkakas mesin (contoh: TOL-001, TOL-002) dan INV-XXX untuk aset inventaris perlengkapan (contoh: INV-001, INV-002). Kode tidak boleh diduplikasi.',
-          note: 'Keteraturan Kode: Penomoran yang tertib memudahkan operator saat pemindaian barcode fisik pada laci.',
+          note: 'Keteraturan Kode: Penomoran yang tertib memudahkan petugas saat pencarian manual dan penataan laci.',
         },
         {
           num: '02',
@@ -166,22 +166,22 @@ export default function HelpPage() {
         {/* Page Header */}
         <div className="pb-3 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-base font-bold font-heading text-slate-900 uppercase tracking-tight">
-              PANDUAN OPERASIONAL &amp; STANDAR PROSEDUR (SOP)
+            <h1 className="text-base lg:text-lg font-semibold font-heading text-slate-900 tracking-tight">
+              Panduan Operasional &amp; Standar Prosedur (SOP)
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Pedoman resmi alur penginputan, pengembalian, tata kelola stok, dan penanganan keterlambatan PT YPTI
             </p>
           </div>
-          <div className="text-[11px] text-slate-500 font-medium bg-white px-2.5 py-1 rounded border border-slate-200 self-start sm:self-auto">
-            Revisi Dokumen: 2026.1 (Industrial ERP)
+          <div className="text-[11px] text-slate-500 font-semibold self-start sm:self-auto">
+            Revisi Dokumen 2026.1 (Industrial ERP)
           </div>
         </div>
 
         {/* Quick Jump Bar */}
         <div className="bg-white border border-slate-200 rounded p-2 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="text-[11px] font-bold text-slate-500 px-2 uppercase tracking-wider">
-            Daftar SOP:
+            Daftar SOP
           </span>
           {sopSections.map((sec) => (
             <a
@@ -206,7 +206,7 @@ export default function HelpPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#1E40AF] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                    <span className="text-xs font-bold text-[#1E40AF]">
                       {sec.number}
                     </span>
                     <h2 className="text-sm font-bold font-heading text-slate-900">
@@ -229,13 +229,11 @@ export default function HelpPage() {
               {/* Numbered Steps List */}
               <div className="divide-y divide-slate-100">
                 {sec.steps.map((st) => (
-                  <div key={st.num} className="py-3 first:pt-1 last:pb-1 flex items-start gap-3.5">
-                    {/* Number Badge */}
-                    <div className="w-8 h-8 rounded bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-slate-800 tabular-nums">
-                        {st.num}
-                      </span>
-                    </div>
+                  <div key={st.num} className="py-3 first:pt-1 last:pb-1 flex items-start gap-3">
+                    {/* Step Number */}
+                    <span className="text-xs font-bold text-slate-700 tabular-nums shrink-0 mt-0.5 w-6">
+                      {st.num}.
+                    </span>
 
                     {/* Step Content */}
                     <div className="flex-1 min-w-0 space-y-1">
@@ -245,7 +243,7 @@ export default function HelpPage() {
                       <p className="text-xs text-slate-600 leading-relaxed">
                         {st.text}
                       </p>
-                      <div className="text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded border border-slate-100 leading-snug">
+                      <div className="text-[11px] text-slate-500 leading-snug pt-0.5">
                         {st.note}
                       </div>
                     </div>

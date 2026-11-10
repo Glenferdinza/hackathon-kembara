@@ -188,8 +188,30 @@ export async function GET(request: Request) {
       });
 
       const [tools, inventories] = await Promise.all([
-        prisma.tool.findMany({ select: { code: true, name: true, category: { select: { name: true } }, totalStock: true, availableStock: true, repairStock: true, scrapStock: true } }),
-        prisma.inventory.findMany({ select: { code: true, name: true, category: { select: { name: true } }, totalStock: true, availableStock: true, repairStock: true, scrapStock: true } }),
+        prisma.tool.findMany({
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            category: { select: { name: true } },
+            totalStock: true,
+            availableStock: true,
+            repairStock: true,
+            scrapStock: true,
+          },
+        }),
+        prisma.inventory.findMany({
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            category: { select: { name: true } },
+            totalStock: true,
+            availableStock: true,
+            repairStock: true,
+            scrapStock: true,
+          },
+        }),
       ]);
 
       const conditionSummary = {
@@ -200,7 +222,10 @@ export async function GET(request: Request) {
         hilangCount: returns.filter((r) => r.condition === 'HILANG').length,
       };
 
-      const itemsInMaintenance = [...tools, ...inventories].filter((i) => i.repairStock > 0 || i.scrapStock > 0);
+      const itemsInMaintenance = [
+        ...tools.map((t) => ({ ...t, itemType: 'TOOL' as const, type: t.category?.name || '-' })),
+        ...inventories.map((i) => ({ ...i, itemType: 'INVENTORY' as const, type: i.category?.name || '-' })),
+      ].filter((i) => i.repairStock > 0 || i.scrapStock > 0);
 
       return NextResponse.json({
         summary: conditionSummary,
@@ -239,6 +264,72 @@ export async function GET(request: Request) {
       },
     });
   } catch (err) {
-    return NextResponse.json({ error: 'Gagal memuat log riwayat: ' + String(err) }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal memuat log riwayat ' + String(err) }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { action, id, itemType } = body;
+
+    if (action !== 'complete_repair' || !id || !itemType) {
+      return NextResponse.json({ error: 'Parameter penyelesaian servis tidak valid.' }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      if (itemType === 'TOOL') {
+        const tool = await tx.tool.findUnique({ where: { id } });
+        if (!tool || tool.repairStock <= 0) {
+          throw new Error('Perkakas tidak memiliki antrean servis/regrind aktif.');
+        }
+        const restoredQty = tool.repairStock;
+        const updated = await tx.tool.update({
+          where: { id },
+          data: {
+            availableStock: { increment: restoredQty },
+            repairStock: 0,
+            condition: 'BAIK',
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            action: 'SELESAI_SERVIS',
+            adminName: 'Admin Tool Room',
+            details: `Servis / Regrind selesai untuk ${tool.code} (${tool.name}). ${restoredQty} unit dikembalikan ke stok tersedia.`,
+          },
+        });
+        return updated;
+      } else {
+        const inv = await tx.inventory.findUnique({ where: { id } });
+        if (!inv || inv.repairStock <= 0) {
+          throw new Error('Inventaris tidak memiliki antrean servis aktif.');
+        }
+        const restoredQty = inv.repairStock;
+        const updated = await tx.inventory.update({
+          where: { id },
+          data: {
+            availableStock: { increment: restoredQty },
+            repairStock: 0,
+            condition: 'BAIK',
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            action: 'SELESAI_SERVIS',
+            adminName: 'Admin Tool Room',
+            details: `Servis selesai untuk ${inv.code} (${inv.name}). ${restoredQty} unit dikembalikan ke stok tersedia.`,
+          },
+        });
+        return updated;
+      }
+    });
+
+    return NextResponse.json({ success: true, data: result });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Gagal menyelesaikan servis.' },
+      { status: 400 }
+    );
   }
 }

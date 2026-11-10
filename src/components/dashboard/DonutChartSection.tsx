@@ -51,28 +51,28 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
   };
 
   return (
-    <div className="py-2 w-full">
-      <div className="pb-2 border-b border-slate-200">
-        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+    <div className="w-full h-full flex flex-col justify-between">
+      <div className="pb-2.5 border-b border-slate-200">
+        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider whitespace-nowrap truncate">
           Kamar Stok (Komposisi Fisik Barang)
         </h2>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-slate-500 truncate">
           Status aktual seluruh aset perkakas &amp; inventaris terdaftar
         </p>
       </div>
 
       {/* Auto-layout responsive container: stacks cleanly on mobile, side-by-side on desktop */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mt-3 w-full">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-5 my-auto pt-4 pb-2 w-full">
         {/* Donut Chart with center percentage */}
-        <div className="relative w-48 h-48 shrink-0 flex items-center justify-center">
+        <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={55}
-                outerRadius={75}
+                innerRadius={52}
+                outerRadius={72}
                 paddingAngle={3}
                 dataKey="value"
                 onMouseEnter={(_, index) => setActiveIndex(index)}
@@ -102,10 +102,10 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
               activeIndex !== null ? 'opacity-0' : 'opacity-100'
             }`}
           >
-            <span className="text-2xl font-bold text-slate-900 tabular-nums leading-tight">
+            <span className="text-xl font-bold text-slate-900 tabular-nums leading-tight">
               {availablePercent}%
             </span>
-            <span className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
+            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
               Tersedia
             </span>
           </div>
@@ -124,14 +124,14 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
                   : 'hover:bg-slate-50'
               }`}
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
                 <span
                   className="w-2.5 h-2.5 rounded-xs shrink-0"
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="text-slate-700 truncate">{item.name}</span>
               </div>
-              <div className="flex items-center gap-2 shrink-0 tabular-nums">
+              <div className="flex items-center gap-1.5 shrink-0 tabular-nums whitespace-nowrap">
                 <span className="font-bold text-slate-900">
                   {item.value.toLocaleString('id-ID')}
                 </span>
@@ -143,8 +143,8 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
           ))}
 
           <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs font-semibold px-2">
-            <span className="text-slate-500">Total Unit Terdata</span>
-            <span className="text-slate-900 tabular-nums">
+            <span className="text-slate-500 whitespace-nowrap">Total Unit Terdata</span>
+            <span className="text-slate-900 tabular-nums whitespace-nowrap">
               {total.toLocaleString('id-ID')}
             </span>
           </div>

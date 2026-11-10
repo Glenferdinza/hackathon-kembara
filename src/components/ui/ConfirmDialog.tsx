@@ -84,17 +84,17 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
   const badgeConfig = {
     danger: {
       badge: 'KONFIRMASI PENGHAPUSAN / TINDAKAN KRUSIAL',
-      badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
-      btnClass: 'bg-rose-700 hover:bg-rose-800 text-white',
+      badgeClass: 'text-slate-600',
+      btnClass: 'bg-slate-900 hover:bg-slate-800 text-white',
     },
     warning: {
       badge: 'PERINGATAN OPERASIONAL',
-      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
-      btnClass: 'bg-amber-700 hover:bg-amber-800 text-white',
+      badgeClass: 'text-slate-600',
+      btnClass: 'bg-[#1E40AF] hover:bg-[#1D4ED8] text-white',
     },
     primary: {
       badge: 'KONFIRMASI SISTEM OPERASIONAL',
-      badgeClass: 'bg-blue-50 text-[#1E40AF] border-blue-200',
+      badgeClass: 'text-[#1E40AF]',
       btnClass: 'bg-[#1E40AF] hover:bg-[#1D4ED8] text-white',
     },
   }[options.type || 'primary'];
@@ -115,9 +115,9 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             aria-modal="true"
           >
             {/* Header */}
-            <div className="px-5 pt-4 pb-3 border-b border-slate-100 space-y-1">
+            <div className="px-5 pt-4 pb-3 border-b border-slate-100 space-y-0.5">
               <span
-                className={`inline-block px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${badgeConfig.badgeClass}`}
+                className={`block text-[10px] font-bold uppercase tracking-wider ${badgeConfig.badgeClass}`}
               >
                 {badgeConfig.badge}
               </span>

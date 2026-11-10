@@ -24,11 +24,7 @@ export function StatCard({
           {title}
         </span>
         {badge && (
-          <span
-            className={`text-[10px] font-bold px-1.5 py-0.2 rounded-xs ${
-              badgeColor || 'bg-slate-100 text-slate-700'
-            }`}
-          >
+          <span className="text-[10px] font-bold text-slate-600">
             {badge}
           </span>
         )}

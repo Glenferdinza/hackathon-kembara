@@ -21,91 +21,48 @@ export function ExportExcelModal({ isOpen, onClose }: ExportExcelModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-md border border-slate-200 shadow-xl max-w-md w-full overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-md border border-slate-200 shadow-xl max-w-md w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/50">
           <h2 className="text-sm font-bold font-heading text-slate-900 uppercase tracking-tight">
             Ekspor Laporan Resmi Excel (.XLSX)
           </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors"
-          >
-            Tutup
-          </button>
         </div>
 
         {/* Body */}
         <div className="p-5 space-y-3 text-xs">
-          <p className="text-slate-600 font-medium">
-            Pilih cakupan data yang ingin diekspor dari database terkini:
-          </p>
-
-          <div className="space-y-2 pt-1">
-            <label className="flex items-start gap-3 p-2.5 border border-slate-200 rounded hover:bg-slate-50 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="exportType"
-                checked={exportType === 'all'}
-                onChange={() => setExportType('all')}
-                className="mt-0.5 accent-[#1E40AF]"
-              />
-              <div>
-                <span className="font-bold text-slate-900">Laporan Komprehensif (Multi-Sheet)</span>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Mencakup Sheet Master Tool, Master Inventaris, dan Seluruh Riwayat Transaksi.
-                </p>
-              </div>
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1.5">
+              Cakupan Data Laporan Excel
             </label>
+            <select
+              value={exportType}
+              onChange={(e) => setExportType(e.target.value as 'all' | 'tools' | 'inventories' | 'loans' | 'overdue')}
+              className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-2 focus:outline-none focus:border-[#1E40AF]"
+            >
+              <option value="all">Laporan Komprehensif (Multi-Sheet)</option>
+              <option value="tools">Master Data Tool Saja</option>
+              <option value="inventories">Master Data Inventaris Saja</option>
+              <option value="loans">Laporan Peminjaman &amp; Keterlambatan</option>
+            </select>
+          </div>
 
-            <label className="flex items-start gap-3 p-2.5 border border-slate-200 rounded hover:bg-slate-50 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="exportType"
-                checked={exportType === 'tools'}
-                onChange={() => setExportType('tools')}
-                className="mt-0.5 accent-[#1E40AF]"
-              />
-              <div>
-                <span className="font-bold text-slate-900">Master Data Tool Saja</span>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Daftar seluruh perkakas, spesifikasi, lokasi rak, stok total, tersedia, dan dipinjam.
-                </p>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-3 p-2.5 border border-slate-200 rounded hover:bg-slate-50 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="exportType"
-                checked={exportType === 'inventories'}
-                onChange={() => setExportType('inventories')}
-                className="mt-0.5 accent-[#1E40AF]"
-              />
-              <div>
-                <span className="font-bold text-slate-900">Master Data Inventaris Saja</span>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Daftar inventaris pabrik, serial number, merek, model, dan status pemakaian.
-                </p>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-3 p-2.5 border border-slate-200 rounded hover:bg-slate-50 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="exportType"
-                checked={exportType === 'loans'}
-                onChange={() => setExportType('loans')}
-                className="mt-0.5 accent-[#1E40AF]"
-              />
-              <div>
-                <span className="font-bold text-slate-900">Laporan Peminjaman &amp; Keterlambatan</span>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Histori peminjaman karyawan, batas waktu tenggat, status transaksi, dan audit admin.
-                </p>
-              </div>
-            </label>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-600 leading-relaxed">
+            {exportType === 'all' &&
+              'Mencakup Sheet Master Tool, Master Inventaris, dan Seluruh Riwayat Transaksi dalam satu file terpadu.'}
+            {exportType === 'tools' &&
+              'Daftar seluruh perkakas mesin, spesifikasi, lokasi rak, stok total, tersedia, dan dipinjam.'}
+            {exportType === 'inventories' &&
+              'Daftar inventaris pabrik, serial number, merek, model, dan status pemakaian.'}
+            {exportType === 'loans' &&
+              'Histori peminjaman karyawan, batas waktu tenggat, status transaksi, dan audit admin.'}
           </div>
         </div>
 

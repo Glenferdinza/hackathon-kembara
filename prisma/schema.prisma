@@ -11,15 +11,16 @@ generator client {
 // 1. ADMIN & AUTHENTICATION
 // -------------------------------------------------------------
 model User {
-  id           String             @id @default(uuid())
-  email        String             @unique
+  id           String              @id @default(uuid())
+  email        String              @unique
   name         String
   passwordHash String
-  role         String             @default("SUPER_ADMIN") // SUPER_ADMIN, OPERATOR
-  department   String?            @default("Tool Room & Warehouse")
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  loans        LoanTransaction[]  @relation("AdminLoans")
+  role         String              @default("SUPER_ADMIN") // SUPER_ADMIN, OPERATOR, SUPERVISOR
+  department   String?             @default("Tool Room & Warehouse")
+  status       String              @default("AKTIF") // AKTIF, NONAKTIF
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  loans        LoanTransaction[]   @relation("AdminLoans")
   returns      ReturnTransaction[] @relation("AdminReturns")
   auditLogs    AuditLog[]
 }

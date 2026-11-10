@@ -9,12 +9,22 @@ interface SidebarProps {
   overdueCount?: number;
   isOpen?: boolean;
   onClose?: () => void;
+  userRole?: string;
+}
+
+interface NavItem {
+  label: string;
+  href: string;
+  badge?: string;
+  badgeColor?: string;
+  allowedRoles: string[];
 }
 
 export function Sidebar({
   overdueCount = 0,
   isOpen = true,
   onClose,
+  userRole = 'SUPER_ADMIN',
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -23,7 +33,7 @@ export function Sidebar({
   const handleLogout = async () => {
     const ok = await confirm({
       title: 'Konfirmasi Keluar dari Sistem',
-      message: 'Apakah Anda yakin ingin keluar dari sesi aplikasi Tool Room PT. YPTI?',
+      message: 'Apakah Anda yakin ingin keluar dari sesi aplikasi Tool Room PT YPTI?',
       confirmText: 'Keluar Sekarang',
       cancelText: 'Tetap di Sini',
       type: 'warning',
@@ -38,26 +48,50 @@ export function Sidebar({
     }
   };
 
-  const navGroups = [
+  const navGroups: { group: string; items: NavItem[] }[] = [
     {
       group: 'MENU UTAMA',
       items: [
-        { label: 'Beranda (Dashboard)', href: '/' },
+        {
+          label: 'Beranda',
+          href: '/',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+        },
       ],
     },
     {
       group: 'DATA MASTER',
       items: [
-        { label: 'Master Data Tool', href: '/master-tool' },
-        { label: 'Master Data Inventaris', href: '/master-inventory' },
-        { label: 'Data Karyawan / Peminjam', href: '/employees' },
+        {
+          label: 'Data Tool',
+          href: '/master-tool',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+        },
+        {
+          label: 'Data Inventaris',
+          href: '/master-inventory',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
+        },
+        {
+          label: 'Data Karyawan',
+          href: '/employees',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR'],
+        },
       ],
     },
     {
       group: 'TRANSAKSI & OPERASIONAL',
       items: [
-        { label: 'Data Peminjaman', href: '/loans' },
-        { label: 'Data Pengembalian', href: '/returns' },
+        {
+          label: 'Peminjaman',
+          href: '/loans',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR'],
+        },
+        {
+          label: 'Pengembalian',
+          href: '/returns',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR'],
+        },
       ],
     },
     {
@@ -67,16 +101,32 @@ export function Sidebar({
           label: 'Monitoring Keterlambatan',
           href: '/monitoring',
           badge: overdueCount > 0 ? `${overdueCount}` : undefined,
-          badgeColor: 'bg-rose-50 text-rose-700 border border-rose-200',
+          badgeColor: 'bg-slate-100 text-slate-800 border border-slate-200',
+          allowedRoles: ['SUPER_ADMIN', 'OPERATOR', 'SUPERVISOR'],
         },
-        { label: 'Riwayat & Audit Log', href: '/history' },
+        {
+          label: 'Riwayat & Laporan',
+          href: '/history',
+          allowedRoles: ['SUPER_ADMIN', 'SUPERVISOR'],
+        },
+        {
+          label: 'Manajemen Akun',
+          href: '/users',
+          allowedRoles: ['SUPER_ADMIN'],
+        },
       ],
     },
   ];
 
+  const visibleGroups = navGroups
+    .map((grp) => ({
+      ...grp,
+      items: grp.items.filter((item) => item.allowedRoles.includes(userRole)),
+    }))
+    .filter((grp) => grp.items.length > 0);
+
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden"
@@ -94,20 +144,18 @@ export function Sidebar({
           willChange: 'transform',
         }}
       >
-        {/* Brand Header with Clean Official PT. YPTI Logo */}
         <div className="h-16 px-6 flex items-center border-b border-[#E2E8F0] bg-white">
           <Link href="/" className="flex items-center">
             <img
               src="/ypti-logo.png"
-              alt="PT. YPTI Logo"
+              alt="PT YPTI Logo"
               className="h-9 w-auto max-w-[180px] object-contain"
             />
           </Link>
         </div>
 
-        {/* Navigation list */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-          {navGroups.map((grp) => (
+          {visibleGroups.map((grp) => (
             <div key={grp.group} className="space-y-1">
               <div className="px-3 text-[10px] font-heading font-bold tracking-wider text-slate-500 uppercase">
                 {grp.group}
@@ -126,16 +174,14 @@ export function Sidebar({
                       }}
                       className={`flex items-center justify-between px-3 py-2 rounded text-xs font-heading transition-colors ${
                         isActive
-                          ? 'bg-blue-50/70 text-[#1E40AF] font-bold border-l-2 border-[#1E40AF]'
+                          ? 'bg-blue-50 text-[#1E40AF] font-bold'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
                       }`}
                     >
                       <span className="truncate">{item.label}</span>
                       {item.badge !== undefined && (
-                        <span
-                          className={`px-1.5 py-0.2 text-[10px] font-bold rounded-xs ${item.badgeColor || 'bg-slate-200 text-slate-700'}`}
-                        >
-                          {item.badge}
+                        <span className="text-[11px] font-bold text-slate-700 tabular-nums">
+                          ({item.badge})
                         </span>
                       )}
                     </Link>
@@ -146,7 +192,6 @@ export function Sidebar({
           ))}
         </div>
 
-        {/* System Links */}
         <div className="p-3 border-t border-[#E2E8F0] bg-slate-50">
           <div className="flex items-center justify-between px-2">
             <Link
@@ -158,7 +203,7 @@ export function Sidebar({
 
             <button
               onClick={handleLogout}
-              className="text-xs text-slate-500 hover:text-rose-700 font-medium transition-colors"
+              className="text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors cursor-pointer"
             >
               Keluar
             </button>

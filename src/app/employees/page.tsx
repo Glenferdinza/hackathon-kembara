@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { SkeletonTable } from '@/components/ui/SkeletonTable';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 
 interface Employee {
   id: string;
@@ -42,6 +45,23 @@ export default function EmployeesPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('AKTIF');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlSearch = new URLSearchParams(window.location.search).get('search');
+      if (urlSearch !== null) {
+        setSearch(urlSearch);
+      }
+    }
+    const handleGlobalSearchEvent = (e: Event) => {
+      const custom = e as CustomEvent<{ search?: string }>;
+      if (custom.detail && typeof custom.detail.search === 'string') {
+        setSearch(custom.detail.search);
+      }
+    };
+    window.addEventListener('ypti-global-search', handleGlobalSearchEvent);
+    return () => window.removeEventListener('ypti-global-search', handleGlobalSearchEvent);
+  }, []);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -204,19 +224,20 @@ export default function EmployeesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm lg:text-base font-bold text-slate-900 uppercase tracking-tight">
-                DATA ANGGOTA & IDENTITAS PEMINJAM
+              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+                Data Karyawan
               </h1>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-sm bg-slate-100 text-slate-700">
-                {employees.length} anggota
+              <span className="text-xs font-medium text-slate-500 tabular-nums">
+                ({employees.length} karyawan)
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Sesuai SOP Hal. 7: Pengelolaan NIK, departemen, shift kerja, status blokir, dan cetak kartu Code 128
+              Pengelolaan NIK, nama lengkap, penugasan departemen, shift kerja, dan status aktif anggota
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            <RefreshButton onRefresh={fetchEmployees} loading={loading} />
             <button
               onClick={handleOpenAdd}
               className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
@@ -239,7 +260,7 @@ export default function EmployeesPage() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <label className="text-xs text-slate-500 font-medium whitespace-nowrap">Filter Status:</label>
+            <label className="text-xs text-slate-500 font-medium whitespace-nowrap">Filter Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -260,118 +281,147 @@ export default function EmployeesPage() {
           </div>
         </div>
 
-        {/* Table - Flat borderless enterprise layout */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[950px]">
-            <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
-              <tr>
-                <th className="py-2.5 px-3 whitespace-nowrap">NIK (ID BARCODE)</th>
-                <th className="py-2.5 px-3">NAMA LENGKAP</th>
-                <th className="py-2.5 px-3">PERAN / JABATAN</th>
-                <th className="py-2.5 px-3">DEPARTEMEN</th>
-                <th className="py-2.5 px-3">SHIFT KERJA</th>
-                <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
-                <th className="py-2.5 px-3 text-center whitespace-nowrap">VERSI KARTU</th>
-                <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
-                <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
+        {/* Table View with Skeleton & EmptyState */}
+        {loading ? (
+          <div className="border-t border-slate-200 mt-2">
+            <SkeletonTable rows={7} cols={9} />
+          </div>
+        ) : employees.length === 0 ? (
+          <EmptyState
+            title="Tidak Ada Anggota Ditemukan"
+            description="Tidak ada data karyawan yang cocok dengan kata kunci pencarian atau filter status."
+            actionLabel="Reset Filter"
+            onAction={() => { setSearch(''); setStatusFilter(''); }}
+            className="border-t border-slate-200 mt-2"
+          />
+        ) : (
+          <div className="overflow-x-auto border-t border-slate-200 mt-2">
+            <table className="w-full text-left text-xs min-w-[950px]">
+              <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    Memuat data anggota PT YPTI...
-                  </td>
+                  <th className="py-2.5 px-3 whitespace-nowrap">NIK</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">NAMA LENGKAP</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">PERAN / JABATAN</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">SHIFT KERJA</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">VERSI KARTU</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
                 </tr>
-              ) : employees.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    Tidak ada anggota ditemukan dengan kriteria pencarian ini.
-                  </td>
-                </tr>
-              ) : (
-                employees.map((emp) => (
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {employees.map((emp) => (
                   <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
                       {emp.nik}
                     </td>
-                    <td className="py-2.5 px-3 font-medium text-slate-900">
+                    <td className="py-2.5 px-3 font-medium text-slate-900 whitespace-nowrap">
                       {emp.name}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-700">
+                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
                       {emp.role || 'Operator CNC'}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-700">
+                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
                       {emp.department}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-600">
+                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
                       {emp.shift || 'Shift 1 (Pagi)'}
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
                       {emp.phone || '-'}
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 tabular-nums">
+                      <span className="text-xs font-medium text-slate-700 tabular-nums">
                         v{emp.cardVersion || 1}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span
-                        className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                          emp.status === 'AKTIF'
-                            ? 'bg-slate-100 text-slate-700 border border-slate-200'
-                            : 'bg-rose-50 text-rose-800 border border-rose-200'
-                        }`}
-                      >
-                        {emp.status}
-                      </span>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap text-xs font-semibold">
+                      {emp.status === 'AKTIF' ? (
+                        <span className="text-[#1E40AF]">{emp.status}</span>
+                      ) : (
+                        <span className="text-slate-500">{emp.status}</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5 text-[11px]">
+                      <div className="inline-flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
                           onClick={() => handleOpenCard(emp)}
-                          className="text-slate-600 hover:text-slate-900 font-medium hover:underline"
-                          title="Cetak Kartu Ber-barcode"
+                          aria-label="Pratinjau Kartu Identitas"
+                          title="Pratinjau Kartu Identitas"
+                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          Kartu
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"
+                            />
+                          </svg>
+                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
+                            Pratinjau Kartu Identitas
+                          </span>
                         </button>
-                        <span className="text-slate-300">|</span>
                         <button
+                          type="button"
                           onClick={() => handleOpenEdit(emp)}
-                          className="text-[#1E40AF] hover:underline font-semibold"
+                          aria-label="Edit Data Anggota"
+                          title="Edit Data Anggota"
+                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          Edit
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                            />
+                          </svg>
+                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
+                            Edit Data Anggota
+                          </span>
                         </button>
-                        <span className="text-slate-300">|</span>
                         <button
+                          type="button"
                           onClick={() => handleReplaceCard(emp)}
-                          className="text-slate-500 hover:text-amber-800 hover:underline font-medium"
-                          title="Tandai Hilang/Rusak & Cetak Versi Baru"
+                          aria-label="Terbitkan Kartu Pengganti Baru"
+                          title="Terbitkan Kartu Pengganti Baru"
+                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          Ganti Kartu
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                            />
+                          </svg>
+                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
+                            Ganti Kartu Baru
+                          </span>
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* MODAL 1: TAMBAH ANGGOTA */}
+      {/* MODAL 1 TAMBAH ANGGOTA */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">Tambah Anggota Baru</h2>
-                <p className="text-[11px] text-slate-500">Pendaftaran NIK & Pembuatan Barcode Otomatis</p>
-              </div>
-              <button onClick={() => setIsAddOpen(false)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
-                Tutup
-              </button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+          onClick={() => setIsAddOpen(false)}
+        >
+          <div
+            className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">Tambah Anggota Baru</h2>
+              <p className="text-[11px] text-slate-500">Pendaftaran Identitas &amp; Penugasan Anggota</p>
             </div>
 
             <form onSubmit={handleAddSubmit} className="p-5 space-y-3 text-xs">
@@ -385,10 +435,9 @@ export default function EmployeesPage() {
                     required
                     value={nik}
                     onChange={(e) => setNik(e.target.value.toUpperCase())}
-                    placeholder="Contoh: EMP-0106"
+                    placeholder="Contoh EMP-0106"
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 uppercase tabular-nums focus:outline-none focus:border-[#1E40AF]"
                   />
-                  <p className="text-[10px] text-slate-400 mt-0.5">Akan digenerate ke Barcode Code 128</p>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
@@ -399,7 +448,7 @@ export default function EmployeesPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Contoh: Ahmad Fauzi"
+                    placeholder="Contoh Ahmad Fauzi"
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
                   />
                 </div>
@@ -434,8 +483,8 @@ export default function EmployeesPage() {
                     <option value="Machining CNC">Machining CNC</option>
                     <option value="Mould Making">Mould Making</option>
                     <option value="QC (Quality Control)">QC (Quality Control)</option>
-                    <option value="Maintenance & Utility">Maintenance & Utility</option>
-                    <option value="Engineering & Design">Engineering & Design</option>
+                    <option value="Maintenance & Utility">Maintenance &amp; Utility</option>
+                    <option value="Engineering & Design">Engineering &amp; Design</option>
                   </select>
                 </div>
               </div>
@@ -450,10 +499,10 @@ export default function EmployeesPage() {
                     onChange={(e) => setShift(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
                   >
-                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi: 07.00 - 15.00)</option>
-                    <option value="Shift 2 (Siang)">Shift 2 (Siang: 15.00 - 23.00)</option>
-                    <option value="Shift 3 (Malam)">Shift 3 (Malam: 23.00 - 07.00)</option>
-                    <option value="Non-Shift (Office)">Non-Shift (Office: 08.00 - 17.00)</option>
+                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi 07.00 - 15.00)</option>
+                    <option value="Shift 2 (Siang)">Shift 2 (Siang 15.00 - 23.00)</option>
+                    <option value="Shift 3 (Malam)">Shift 3 (Malam 23.00 - 07.00)</option>
+                    <option value="Non-Shift (Office)">Non-Shift (Office 08.00 - 17.00)</option>
                   </select>
                 </div>
                 <div>
@@ -496,7 +545,7 @@ export default function EmployeesPage() {
                   disabled={isSubmitting}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Menyimpan...' : 'Simpan & Buat Barcode'}
+                  {isSubmitting ? 'Menyimpan...' : 'Simpan Anggota'}
                 </button>
               </div>
             </form>
@@ -504,22 +553,23 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* MODAL 2: EDIT ANGGOTA & STATUS BLOKIR */}
+      {/* MODAL 2 EDIT ANGGOTA & STATUS BLOKIR */}
       {isEditOpen && selectedEmp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
-            <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">
-                  Edit Data Anggota: {selectedEmp.nik}
-                </h2>
-                <p className="text-[11px] text-slate-500">
-                  Ubah data atau kelola status aktif/blokir kartu
-                </p>
-              </div>
-              <button onClick={() => setIsEditOpen(false)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
-                Tutup
-              </button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+          onClick={() => setIsEditOpen(false)}
+        >
+          <div
+            className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/50">
+              <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">
+                Edit Data Anggota {selectedEmp.nik}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Ubah data atau kelola status aktif dan blokir kartu
+              </p>
             </div>
 
             <form onSubmit={handleEditSubmit} className="p-5 space-y-3 text-xs">
@@ -578,8 +628,8 @@ export default function EmployeesPage() {
                     <option value="Machining CNC">Machining CNC</option>
                     <option value="Mould Making">Mould Making</option>
                     <option value="QC (Quality Control)">QC (Quality Control)</option>
-                    <option value="Maintenance & Utility">Maintenance & Utility</option>
-                    <option value="Engineering & Design">Engineering & Design</option>
+                    <option value="Maintenance & Utility">Maintenance &amp; Utility</option>
+                    <option value="Engineering & Design">Engineering &amp; Design</option>
                   </select>
                 </div>
               </div>
@@ -594,24 +644,20 @@ export default function EmployeesPage() {
                     onChange={(e) => setShift(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
                   >
-                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi: 07.00 - 15.00)</option>
-                    <option value="Shift 2 (Siang)">Shift 2 (Siang: 15.00 - 23.00)</option>
-                    <option value="Shift 3 (Malam)">Shift 3 (Malam: 23.00 - 07.00)</option>
-                    <option value="Non-Shift (Office)">Non-Shift (Office: 08.00 - 17.00)</option>
+                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi 07.00 - 15.00)</option>
+                    <option value="Shift 2 (Siang)">Shift 2 (Siang 15.00 - 23.00)</option>
+                    <option value="Shift 3 (Malam)">Shift 3 (Malam 23.00 - 07.00)</option>
+                    <option value="Non-Shift (Office)">Non-Shift (Office 08.00 - 17.00)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Status Akun & Kartu
+                    Status Akun &amp; Kartu
                   </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className={`w-full border rounded px-2.5 py-1.5 font-bold ${
-                      status === 'AKTIF'
-                        ? 'border-blue-300 bg-blue-50 text-[#1E40AF]'
-                        : 'border-rose-300 bg-rose-50 text-rose-700'
-                    }`}
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF]"
                   >
                     <option value="AKTIF">AKTIF (Dapat Meminjam)</option>
                     <option value="NONAKTIF">NONAKTIF (Kartu Diblokir)</option>
@@ -652,91 +698,96 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {/* MODAL 3: CETAK KARTU ANGGOTA DENGAN BARCODE CODE 128 */}
+      {/* MODAL 3 PRATINJAU KARTU ANGGOTA RESMI PT YPTI */}
       {isCardModalOpen && selectedEmp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded border border-slate-200 shadow-xl max-w-sm w-full overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+          onClick={() => setIsCardModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded border border-slate-300 shadow-xl max-w-sm w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50">
               <span className="text-xs font-bold font-heading text-slate-900 uppercase">
-                Pratinjau Kartu Anggota (Code 128)
+                Kartu Tanda Anggota PT YPTI
               </span>
-              <button onClick={() => setIsCardModalOpen(false)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
-                Tutup
-              </button>
             </div>
 
             <div className="p-5 text-xs flex flex-col items-center">
-              {/* Card Body */}
-              <div className="w-full border-2 border-slate-800 rounded-lg p-4 bg-gradient-to-b from-white to-slate-50 shadow-sm text-center">
-                <div className="border-b border-slate-300 pb-2 mb-3 flex items-center justify-between">
+              {/* Card Body - Flat Pure White Industrial */}
+              <div
+                id="printable-employee-card"
+                className="w-full border-2 border-slate-800 rounded-md p-4 bg-white text-center shadow-xs"
+              >
+                <div className="border-b border-slate-200 pb-2 mb-3 flex items-center justify-between">
                   <div className="text-left">
-                    <p className="text-[10px] font-bold text-slate-900 tracking-wider">PT YOGYA PRESISI TEHNIKATAMA INDUSTRI</p>
-                    <p className="text-[9px] text-slate-500 uppercase">TOOL CRIB & INVENTORY CARD</p>
+                    <p className="text-[10px] font-bold text-slate-900 tracking-wider">
+                      PT YOGYA PRESISI TEHNIKATAMA INDUSTRI
+                    </p>
+                    <p className="text-[9px] text-slate-500 uppercase font-semibold">
+                      TOOL ROOM &amp; INVENTORY ID CARD
+                    </p>
                   </div>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 tabular-nums">
+                  <span className="text-[10px] font-bold text-slate-600 tabular-nums">
                     v{selectedEmp.cardVersion || 1}
                   </span>
                 </div>
 
                 {/* Photo & Identity */}
                 <div className="my-3">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-slate-200 border-2 border-slate-400 flex items-center justify-center text-slate-600 font-bold text-lg mb-2">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 border-2 border-slate-300 flex items-center justify-center text-slate-700 font-bold text-lg mb-2">
                     {selectedEmp.name.charAt(0)}
                   </div>
-                  <h3 className="font-bold font-heading text-slate-900 text-sm">{selectedEmp.name}</h3>
-                  <p className="text-[11px] font-medium text-slate-700">{selectedEmp.role || 'Operator CNC'}</p>
-                  <p className="text-[10px] text-slate-500">{selectedEmp.department} &bull; {selectedEmp.shift}</p>
-                </div>
-
-                {/* Barcode Code 128 Visual */}
-                <div className="mt-4 pt-3 border-t border-dashed border-slate-300">
-                  <div className="inline-block py-2 px-4 bg-white border border-slate-200 rounded">
-                    {/* Barcode graphic lines */}
-                    <div className="flex items-center justify-center gap-[2px] h-10 w-44 mx-auto mb-1">
-                      <div className="w-[3px] h-full bg-black"></div>
-                      <div className="w-[1px] h-full bg-black"></div>
-                      <div className="w-[4px] h-full bg-black"></div>
-                      <div className="w-[2px] h-full bg-black"></div>
-                      <div className="w-[1px] h-full bg-black"></div>
-                      <div className="w-[3px] h-full bg-black"></div>
-                      <div className="w-[5px] h-full bg-black"></div>
-                      <div className="w-[2px] h-full bg-black"></div>
-                      <div className="w-[1px] h-full bg-black"></div>
-                      <div className="w-[4px] h-full bg-black"></div>
-                      <div className="w-[2px] h-full bg-black"></div>
-                      <div className="w-[3px] h-full bg-black"></div>
-                      <div className="w-[1px] h-full bg-black"></div>
-                      <div className="w-[4px] h-full bg-black"></div>
-                      <div className="w-[2px] h-full bg-black"></div>
-                      <div className="w-[3px] h-full bg-black"></div>
-                      <div className="w-[1px] h-full bg-black"></div>
-                      <div className="w-[2px] h-full bg-black"></div>
-                    </div>
-                    <span className="text-xs font-bold tracking-widest text-slate-900 tabular-nums">
-                      *{selectedEmp.nik}*
+                  <h3 className="font-bold font-heading text-slate-900 text-sm">
+                    {selectedEmp.name}
+                  </h3>
+                  <div className="mt-1">
+                    <span className="text-xs font-bold tracking-widest text-slate-900 font-mono tabular-nums">
+                      NIK {selectedEmp.nik}
                     </span>
                   </div>
+                  <p className="text-[11px] font-medium text-slate-700 mt-2">
+                    {selectedEmp.role || 'Operator CNC'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {selectedEmp.department} | {selectedEmp.shift || 'Shift 1'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5 tabular-nums">
+                    Kontak {selectedEmp.phone || '-'}
+                  </p>
                 </div>
 
-                <div className="mt-2 text-[9px] text-slate-400">
-                  Kartu resmi wajib dipindai saat pengambilan dan pengembalian tool.
+                <div className="mt-4 pt-2.5 border-t border-slate-200 text-[9px] text-slate-500">
+                  Kartu resmi tanda pengenal peminjaman dan pengembalian perkakas PT YPTI.
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="mt-4 w-full flex items-center justify-between gap-2">
                 <button
-                  onClick={() => handleReplaceCard(selectedEmp)}
-                  className="px-3 py-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded hover:bg-amber-100"
+                  type="button"
+                  onClick={() => setIsCardModalOpen(false)}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  Ganti Kartu (Hilang/Rusak)
+                  Tutup
                 </button>
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
-                >
-                  Cetak Kartu
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleReplaceCard(selectedEmp)}
+                    className="px-3 py-1.5 text-xs text-slate-700 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 transition-colors cursor-pointer"
+                  >
+                    Ganti Kartu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-4 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors cursor-pointer"
+                  >
+                    Cetak Kartu
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -77,7 +77,7 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
         showToast(json.error || 'Gagal mengimpor data ke database.', 'error');
       } else {
         showToast(
-          `Impor berhasil! Ditambahkan: ${json.summary.createdCount}, Diperbarui: ${json.summary.updatedCount}`,
+          `Impor berhasil. Ditambahkan ${json.summary.createdCount}, Diperbarui ${json.summary.updatedCount}`,
           'success'
         );
         if (onSuccess) onSuccess();
@@ -91,57 +91,41 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-md border border-slate-200 shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-md border border-slate-200 shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/50">
           <h2 className="text-sm font-bold font-heading text-slate-900 uppercase tracking-tight">
             Impor Data Master via Excel (.XLSX)
           </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 transition-colors"
-          >
-            Tutup
-          </button>
         </div>
 
         {/* Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
-          {/* Step 1: Select Type */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded">
-            <div>
-              <span className="text-xs font-bold text-slate-800">Target Master Data:</span>
-              <div className="flex items-center gap-3 mt-1.5">
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <input
-                    type="radio"
-                    name="importType"
-                    checked={importType === 'tool'}
-                    onChange={() => {
-                      setImportType('tool');
-                      setPreviewData(null);
-                      setSelectedFile(null);
-                    }}
-                    className="accent-[#1E40AF]"
-                  />
-                  <span>Master Data Tool</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <input
-                    type="radio"
-                    name="importType"
-                    checked={importType === 'inventory'}
-                    onChange={() => {
-                      setImportType('inventory');
-                      setPreviewData(null);
-                      setSelectedFile(null);
-                    }}
-                    className="accent-[#1E40AF]"
-                  />
-                  <span>Master Data Inventaris</span>
-                </label>
-              </div>
+          {/* Step 1 Select Type */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded">
+            <div className="flex-1">
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                Target Master Data
+              </label>
+              <select
+                value={importType}
+                onChange={(e) => {
+                  setImportType(e.target.value as 'tool' | 'inventory');
+                  setPreviewData(null);
+                  setSelectedFile(null);
+                }}
+                className="w-full bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
+              >
+                <option value="tool">Master Data Tool</option>
+                <option value="inventory">Master Data Inventaris</option>
+              </select>
             </div>
 
             <button
@@ -183,13 +167,13 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
           {previewData && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-800">Hasil Pemeriksaan Preview:</span>
+                <span className="font-bold text-slate-800">Hasil Pemeriksaan Preview</span>
                 <div className="flex items-center gap-3">
                   <span className="text-[#1E40AF] font-medium">
                     {previewData.validCount} Baris Valid
                   </span>
                   {previewData.invalidCount > 0 && (
-                    <span className="text-[#D94841] font-medium">
+                    <span className="text-slate-900 font-bold">
                       {previewData.invalidCount} Baris Bermasalah
                     </span>
                   )}
@@ -212,7 +196,7 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
                     {previewData.rows.map((row: any) => (
                       <tr
                         key={row.rowNumber}
-                        className={row.isValid ? 'hover:bg-slate-50' : 'bg-red-50/40'}
+                        className={row.isValid ? 'hover:bg-slate-50' : 'bg-slate-100/80'}
                       >
                         <td className="py-2 px-2.5 text-slate-500 tabular-nums">#{row.rowNumber}</td>
                         <td className="py-2 px-2.5 font-bold text-slate-800 tabular-nums">{row.code || '-'}</td>
@@ -224,7 +208,7 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
                               Siap Impor
                             </span>
                           ) : (
-                            <span className="text-[11px] font-semibold text-[#D94841]">
+                            <span className="text-[11px] font-bold text-slate-900">
                               {row.errors.join(', ')}
                             </span>
                           )}

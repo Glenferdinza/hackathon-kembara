@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { Pagination } from '@/components/ui/Pagination';
+import { SkeletonTable } from '@/components/ui/SkeletonTable';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 
 type ReportTab = 'riwayat' | 'pemakaian' | 'keterlambatan' | 'umur_pakai';
 
@@ -22,9 +25,13 @@ export default function HistoryPage() {
 
   // Tab 2: Pemakaian & Frekuensi
   const [usageList, setUsageList] = useState<any[]>([]);
+  const [tab2Page, setTab2Page] = useState(1);
+  const tab2PageSize = 10;
 
   // Tab 3: Keterlambatan per Pekerja
   const [delinquents, setDelinquents] = useState<any[]>([]);
+  const [tab3Page, setTab3Page] = useState(1);
+  const tab3PageSize = 10;
 
   // Tab 4: Umur Pakai & Kondisi
   const [lifespanData, setLifespanData] = useState<{
@@ -32,6 +39,7 @@ export default function HistoryPage() {
     maintenanceItems: any[];
     returnLogs: any[];
   } | null>(null);
+  const [repairingId, setRepairingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -78,6 +86,38 @@ export default function HistoryPage() {
     setActiveTab(tab);
     setSearch('');
     setPage(1);
+    setTab2Page(1);
+    setTab3Page(1);
+  };
+
+  const handleCompleteRepair = async (tool: any) => {
+    if (!tool.id || !tool.itemType) return;
+    setRepairingId(tool.id);
+    try {
+      const res = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'complete_repair',
+          id: tool.id,
+          itemType: tool.itemType,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showToast(json.error || 'Gagal menyelesaikan servis.', 'error');
+      } else {
+        showToast(
+          `Servis ${tool.code} (${tool.name}) selesai. ${tool.repairStock} unit dikembalikan ke stok tersedia.`,
+          'info'
+        );
+        fetchData();
+      }
+    } catch {
+      showToast('Terjadi kesalahan koneksi saat memperbarui status servis.', 'error');
+    } finally {
+      setRepairingId(null);
+    }
   };
 
   const getExportUrl = () => {
@@ -94,11 +134,11 @@ export default function HistoryPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm lg:text-base font-bold text-slate-900 uppercase tracking-tight">
-                RIWAYAT TRANSAKSI & LAPORAN OPERASIONAL
+              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+                Riwayat &amp; Laporan Operasional
               </h1>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-sm bg-slate-100 text-slate-700">
-                SOP Hal. 8 Flowchart
+              <span className="text-xs font-semibold text-slate-500">
+                (Audit Log &amp; Rekapitulasi)
               </span>
             </div>
             <p className="text-xs text-slate-500">
@@ -107,6 +147,7 @@ export default function HistoryPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <RefreshButton onRefresh={fetchData} loading={loading} />
             <a
               href={getExportUrl()}
               target="_blank"
@@ -115,12 +156,6 @@ export default function HistoryPage() {
             >
               Ekspor Excel (.xlsx)
             </a>
-            <button
-              onClick={fetchData}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors"
-            >
-              Segarkan
-            </button>
           </div>
         </div>
 
@@ -134,7 +169,7 @@ export default function HistoryPage() {
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
-            1. Riwayat Transaksi {totalTransactions > 0 && `(${totalTransactions})`}
+            Riwayat Transaksi {totalTransactions > 0 && `(${totalTransactions})`}
           </button>
           <button
             onClick={() => handleTabChange('pemakaian')}
@@ -144,7 +179,7 @@ export default function HistoryPage() {
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
-            2. Pemakaian & Frekuensi Tool
+            Frekuensi Pemakaian Tool
           </button>
           <button
             onClick={() => handleTabChange('keterlambatan')}
@@ -154,7 +189,7 @@ export default function HistoryPage() {
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
-            3. Keterlambatan per Pekerja
+            Keterlambatan per Pekerja
           </button>
           <button
             onClick={() => handleTabChange('umur_pakai')}
@@ -164,7 +199,7 @@ export default function HistoryPage() {
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
-            4. Umur Pakai & Kondisi Tool
+            Umur Pakai &amp; Kondisi Tool
           </button>
         </div>
 
@@ -200,51 +235,51 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {/* TAB 1: RIWAYAT TRANSAKSI (Flat Borderless Table) */}
+        {/* TAB 1: RIWAYAT TRANSAKSI */}
         {activeTab === 'riwayat' && (
           <div className="space-y-3">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[950px]">
-                <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
-                  <tr>
-                    <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
-                    <th className="py-2.5 px-3">PEMINJAM (NIK)</th>
-                    <th className="py-2.5 px-3">DAFTAR BARANG</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">BATAS KEMBALI</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">TGL REALISASI</th>
-                    <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">ADMIN</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
+            {loading ? (
+              <div className="border-t border-slate-200 mt-2">
+                <SkeletonTable rows={8} cols={8} />
+              </div>
+            ) : transactions.length === 0 ? (
+              <EmptyState
+                title="Tidak Ada Riwayat Transaksi"
+                description="Belum ada transaksi peminjaman yang tercatat atau cocok dengan kata kunci pencarian."
+                actionLabel="Reset Pencarian"
+                onAction={() => { setSearch(''); setPage(1); }}
+                className="border-t border-slate-200 mt-2"
+              />
+            ) : (
+              <div className="overflow-x-auto border-t border-slate-200 mt-2">
+                <table className="w-full text-left text-xs min-w-[950px]">
+                  <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400">
-                        Memuat data riwayat transaksi...
-                      </td>
+                      <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM (NIK)</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">DAFTAR BARANG</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">BATAS KEMBALI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">TGL REALISASI</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">ADMIN</th>
                     </tr>
-                  ) : transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400">
-                        Tidak ada riwayat peminjaman ditemukan.
-                      </td>
-                    </tr>
-                  ) : (
-                    transactions.map((tx) => (
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {transactions.map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
                           {tx.transactionNumber}
                         </td>
                         <td className="py-2.5 px-3">
                           <p className="font-semibold text-slate-900">{tx.employee?.name || '-'}</p>
-                          <p className="text-[10px] tabular-nums text-slate-500">{tx.employee?.nik} &bull; {tx.employee?.department}</p>
+                          <p className="text-[10px] tabular-nums text-slate-500">{tx.employee?.nik} | {tx.employee?.department}</p>
                         </td>
                         <td className="py-2.5 px-3 max-w-xs">
                           <div className="space-y-0.5">
                             {tx.items?.map((item: any) => (
                               <p key={item.id} className="truncate text-slate-800">
-                                &bull; {item.tool?.name || item.inventory?.name} ({item.quantity}x)
+                                - {item.tool?.name || item.inventory?.name} ({item.quantity}x)
                               </p>
                             ))}
                           </div>
@@ -262,12 +297,12 @@ export default function HistoryPage() {
                         </td>
                         <td className="py-2.5 px-3 text-center whitespace-nowrap">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                            className={`text-xs font-semibold ${
                               tx.status === 'SELESAI'
-                                ? 'bg-blue-50 text-[#1E40AF] border border-blue-200'
+                                ? 'text-slate-600'
                                 : tx.status === 'TERLAMBAT'
-                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                : 'bg-blue-50 text-[#1E40AF] border border-blue-200'
+                                ? 'text-slate-900 font-bold'
+                                : 'text-[#1E40AF]'
                             }`}
                           >
                             {tx.status}
@@ -277,11 +312,11 @@ export default function HistoryPage() {
                           {tx.admin?.name || 'Admin YPTI'}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Reusable Enterprise Pagination */}
             <Pagination
@@ -300,168 +335,231 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {/* TAB 2: PEMAKAIAN & FREKUENSI (Hal. 8 Flowchart) */}
+        {/* TAB 2: PEMAKAIAN & FREKUENSI */}
         {activeTab === 'pemakaian' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold uppercase tracking-wider bg-slate-50/50">
-                <tr>
-                  <th className="py-2.5 px-3 text-center">PERINGKAT</th>
-                  <th className="py-2.5 px-3">KODE BARANG</th>
-                  <th className="py-2.5 px-3">NAMA BARANG</th>
-                  <th className="py-2.5 px-3">JENIS & MEREK</th>
-                  <th className="py-2.5 px-3 text-right">FREKUENSI PINJAM</th>
-                  <th className="py-2.5 px-3 text-right">TOTAL QTY DIPINJAM</th>
-                  <th className="py-2.5 px-3 text-right">STOK TERSEDIA</th>
-                  <th className="py-2.5 px-3 text-center">STATUS STOK</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      Menganalisis frekuensi pemakaian tool...
-                    </td>
-                  </tr>
-                ) : usageList.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      Belum ada data pemakaian tercatat.
-                    </td>
-                  </tr>
-                ) : (
-                  usageList.map((item, idx) => {
-                    const isLowStock = item.availableStock <= item.minStock;
-                    return (
-                      <tr key={item.code} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-3 text-center font-bold text-slate-700 whitespace-nowrap tabular-nums">
-                          #{idx + 1}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                          {item.code}
-                        </td>
-                        <td className="py-2.5 px-3 font-medium text-slate-900">
-                          {item.name}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600">
-                          {item.type} &bull; {item.brand}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-[#1E40AF] whitespace-nowrap tabular-nums">
-                          {item.timesBorrowed}x transaksi
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                          {item.totalQtyBorrowed} unit
-                        </td>
-                        <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
-                          <span className={isLowStock ? 'text-amber-600 font-bold' : 'text-slate-900'}>
-                            {item.availableStock} / {item.totalStock}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          {isLowStock ? (
-                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              PERLU PENGADAAN (Stok Menipis)
-                            </span>
-                          ) : (
-                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-50 text-slate-600">
-                              Aman
-                            </span>
-                          )}
-                        </td>
+          <div className="space-y-3">
+            {loading ? (
+              <div className="border-t border-slate-200 mt-2">
+                <SkeletonTable rows={8} cols={8} />
+              </div>
+            ) : usageList.length === 0 ? (
+              <EmptyState
+                title="Belum Ada Data Pemakaian"
+                description="Belum ada riwayat pemakaian perkakas yang tercatat di sistem."
+                className="border-t border-slate-200 mt-2"
+              />
+            ) : (
+              <>
+                <div className="overflow-x-auto border-t border-slate-200 mt-2">
+                  <table className="w-full text-left text-xs min-w-[950px]">
+                    <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold uppercase tracking-wider bg-slate-50/50">
+                      <tr>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">PERINGKAT</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">KODE BARANG</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">NAMA BARANG</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">JENIS &amp; MEREK</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">FREKUENSI PINJAM</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">TOTAL QTY DIPINJAM</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">STOK TERSEDIA</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS STOK</th>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {usageList
+                        .slice((tab2Page - 1) * tab2PageSize, tab2Page * tab2PageSize)
+                        .map((item, idx) => {
+                          const isLowStock = item.availableStock <= item.minStock;
+                          const overallRank = (tab2Page - 1) * tab2PageSize + idx + 1;
+                          return (
+                            <tr key={item.code} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2.5 px-3 text-center font-bold text-slate-700 whitespace-nowrap tabular-nums">
+                                #{overallRank}
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                {item.code}
+                              </td>
+                              <td className="py-2.5 px-3 font-medium text-slate-900">
+                                {item.name}
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-600">
+                                {item.type} | {item.brand}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-[#1E40AF] whitespace-nowrap tabular-nums">
+                                {item.timesBorrowed}x transaksi
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                {item.totalQtyBorrowed} unit
+                              </td>
+                              <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
+                                <span className={isLowStock ? 'text-slate-900 font-bold' : 'text-slate-700'}>
+                                  {item.availableStock} / {item.totalStock}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap text-[11px] font-semibold">
+                                {isLowStock ? (
+                                  <span className="text-slate-900 font-bold">
+                                    PERLU PENGADAAN (Stok Menipis)
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-600">
+                                    Aman
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Tab 2 Pagination */}
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-200">
+                  <span>
+                    Menampilkan {(tab2Page - 1) * tab2PageSize + 1} -{' '}
+                    {Math.min(tab2Page * tab2PageSize, usageList.length)} dari {usageList.length} perkakas
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={tab2Page <= 1}
+                      onClick={() => setTab2Page((p) => Math.max(1, p - 1))}
+                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                    >
+                      &lt;
+                    </button>
+                    <span className="px-2 font-semibold text-slate-700">
+                      {tab2Page} / {Math.ceil(usageList.length / tab2PageSize) || 1}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={tab2Page >= Math.ceil(usageList.length / tab2PageSize)}
+                      onClick={() => setTab2Page((p) => p + 1)}
+                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
-        {/* TAB 3: KETERLAMBATAN PER PEKERJA (Hal. 8 Flowchart) */}
+        {/* TAB 3: KETERLAMBATAN PER PEKERJA */}
         {activeTab === 'keterlambatan' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[950px]">
-              <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
-                <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">NIK</th>
-                  <th className="py-2.5 px-3">NAMA PEKERJA</th>
-                  <th className="py-2.5 px-3">DEPARTEMEN & SHIFT</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">TERLAMBAT SAAT INI</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">TOTAL RIWAYAT TELAT</th>
-                  <th className="py-2.5 px-3">DETAIL PINJAMAN OVERDUE</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS ANGGOTA</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      Memeriksa rekam jejak keterlambatan...
-                    </td>
-                  </tr>
-                ) : delinquents.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-[#1E40AF] font-medium">
-                      Hebat! Tidak ada rekam jejak keterlambatan pengembalian dari seluruh operator.
-                    </td>
-                  </tr>
-                ) : (
-                  delinquents.map((worker) => (
-                    <tr key={worker.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                        {worker.nik}
-                      </td>
-                      <td className="py-2.5 px-3 font-medium text-slate-900">
-                        {worker.name}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600">
-                        {worker.department} &bull; {worker.shift}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
-                        {worker.phone}
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        {worker.currentOverdueCount > 0 ? (
-                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            {worker.currentOverdueCount} Peminjaman
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-bold text-slate-800 whitespace-nowrap tabular-nums">
-                        {worker.totalLateCount} kali
-                      </td>
-                      <td className="py-2.5 px-3 max-w-xs">
-                        {worker.overdueDetails.length > 0 ? (
-                          <div className="space-y-1">
-                            {worker.overdueDetails.map((det: any, dIdx: number) => (
-                              <div key={dIdx} className="text-[11px] text-rose-800 bg-rose-50/50 p-1 rounded">
-                                <span className="font-bold tabular-nums">{det.loanNumber}</span>: {det.items}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">Tidak ada pinjaman tertunda aktif</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                            worker.status === 'AKTIF'
-                              ? 'bg-blue-50 text-[#1E40AF] border border-blue-200'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
-                        >
-                          {worker.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {loading ? (
+              <div className="border-t border-slate-200 mt-2">
+                <SkeletonTable rows={8} cols={8} />
+              </div>
+            ) : delinquents.length === 0 ? (
+              <EmptyState
+                title="Tidak Ada Riwayat Keterlambatan"
+                description="Semua pengembalian perkakas tercatat tepat waktu."
+                className="border-t border-slate-200 mt-2"
+              />
+            ) : (
+              <>
+                <div className="overflow-x-auto border-t border-slate-200 mt-2">
+                  <table className="w-full text-left text-xs min-w-[950px]">
+                    <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
+                      <tr>
+                        <th className="py-2.5 px-3 whitespace-nowrap">NIK</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">NAMA PEKERJA</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN &amp; SHIFT</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">TERLAMBAT SAAT INI</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">TOTAL RIWAYAT TELAT</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DETAIL PINJAMAN OVERDUE</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS ANGGOTA</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {delinquents
+                        .slice((tab3Page - 1) * tab3PageSize, tab3Page * tab3PageSize)
+                        .map((worker) => (
+                          <tr key={worker.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                              {worker.nik}
+                            </td>
+                            <td className="py-2.5 px-3 font-medium text-slate-900">
+                              {worker.name}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600">
+                              {worker.department} | {worker.shift}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
+                              {worker.phone}
+                            </td>
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                              {worker.currentOverdueCount > 0 ? (
+                                <span className="font-bold text-slate-900 tabular-nums">
+                                  {worker.currentOverdueCount} Peminjaman
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-bold text-slate-800 whitespace-nowrap tabular-nums">
+                              {worker.totalLateCount} kali
+                            </td>
+                            <td className="py-2.5 px-3 max-w-xs">
+                              {worker.overdueDetails.length > 0 ? (
+                                <div className="space-y-1">
+                                  {worker.overdueDetails.map((det: any, dIdx: number) => (
+                                    <div key={dIdx} className="text-[11px] text-slate-800">
+                                      <span className="font-bold tabular-nums">{det.loanNumber}</span> ({det.items})
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">Tidak ada pinjaman tertunda aktif</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap font-medium text-[11px]">
+                              {worker.status === 'AKTIF' ? (
+                                <span className="text-slate-700">{worker.status}</span>
+                              ) : (
+                                <span className="text-slate-900 font-bold">{worker.status}</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Tab 3 Pagination */}
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-200">
+                  <span>
+                    Menampilkan {(tab3Page - 1) * tab3PageSize + 1} -{' '}
+                    {Math.min(tab3Page * tab3PageSize, delinquents.length)} dari {delinquents.length} pekerja
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={tab3Page <= 1}
+                      onClick={() => setTab3Page((p) => Math.max(1, p - 1))}
+                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                    >
+                      &lt;
+                    </button>
+                    <span className="px-2 font-semibold text-slate-700">
+                      {tab3Page} / {Math.ceil(delinquents.length / tab3PageSize) || 1}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={tab3Page >= Math.ceil(delinquents.length / tab3PageSize)}
+                      onClick={() => setTab3Page((p) => p + 1)}
+                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -483,14 +581,14 @@ export default function HistoryPage() {
                 </p>
               </div>
               <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">KONDISI AUS (REGRIND)</span>
-                <p className="text-base font-bold text-amber-600 mt-0.5 tabular-nums">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">KONDISI AUS (REGRIND)</span>
+                <p className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                   {lifespanData?.summary?.ausCount || 0} unit
                 </p>
               </div>
               <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">KONDISI RUSAK</span>
-                <p className="text-base font-bold text-rose-600 mt-0.5 tabular-nums">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">KONDISI RUSAK</span>
+                <p className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                   {lifespanData?.summary?.rusakCount || 0} unit
                 </p>
               </div>
@@ -518,8 +616,8 @@ export default function HistoryPage() {
                   <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
                     <tr>
                       <th className="py-2.5 px-3 whitespace-nowrap">KODE TOOL</th>
-                      <th className="py-2.5 px-3">NAMA BARANG</th>
-                      <th className="py-2.5 px-3">KATEGORI & JENIS</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">NAMA BARANG</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">KATEGORI & JENIS</th>
                       <th className="py-2.5 px-3 text-right whitespace-nowrap">TOTAL ASLI</th>
                       <th className="py-2.5 px-3 text-right whitespace-nowrap">TERSEDIA</th>
                       <th className="py-2.5 px-3 text-right whitespace-nowrap">PERAWATAN / REGRIND</th>
@@ -552,16 +650,27 @@ export default function HistoryPage() {
                           <td className="py-2.5 px-3 text-right text-[#1E40AF] font-bold whitespace-nowrap tabular-nums">
                             {tool.availableStock}
                           </td>
-                          <td className="py-2.5 px-3 text-right text-amber-700 font-bold whitespace-nowrap tabular-nums">
+                          <td className="py-2.5 px-3 text-right text-slate-800 font-bold whitespace-nowrap tabular-nums">
                             {tool.repairStock} unit
                           </td>
-                          <td className="py-2.5 px-3 text-right text-rose-700 font-bold whitespace-nowrap tabular-nums">
+                          <td className="py-2.5 px-3 text-right text-slate-900 font-bold whitespace-nowrap tabular-nums">
                             {tool.scrapStock} unit
                           </td>
                           <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                            <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-                              Hal. 5D SOP
-                            </span>
+                            {tool.repairStock > 0 ? (
+                              <button
+                                type="button"
+                                disabled={repairingId === tool.id}
+                                onClick={() => handleCompleteRepair(tool)}
+                                className="px-2.5 py-1 text-[11px] font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 disabled:bg-slate-300 rounded transition-colors cursor-pointer"
+                              >
+                                {repairingId === tool.id ? 'Memproses...' : 'Selesai Servis'}
+                              </button>
+                            ) : (
+                              <span className="text-[11px] font-medium text-slate-500">
+                                Afkir Permanen
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))
