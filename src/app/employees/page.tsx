@@ -21,6 +21,11 @@ interface Employee {
   cardVersion: number;
 }
 
+export const isMachineDept = (dept: string = '') => {
+  const d = dept.toLowerCase();
+  return d.includes('machining') || d.includes('mould') || d.includes('mesin') || d.includes('dies');
+};
+
 export default function EmployeesPage() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -44,6 +49,15 @@ export default function EmployeesPage() {
   const [phone, setPhone] = useState('628');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('AKTIF');
+
+  const handleDeptChange = (newDept: string) => {
+    setDepartment(newDept);
+    if (!isMachineDept(newDept)) {
+      setShift('Non-Shift (Reguler)');
+    } else if (shift.includes('Non-Shift')) {
+      setShift('Shift 1 (Pagi)');
+    }
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -303,7 +317,7 @@ export default function EmployeesPage() {
                   <th className="py-2.5 px-3 whitespace-nowrap">NAMA LENGKAP</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">PERAN / JABATAN</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">SHIFT KERJA</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">SHIFT / JADWAL KERJA</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">VERSI KARTU</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
@@ -325,8 +339,12 @@ export default function EmployeesPage() {
                     <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
                       {emp.department}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                      {emp.shift || 'Shift 1 (Pagi)'}
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      {isMachineDept(emp.department) ? (
+                        <span className="text-slate-800 font-medium">{emp.shift || 'Shift 1 (Pagi)'}</span>
+                      ) : (
+                        <span className="text-slate-500 font-normal">Non-Shift (Reguler)</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
                       {emp.phone || '-'}
@@ -466,6 +484,9 @@ export default function EmployeesPage() {
                   >
                     <option value="Operator CNC">Operator CNC</option>
                     <option value="Teknisi Moulding">Teknisi Moulding</option>
+                    <option value="CAD/CAM & Design Engineer">CAD/CAM &amp; Design Engineer</option>
+                    <option value="Marketing & Sales">Marketing &amp; Sales</option>
+                    <option value="Staff Administrasi / HR">Staff Administrasi / HR</option>
                     <option value="QC Inspector">QC Inspector</option>
                     <option value="Teknisi Maintenance">Teknisi Maintenance</option>
                     <option value="Supervisor Produksi">Supervisor Produksi</option>
@@ -477,14 +498,16 @@ export default function EmployeesPage() {
                   </label>
                   <select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                    onChange={(e) => handleDeptChange(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
                   >
-                    <option value="Machining CNC">Machining CNC</option>
-                    <option value="Mould Making">Mould Making</option>
+                    <option value="Machining CNC">Machining CNC (Mesin 24 Jam)</option>
+                    <option value="Mould Making">Mould Making (Mesin 24 Jam)</option>
+                    <option value="Engineering & Design">Engineering &amp; Design (Non-Shift)</option>
+                    <option value="Marketing & Sales">Marketing &amp; Sales (Non-Shift)</option>
+                    <option value="Administrasi & HR">Administrasi &amp; HR (Non-Shift)</option>
                     <option value="QC (Quality Control)">QC (Quality Control)</option>
                     <option value="Maintenance & Utility">Maintenance &amp; Utility</option>
-                    <option value="Engineering & Design">Engineering &amp; Design</option>
                   </select>
                 </div>
               </div>
@@ -492,18 +515,31 @@ export default function EmployeesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Shift Kerja *
+                    {isMachineDept(department) ? 'Shift Kerja (Mesin 24 Jam) *' : 'Jadwal Kerja (Non-Mesin)'}
                   </label>
-                  <select
-                    value={shift}
-                    onChange={(e) => setShift(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
-                  >
-                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi 07.00 - 15.00)</option>
-                    <option value="Shift 2 (Siang)">Shift 2 (Siang 15.00 - 23.00)</option>
-                    <option value="Shift 3 (Malam)">Shift 3 (Malam 23.00 - 07.00)</option>
-                    <option value="Non-Shift (Office)">Non-Shift (Office 08.00 - 17.00)</option>
-                  </select>
+                  {isMachineDept(department) ? (
+                    <select
+                      value={shift}
+                      onChange={(e) => setShift(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
+                    >
+                      <option value="Shift 1 (Pagi)">Shift 1 (Pagi 07.00 - 15.00)</option>
+                      <option value="Shift 2 (Siang)">Shift 2 (Siang 15.00 - 23.00)</option>
+                      <option value="Shift 3 (Malam)">Shift 3 (Malam 23.00 - 07.00)</option>
+                    </select>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        readOnly
+                        value="Non-Shift (Jam Kantor 08.00 - 17.00)"
+                        className="w-full bg-slate-100 border border-slate-200 text-slate-600 rounded px-2.5 py-1.5 cursor-not-allowed text-xs font-medium"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-0.5 block">
+                        Tim design, marketing, dan office tidak menggunakan sistem shift.
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
@@ -611,6 +647,9 @@ export default function EmployeesPage() {
                   >
                     <option value="Operator CNC">Operator CNC</option>
                     <option value="Teknisi Moulding">Teknisi Moulding</option>
+                    <option value="CAD/CAM & Design Engineer">CAD/CAM &amp; Design Engineer</option>
+                    <option value="Marketing & Sales">Marketing &amp; Sales</option>
+                    <option value="Staff Administrasi / HR">Staff Administrasi / HR</option>
                     <option value="QC Inspector">QC Inspector</option>
                     <option value="Teknisi Maintenance">Teknisi Maintenance</option>
                     <option value="Supervisor Produksi">Supervisor Produksi</option>
@@ -622,14 +661,16 @@ export default function EmployeesPage() {
                   </label>
                   <select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                    onChange={(e) => handleDeptChange(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
                   >
-                    <option value="Machining CNC">Machining CNC</option>
-                    <option value="Mould Making">Mould Making</option>
+                    <option value="Machining CNC">Machining CNC (Mesin 24 Jam)</option>
+                    <option value="Mould Making">Mould Making (Mesin 24 Jam)</option>
+                    <option value="Engineering & Design">Engineering &amp; Design (Non-Shift)</option>
+                    <option value="Marketing & Sales">Marketing &amp; Sales (Non-Shift)</option>
+                    <option value="Administrasi & HR">Administrasi &amp; HR (Non-Shift)</option>
                     <option value="QC (Quality Control)">QC (Quality Control)</option>
                     <option value="Maintenance & Utility">Maintenance &amp; Utility</option>
-                    <option value="Engineering & Design">Engineering &amp; Design</option>
                   </select>
                 </div>
               </div>
@@ -637,18 +678,31 @@ export default function EmployeesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
-                    Shift Kerja
+                    {isMachineDept(department) ? 'Shift Kerja (Mesin 24 Jam) *' : 'Jadwal Kerja (Non-Mesin)'}
                   </label>
-                  <select
-                    value={shift}
-                    onChange={(e) => setShift(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
-                  >
-                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi 07.00 - 15.00)</option>
-                    <option value="Shift 2 (Siang)">Shift 2 (Siang 15.00 - 23.00)</option>
-                    <option value="Shift 3 (Malam)">Shift 3 (Malam 23.00 - 07.00)</option>
-                    <option value="Non-Shift (Office)">Non-Shift (Office 08.00 - 17.00)</option>
-                  </select>
+                  {isMachineDept(department) ? (
+                    <select
+                      value={shift}
+                      onChange={(e) => setShift(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
+                    >
+                      <option value="Shift 1 (Pagi)">Shift 1 (Pagi 07.00 - 15.00)</option>
+                      <option value="Shift 2 (Siang)">Shift 2 (Siang 15.00 - 23.00)</option>
+                      <option value="Shift 3 (Malam)">Shift 3 (Malam 23.00 - 07.00)</option>
+                    </select>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        readOnly
+                        value="Non-Shift (Jam Kantor 08.00 - 17.00)"
+                        className="w-full bg-slate-100 border border-slate-200 text-slate-600 rounded px-2.5 py-1.5 cursor-not-allowed text-xs font-medium"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-0.5 block">
+                        Tim design, marketing, dan office tidak menggunakan sistem shift.
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">

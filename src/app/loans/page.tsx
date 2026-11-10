@@ -20,6 +20,11 @@ interface Employee {
   loans?: any[];
 }
 
+const isMachineDept = (dept: string = '') => {
+  const d = dept.toLowerCase();
+  return d.includes('machining') || d.includes('mould') || d.includes('mesin') || d.includes('dies');
+};
+
 interface SelectedItem {
   id: string;
   itemType: 'TOOL' | 'INVENTORY';
@@ -517,7 +522,7 @@ export default function LoansPage() {
                       <option value="">Pilih 1 Karyawan Penanggung Jawab ({employeesList.length} terdaftar)</option>
                       {employeesList.map((emp) => (
                         <option key={emp.id} value={emp.nik}>
-                          {emp.name} ({emp.nik}) | {emp.department} | {emp.shift || 'Shift 1'}
+                          {emp.name} ({emp.nik}) | {emp.department} {isMachineDept(emp.department) ? `| ${emp.shift || 'Shift 1'}` : '| Non-Shift'}
                         </option>
                       ))}
                     </select>
@@ -541,7 +546,12 @@ export default function LoansPage() {
                         {employee.name} <span className="font-mono text-xs font-semibold text-slate-600">({employee.nik})</span>
                       </div>
                       <div className="text-[11px] text-slate-600">
-                        <span className="font-semibold text-slate-800">{employee.department}</span> | <span className="font-semibold text-slate-800">{employee.shift || 'Shift 1'}</span>
+                        <span className="font-semibold text-slate-800">{employee.department}</span>
+                        {isMachineDept(employee.department) ? (
+                          <> | <span className="font-semibold text-slate-800">{employee.shift || 'Shift 1'} (Mesin 24 Jam)</span></>
+                        ) : (
+                          <> | <span className="text-slate-500 font-normal">Non-Shift (Reguler)</span></>
+                        )}
                       </div>
                     </div>
                     <div className="text-left sm:text-right">
@@ -1042,28 +1052,48 @@ export default function LoansPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Departemen *</label>
                   <select
                     value={newEmpDept}
-                    onChange={(e) => setNewEmpDept(e.target.value)}
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      setNewEmpDept(d);
+                      if (!isMachineDept(d)) {
+                        setNewEmpShift('Non-Shift (Staff)');
+                      } else if (newEmpShift.includes('Non-Shift')) {
+                        setNewEmpShift('Shift 1 (Pagi)');
+                      }
+                    }}
                     className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-[#1E40AF]"
                   >
-                    <option value="Machining CNC">Machining CNC</option>
-                    <option value="Mould & Dies">Mould &amp; Dies</option>
+                    <option value="Machining CNC">Machining CNC (Mesin 24 Jam)</option>
+                    <option value="Mould & Dies">Mould &amp; Dies (Mesin 24 Jam)</option>
+                    <option value="Engineering & Design">Engineering &amp; Design (Non-Shift)</option>
+                    <option value="Marketing & Sales">Marketing &amp; Sales (Non-Shift)</option>
+                    <option value="Administrasi & HR">Administrasi &amp; HR (Non-Shift)</option>
                     <option value="Quality Control (QC)">Quality Control (QC)</option>
                     <option value="Maintenance Machine">Maintenance Machine</option>
-                    <option value="Tool Crib">Tool Crib</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Shift Kerja *</label>
-                  <select
-                    value={newEmpShift}
-                    onChange={(e) => setNewEmpShift(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-[#1E40AF]"
-                  >
-                    <option value="Shift 1 (Pagi)">Shift 1 (Pagi)</option>
-                    <option value="Shift 2 (Siang)">Shift 2 (Siang)</option>
-                    <option value="Shift 3 (Malam)">Shift 3 (Malam)</option>
-                    <option value="Non-Shift (Staff)">Non-Shift (Staff)</option>
-                  </select>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {isMachineDept(newEmpDept) ? 'Shift Kerja (Mesin 24 Jam) *' : 'Jadwal Kerja (Non-Mesin)'}
+                  </label>
+                  {isMachineDept(newEmpDept) ? (
+                    <select
+                      value={newEmpShift}
+                      onChange={(e) => setNewEmpShift(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-[#1E40AF]"
+                    >
+                      <option value="Shift 1 (Pagi)">Shift 1 (Pagi)</option>
+                      <option value="Shift 2 (Siang)">Shift 2 (Siang)</option>
+                      <option value="Shift 3 (Malam)">Shift 3 (Malam)</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      readOnly
+                      value="Non-Shift (Jam Kantor)"
+                      className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded px-2 py-1.5 text-xs font-medium cursor-not-allowed"
+                    />
+                  )}
                 </div>
               </div>
               <div>

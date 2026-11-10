@@ -22,6 +22,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1E40AF" />
       </head>
       <body className="min-h-full bg-[#F8FAFC] text-slate-800 flex flex-col">
         <ToastProvider>
