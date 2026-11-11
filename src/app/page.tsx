@@ -252,7 +252,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-7 bg-white border border-slate-200 rounded p-4">
             <BarChartSection data={data?.barChartData || INITIAL_DASHBOARD_DATA.barChartData} />
           </div>
-          <div className="lg:col-span-5 bg-white border border-slate-200 rounded p-4 flex">
+          <div className="lg:col-span-5 bg-white border border-slate-200 rounded p-4">
             <DonutChartSection data={data?.donutChartData || INITIAL_DASHBOARD_DATA.donutChartData} />
           </div>
         </div>

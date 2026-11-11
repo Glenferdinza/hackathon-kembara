@@ -200,9 +200,9 @@ export function BarChartSection({ data }: BarChartSectionProps) {
 
       {/* VIEW 3: TABULAR MATRIX VIEW (Industrial standard for precise numbers) */}
       {viewMode === 'table' && (
-        <div className="mt-3 overflow-x-auto border border-slate-200 rounded bg-white">
-          <table className="w-full text-left text-xs min-w-[540px]">
-            <thead>
+        <div className="mt-3 h-[380px] overflow-auto border border-slate-200 rounded bg-white">
+          <table className="w-full text-left text-xs min-w-[500px]">
+            <thead className="sticky top-0 bg-slate-50 z-10">
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
                 <th className="py-2 px-3 w-10 text-center">NO</th>
                 <th className="py-2 px-3">KATEGORI BARANG</th>
