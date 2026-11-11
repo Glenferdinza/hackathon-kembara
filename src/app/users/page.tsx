@@ -70,8 +70,8 @@ export default function UsersAccessPage() {
   }, [fetchUsers]);
 
   const getRoleLabel = (role: string) => {
-    if (role === 'SUPER_ADMIN') return 'Super Admin (Pimpinan)';
-    if (role === 'ADMIN') return 'Admin (Operasional & Master)';
+    if (role === 'SUPER_ADMIN') return 'Super Admin';
+    if (role === 'ADMIN') return 'Admin';
     return role;
   };
 
@@ -218,28 +218,6 @@ export default function UsersAccessPage() {
           </div>
         </div>
 
-        {/* Ringkasan Cakupan 2 Role */}
-        <div className="grid grid-cols-1 md:grid-cols-2 bg-white border border-slate-200 rounded divide-y md:divide-y-0 md:divide-x divide-slate-200 text-xs">
-          <div className="p-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 font-heading">Super Admin (Boss / Pimpinan)</span>
-              <span className="text-[11px] font-semibold text-[#1E40AF]">Akses Penuh &amp; Kelola Pengguna</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Memiliki wewenang tertinggi untuk mengelola seluruh master data, transaksi, audit log, serta menambah, memberi hak akses, dan menonaktifkan akun pengguna sistem.
-            </p>
-          </div>
-          <div className="p-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 font-heading">Admin (Operasional &amp; Master Data)</span>
-              <span className="text-[11px] font-semibold text-slate-700">Operasional Lengkap</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Mengelola seluruh operasional peminjaman, pengembalian, monitoring keterlambatan, data karyawan, serta master tool dan inventaris tanpa wewenang mengelola akun pengguna.
-            </p>
-          </div>
-        </div>
-
         {/* Filter & Search Bar */}
         <div className="bg-white border border-slate-200 rounded p-4 space-y-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
@@ -259,8 +237,8 @@ export default function UsersAccessPage() {
                 className="bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
               >
                 <option value="">Semua Level Akses</option>
-                <option value="SUPER_ADMIN">Super Admin (Pimpinan)</option>
-                <option value="ADMIN">Admin (Operasional &amp; Master)</option>
+                <option value="SUPER_ADMIN">Super Admin</option>
+                <option value="ADMIN">Admin</option>
               </select>
 
               <select
@@ -280,7 +258,7 @@ export default function UsersAccessPage() {
           <div className="overflow-x-auto border border-slate-200 rounded">
             {loading ? (
               <div className="p-3">
-                <SkeletonTable rows={4} cols={7} />
+                <SkeletonTable rows={4} cols={6} />
               </div>
             ) : users.length === 0 ? (
               <EmptyState
@@ -294,14 +272,13 @@ export default function UsersAccessPage() {
                 }}
               />
             ) : (
-              <table className="w-full text-left text-xs min-w-[820px]">
+              <table className="w-full text-left text-xs min-w-[700px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider">
                   <tr>
                     <th className="py-2.5 px-3 whitespace-nowrap">ID LOGIN</th>
                     <th className="py-2.5 px-3 whitespace-nowrap">NAMA PENGGUNA</th>
                     <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">LEVEL HAK AKSES</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">CAKUPAN AKSES MENU</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">HAK AKSES</th>
                     <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS LOGIN</th>
                     <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
                   </tr>
@@ -319,14 +296,13 @@ export default function UsersAccessPage() {
                         {u.department}
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span className="font-semibold text-slate-900">
+                        <span
+                          className={`font-semibold text-xs ${
+                            u.role === 'SUPER_ADMIN' ? 'text-[#1E40AF]' : 'text-slate-800'
+                          }`}
+                        >
                           {getRoleLabel(u.role)}
                         </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600 max-w-xs">
-                        <div className="text-[11px] leading-snug">
-                          {getRoleScopeSummary(u.role)}
-                        </div>
                       </td>
                       <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {u.status === 'AKTIF' ? (
