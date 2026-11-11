@@ -26,18 +26,18 @@ interface BarChartSectionProps {
 type ViewMode = 'horizontal' | 'vertical' | 'table';
 
 function getShortCategoryName(name: string): string {
-  if (name.includes('Arbor')) return 'Arbor & Toolholder';
-  if (name.includes('Workshop') || name.includes('Facilities')) return 'Workshop Storage';
-  if (name.includes('Hand Tools')) return 'Industrial Hand Tools';
-  if (name.includes('Pull Studs') || name.includes('Retention')) return 'Pull Studs & Retention';
-  if (name.includes('Measuring') || name.includes('QC')) return 'Measuring & QC';
-  if (name.includes('Collet')) return 'Collet System';
-  if (name.includes('Fastener') || name.includes('Keys') || name.includes('Wrenches')) return 'Keys & Wrenches';
-  if (name.includes('Clamping') || name.includes('Vise') || name.includes('Jigs')) return 'Clamping & Fixtures';
-  if (name.includes('Insert Holders') || name.includes('Bars')) return 'Insert Holders & Bars';
-  if (name.includes('Carbide') || name.includes('Tips')) return 'Carbide Cutting Tips';
-  if (name.includes('Pneumatic') || name.includes('Power')) return 'Pneumatic & Power';
-  if (name.length > 20) return name.slice(0, 18) + '...';
+  if (name.includes('Arbor') || name.includes('Toolholder')) return 'Toolholder';
+  if (name.includes('Insert Holders') || name.includes('Bars')) return 'Insert Holder';
+  if (name.includes('Pull Studs') || name.includes('Retention')) return 'Pull Studs';
+  if (name.includes('Collet')) return 'Collet';
+  if (name.includes('Clamping') || name.includes('Vise') || name.includes('Jigs')) return 'Clamping';
+  if (name.includes('Fastener') || name.includes('Keys') || name.includes('Wrenches')) return 'Kunci Pas';
+  if (name.includes('Measuring') || name.includes('QC')) return 'Alat Ukur';
+  if (name.includes('Hand Tools')) return 'Hand Tools';
+  if (name.includes('Pneumatic') || name.includes('Power')) return 'Pneumatic';
+  if (name.includes('Carbide') || name.includes('Tips')) return 'Carbide Tips';
+  if (name.includes('Workshop') || name.includes('Facilities') || name.includes('Storage')) return 'Storage';
+  if (name.length > 14) return name.slice(0, 12) + '..';
   return name;
 }
 
@@ -98,11 +98,11 @@ export function BarChartSection({ data }: BarChartSectionProps) {
       {/* Header with Title and View Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2.5 border-b border-slate-200 gap-2">
         <div className="min-w-0">
-          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider whitespace-nowrap truncate">
+          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider whitespace-nowrap">
             Distribusi Stok per Kategori
           </h2>
-          <p className="text-[11px] text-slate-500 truncate">
-            Komposisi unit siap pakai dan sedang dipinjam per kategori
+          <p className="text-[11px] text-slate-500 whitespace-nowrap">
+            Unit siap pakai &amp; dipinjam
           </p>
         </div>
 
@@ -142,7 +142,7 @@ export function BarChartSection({ data }: BarChartSectionProps) {
               <YAxis
                 type="category"
                 dataKey="shortName"
-                width={150}
+                width={110}
                 interval={0}
                 tick={{ fontSize: 11, fill: '#334155', fontWeight: 500 }}
                 axisLine={{ stroke: '#CBD5E1' }}
@@ -166,20 +166,21 @@ export function BarChartSection({ data }: BarChartSectionProps) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={formattedData}
-              margin={{ top: 10, right: 10, left: -15, bottom: 35 }}
+              margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
               <XAxis
                 dataKey="shortName"
-                tick={{ fontSize: 10, fill: '#475569', fontWeight: 500 }}
+                tick={{ fontSize: 9.5, fill: '#475569', fontWeight: 500 }}
                 interval={0}
                 angle={-35}
                 textAnchor="end"
-                height={85}
+                height={70}
                 tickLine={false}
                 axisLine={{ stroke: '#CBD5E1' }}
               />
               <YAxis
+                width={35}
                 tick={{ fontSize: 10, fill: '#64748B' }}
                 tickLine={false}
                 axisLine={{ stroke: '#CBD5E1' }}
@@ -190,8 +191,8 @@ export function BarChartSection({ data }: BarChartSectionProps) {
                 wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}
                 iconType="square"
               />
-              <Bar dataKey="available" stackId="stok" name="Stok Tersedia" fill="#1E40AF" barSize={22} />
-              <Bar dataKey="borrowed" stackId="stok" name="Sedang Dipinjam" fill="#D97706" radius={[2, 2, 0, 0]} barSize={22} />
+              <Bar dataKey="available" stackId="stok" name="Stok Tersedia" fill="#1E40AF" barSize={20} />
+              <Bar dataKey="borrowed" stackId="stok" name="Sedang Dipinjam" fill="#D97706" radius={[2, 2, 0, 0]} barSize={20} />
             </BarChart>
           </ResponsiveContainer>
         </div>
