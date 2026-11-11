@@ -85,10 +85,15 @@ export default function UsersAccessPage() {
     return 'Akses standar';
   };
 
+  const suggestedNextId =
+    users.length > 0
+      ? (Math.max(...users.map((u) => parseInt(u.email, 10) || 10000)) + 1).toString()
+      : '10003';
+
   const handleOpenAdd = () => {
     setEditingUser(null);
     setFormName('');
-    setFormEmail('');
+    setFormEmail(suggestedNextId);
     setFormDepartment('Loket Dispatch Tool Room');
     setFormRole('ADMIN');
     setFormStatus('AKTIF');
@@ -166,8 +171,8 @@ export default function UsersAccessPage() {
   const handleDeleteUser = async (u: UserAccount) => {
     const ok = await confirm({
       title: `Hapus Akun Pengguna ${u.name}`,
-      message: `Apakah Anda yakin ingin menghapus akun dengan ID Login ${u.email}? Tindakan ini tidak dapat dibatalkan.`,
-      confirmText: 'Ya, Hapus Akun',
+      message: `Apakah Anda yakin ingin menghapus akun ${u.name} (ID ${u.email})? Hak akses login akun ini akan langsung dicabut seketika.`,
+      confirmText: 'Ya, Cabut & Hapus',
       cancelText: 'Batal',
       type: 'danger',
     });
@@ -179,7 +184,7 @@ export default function UsersAccessPage() {
       if (!res.ok) {
         showToast(json.error || 'Gagal menghapus akun pengguna.', 'error');
       } else {
-        showToast(`Akun ${u.name} telah dihapus.`, 'info');
+        showToast(json.message || `Akun ${u.name} berhasil dihapus.`, 'info');
         fetchUsers();
       }
     } catch {
@@ -266,7 +271,7 @@ export default function UsersAccessPage() {
               >
                 <option value="">Semua Status</option>
                 <option value="AKTIF">Status Aktif</option>
-                <option value="NONAKTIF">Status Nonaktif</option>
+                <option value="NONAKTIF">Akses Dicabut</option>
               </select>
             </div>
           </div>
@@ -329,8 +334,8 @@ export default function UsersAccessPage() {
                             AKTIF
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold text-slate-500">
-                            NONAKTIF
+                          <span className="text-[11px] font-semibold text-slate-500">
+                            AKSES DICABUT
                           </span>
                         )}
                       </td>
@@ -444,36 +449,20 @@ export default function UsersAccessPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Level Hak Akses (Role) *
-                  </label>
-                  <select
-                    value={formRole}
-                    onChange={(e) =>
-                      setFormRole(e.target.value as 'SUPER_ADMIN' | 'ADMIN')
-                    }
-                    className="w-full bg-white border border-slate-300 text-slate-800 font-semibold rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
-                  >
-                    <option value="SUPER_ADMIN">Super Admin (Pimpinan)</option>
-                    <option value="ADMIN">Admin (Operasional &amp; Master)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Status Izin Login *
-                  </label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as 'AKTIF' | 'NONAKTIF')}
-                    className="w-full bg-white border border-slate-300 text-slate-800 font-semibold rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
-                  >
-                    <option value="AKTIF">AKTIF (Bisa Masuk)</option>
-                    <option value="NONAKTIF">NONAKTIF (Diblokir)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Level Hak Akses (Role) *
+                </label>
+                <select
+                  value={formRole}
+                  onChange={(e) =>
+                    setFormRole(e.target.value as 'SUPER_ADMIN' | 'ADMIN')
+                  }
+                  className="w-full bg-white border border-slate-300 text-slate-800 font-semibold rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                >
+                  <option value="ADMIN">Admin (Operasional &amp; Master Data)</option>
+                  <option value="SUPER_ADMIN">Super Admin (Pimpinan / Boss)</option>
+                </select>
               </div>
 
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-600">

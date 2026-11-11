@@ -149,13 +149,24 @@ export async function DELETE(
     }
 
     if (targetUser._count.loans > 0 || targetUser._count.returns > 0) {
-      return NextResponse.json(
-        {
-          error:
-            'Akun ini memiliki riwayat pencatatan transaksi di sistem. Silakan ubah status akun menjadi NONAKTIF agar jejak audit tetap terjaga.',
+      await prisma.user.update({
+        where: { id },
+        data: { status: 'NONAKTIF' },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'HAPUS_AKUN_PENGGUNA',
+          adminId: session.id,
+          adminName: session.name,
+          details: `Menonaktifkan dan mencabut seluruh hak akses akun pengguna ${targetUser.name} (${targetUser.email}).`,
         },
-        { status: 400 }
-      );
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Hak akses akun ${targetUser.name} telah dicabut permanen dari sistem.`,
+      });
     }
 
     await prisma.user.delete({ where: { id } });
@@ -165,11 +176,11 @@ export async function DELETE(
         action: 'HAPUS_AKUN_PENGGUNA',
         adminId: session.id,
         adminName: session.name,
-        details: `Menghapus akun pengguna ${targetUser.name} (${targetUser.email}).`,
+        details: `Menghapus permanen akun pengguna ${targetUser.name} (${targetUser.email}).`,
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: `Akun ${targetUser.name} berhasil dihapus permanen.` });
   } catch (err) {
     return NextResponse.json(
       { error: 'Gagal menghapus akun pengguna ' + String(err) },
