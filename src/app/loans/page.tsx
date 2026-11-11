@@ -522,7 +522,7 @@ export default function LoansPage() {
                       <option value="">Pilih 1 Karyawan Penanggung Jawab ({employeesList.length} terdaftar)</option>
                       {employeesList.map((emp) => (
                         <option key={emp.id} value={emp.nik}>
-                          {emp.name} ({emp.nik}) | {emp.department} {isMachineDept(emp.department) ? `| ${emp.shift || 'Shift 1'}` : '| Non-Shift'}
+                          {emp.name} ({emp.nik}) | {emp.department} | {emp.shift || (isMachineDept(emp.department) ? 'Shift 1' : 'Non-Shift')}
                         </option>
                       ))}
                     </select>
@@ -547,8 +547,14 @@ export default function LoansPage() {
                       </div>
                       <div className="text-[11px] text-slate-600">
                         <span className="font-semibold text-slate-800">{employee.department}</span>
-                        {isMachineDept(employee.department) ? (
-                          <> | <span className="font-semibold text-slate-800">{employee.shift || 'Shift 1'} (Mesin 24 Jam)</span></>
+                        {employee.shift ? (
+                          employee.shift.includes('Non-Shift') ? (
+                            <> | <span className="text-slate-500 font-normal">{employee.shift}</span></>
+                          ) : (
+                            <> | <span className="font-semibold text-slate-800">{employee.shift} (Mesin 24 Jam)</span></>
+                          )
+                        ) : isMachineDept(employee.department) ? (
+                          <> | <span className="font-semibold text-slate-800">Shift 1 (Mesin 24 Jam)</span></>
                         ) : (
                           <> | <span className="text-slate-500 font-normal">Non-Shift (Reguler)</span></>
                         )}
