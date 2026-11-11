@@ -1155,20 +1155,11 @@ export default function LoansPage() {
             className="bg-white rounded border border-slate-300 shadow-xl max-w-md w-full overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Scan className="w-4 h-4 text-[#1E40AF]" />
-                <span className="text-xs font-bold font-heading text-slate-900 uppercase">
-                  Pemindai Kartu RFID &amp; Barcode
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsRfidModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-              >
-                Tutup
-              </button>
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+              <Scan className="w-4 h-4 text-[#1E40AF]" />
+              <span className="text-xs font-bold font-heading text-slate-900 uppercase">
+                Pemindai Kartu RFID &amp; Barcode
+              </span>
             </div>
 
             <div className="p-5 space-y-4 text-xs">
