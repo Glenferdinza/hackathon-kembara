@@ -26,18 +26,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setSidebarOpen(false);
     }
 
+    // 1. Cek cache session client untuk loading instan (0ms)
+    let hasLocalSession = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('ypti_erp_active_user');
+        if (cached) {
+          const parsed = JSON.parse(cached) as ActiveUser;
+          if (parsed?.id) {
+            setCurrentUser(parsed);
+            setAuthChecked(true);
+            hasLocalSession = true;
+
+            // Proteksi rute khusus Super Admin
+            if (pathname === '/users' && parsed.role !== 'SUPER_ADMIN') {
+              router.replace('/');
+              return;
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const verifyAuthAndStats = async () => {
       try {
         const authRes = await fetch('/api/auth');
         if (authRes.ok) {
           const authJson = await authRes.json();
           if (!authJson.user) {
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('ypti_erp_active_user');
+            }
             router.replace('/login');
             return;
           }
 
           const user: ActiveUser = authJson.user;
           setCurrentUser(user);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('ypti_erp_active_user', JSON.stringify(user));
+          }
 
           // Proteksi rute khusus Super Admin (Manajemen Akun Pengguna)
           if (pathname === '/users' && user.role !== 'SUPER_ADMIN') {
@@ -47,17 +77,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           setAuthChecked(true);
         } else {
-          router.replace('/login');
-          return;
-        }
-
-        const res = await fetch('/api/dashboard');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.kpi && typeof json.kpi.overdueLoansCount === 'number') {
-            setOverdueCount(json.kpi.overdueLoansCount);
+          if (!hasLocalSession) {
+            router.replace('/login');
+            return;
           }
         }
+
+        // Ambil notifikasi keterlambatan secara non-blocking di latar belakang
+        fetch('/api/dashboard')
+          .then((res) => (res.ok ? res.json() : null))
+          .then((json) => {
+            if (json?.kpi && typeof json.kpi.overdueLoansCount === 'number') {
+              setOverdueCount(json.kpi.overdueLoansCount);
+            }
+          })
+          .catch(() => {});
       } catch {
         setAuthChecked(true);
       }

@@ -13,7 +13,12 @@ export interface AdminSession {
   status: string;
 }
 
+let hasEnsuredDefaults = false;
+
 export async function ensureDefaultUsers() {
+  if (hasEnsuredDefaults) return;
+  hasEnsuredDefaults = true;
+
   // Migrasi otomatis akun email lama ke ID angka murni (10001, 10002)
   const legacyMigrations = [
     { oldId: 'admin@ypti.co.id', newId: '10001' },
@@ -115,9 +120,23 @@ export async function getSession(): Promise<AdminSession | null> {
     const parsed = JSON.parse(sessionValue) as AdminSession;
     if (!parsed?.id) return null;
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: parsed.id },
-    });
+    // Timeout guard 2500ms agar tidak menggantung jika cold-start Supabase lambat di edge
+    let dbUser = null;
+    try {
+      const dbPromise = prisma.user.findUnique({
+        where: { id: parsed.id },
+      });
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('DB_TIMEOUT')), 2500)
+      );
+      dbUser = await Promise.race([dbPromise, timeoutPromise]);
+    } catch {
+      // Jika database timeout atau cold start di Cloudflare, gunakan data cookie valid agar user tidak mental
+      if (parsed.status !== 'NONAKTIF') {
+        return parsed;
+      }
+      return null;
+    }
 
     if (!dbUser || dbUser.status === 'NONAKTIF') {
       return null;

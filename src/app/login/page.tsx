@@ -27,6 +27,9 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(json.error || 'Autentikasi gagal. Periksa kembali ID Pengguna dan kata sandi.');
       } else {
+        if (typeof window !== 'undefined' && json.user) {
+          sessionStorage.setItem('ypti_erp_active_user', JSON.stringify(json.user));
+        }
         router.push('/');
         router.refresh();
       }

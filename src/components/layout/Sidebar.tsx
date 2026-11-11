@@ -41,6 +41,9 @@ export function Sidebar({
     if (!ok) return;
 
     try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('ypti_erp_active_user');
+      }
       await fetch('/api/auth', { method: 'DELETE' });
       router.push('/login');
     } catch {
