@@ -12,7 +12,7 @@ Aplikasi menyediakan dua berkas peluncur yang dapat digunakan sesuai kebutuhan.
 Gunakan berkas **install-desktop-app.bat** jika ingin memasang ikon aplikasi di Desktop Windows.
 - Klik dua kali **install-desktop-app.bat**
 - Ikon PT YPTI Tool Room ERP akan otomatis terpasang di Desktop lengkap dengan logo resmi
-- Langkah ini hanya perlu dijalankan satu kali saja saat pertama kali menyiapkan komputer
+- Langkah ini hanya perlu dijalankan satu kali saja saat pertama kali menyiapkan komputer, yang nanti akan langsung mendownload dependenciesnya ketika user baru pertama kali membuka aplikasi
 
 ### 2. Membuka Aplikasi Sehari-hari (Mode Desktop Window)
 Setelah shortcut terpasang di Desktop, gunakan salah satu cara berikut untuk membuka aplikasi kapan saja.
