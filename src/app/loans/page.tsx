@@ -1162,9 +1162,13 @@ export default function LoansPage() {
                   Pemindai Kartu RFID &amp; Barcode
                 </span>
               </div>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                SIAP SCAN
-              </span>
+              <button
+                type="button"
+                onClick={() => setIsRfidModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+              >
+                Tutup
+              </button>
             </div>
 
             <div className="p-5 space-y-4 text-xs">
