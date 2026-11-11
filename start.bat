@@ -1,6 +1,7 @@
 @echo off
 TITLE PT YPTI - Tool Loan ^& Inventory Management System
 COLOR 0A
+cd /d "%~dp0"
 
 echo =====================================================================
 echo    PT YOGYAKARTA PRECISION TOOLING INDUSTRIES (PT YPTI)
@@ -30,14 +31,9 @@ if not exist "node_modules\" (
     echo [1/3] Dependensi aplikasi sudah terinstal.
 )
 
-:: 3. Setup Database Lokal (dev.db)
-if not exist "dev.db" (
-    echo [2/3] Menginisialisasi database relasional lokal dan seed data demo...
-    call npx prisma db push
-    call npx prisma db seed
-) else (
-    echo [2/3] Database relasional lokal (dev.db) siap digunakan.
-)
+:: 3. Sinkronisasi Prisma Client
+echo [2/3] Menyiapkan Prisma Client...
+call npx prisma generate
 
 :: 4. Jalankan Server & Buka Browser
 echo [3/3] Menjalankan server aplikasi...
