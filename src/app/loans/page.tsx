@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Scan } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
@@ -47,6 +48,13 @@ export default function LoansPage() {
   // 1. State Penanggung Jawab Tunggal (1 Orang)
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [employeesList, setEmployeesList] = useState<Employee[]>([]);
+
+  // State Pencarian & Pemindai RFID / Barcode Karyawan
+  const [empSearchQuery, setEmpSearchQuery] = useState('');
+  const [isRfidModalOpen, setIsRfidModalOpen] = useState(false);
+  const [rfidInputCode, setRfidInputCode] = useState('');
+  const [rfidScanStatus, setRfidScanStatus] = useState<'IDLE' | 'SCANNING' | 'SUCCESS' | 'ERROR'>('IDLE');
+  const [rfidScanMessage, setRfidScanMessage] = useState('');
 
   // Modal Tambah Karyawan Baru Inline
   const [isQuickAddEmpOpen, setIsQuickAddEmpOpen] = useState(false);
@@ -210,6 +218,71 @@ export default function LoansPage() {
     if (matched) {
       setEmployee(matched);
     }
+  };
+
+  const filteredEmployeesList = employeesList.filter((emp) => {
+    if (!empSearchQuery) return true;
+    const q = empSearchQuery.toLowerCase();
+    return emp.nik.toLowerCase().includes(q) || emp.name.toLowerCase().includes(q) || emp.department.toLowerCase().includes(q);
+  });
+
+  const handleRfidScan = async (codeToVerify?: string) => {
+    const raw = codeToVerify !== undefined ? codeToVerify : rfidInputCode;
+    const code = raw.trim().toUpperCase();
+    if (!code) return;
+
+    setRfidScanStatus('SCANNING');
+    setRfidScanMessage('Memverifikasi identitas kartu...');
+
+    // 1. Cek di daftar karyawan lokal terlebih dahulu
+    const found = employeesList.find(
+      (e) => e.nik.toUpperCase() === code || e.name.toUpperCase().includes(code)
+    );
+
+    if (found) {
+      setEmployee(found);
+      setEmpSearchQuery('');
+      setRfidScanStatus('SUCCESS');
+      setRfidScanMessage(`Kartu terverifikasi untuk ${found.name} (${found.nik})`);
+      showToast(`Peminjam ${found.name} (${found.nik}) berhasil diverifikasi via RFID`, 'info');
+      setTimeout(() => {
+        setIsRfidModalOpen(false);
+        setRfidInputCode('');
+        setRfidScanStatus('IDLE');
+        setRfidScanMessage('');
+      }, 700);
+      return;
+    }
+
+    // 2. Jika belum ada di memori lokal, query ke server
+    try {
+      const res = await fetch(`/api/employees?nik=${encodeURIComponent(code)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          const emp = json.data;
+          setEmployeesList((prev) => [emp, ...prev.filter((p) => p.id !== emp.id)]);
+          setEmployee(emp);
+          setEmpSearchQuery('');
+          setRfidScanStatus('SUCCESS');
+          setRfidScanMessage(`Kartu terverifikasi untuk ${emp.name} (${emp.nik})`);
+          showToast(`Peminjam ${emp.name} (${emp.nik}) berhasil diverifikasi via RFID`, 'info');
+          setTimeout(() => {
+            setIsRfidModalOpen(false);
+            setRfidInputCode('');
+            setRfidScanStatus('IDLE');
+            setRfidScanMessage('');
+          }, 700);
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    setRfidScanStatus('ERROR');
+    setRfidScanMessage(`Kartu RFID atau barcode "${code}" tidak ditemukan dalam sistem.`);
+    showToast(`Identitas "${code}" tidak ditemukan`, 'error');
   };
 
   const handleQuickCreateEmployee = async (e: React.FormEvent) => {
@@ -509,31 +582,85 @@ export default function LoansPage() {
                   </span>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Nama Karyawan / Penanggung Jawab *
-                  </label>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <select
-                      value={employee?.nik || ''}
-                      onChange={(e) => handleSelectEmployeeByNik(e.target.value)}
-                      className="flex-1 bg-white border border-slate-300 rounded px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
-                    >
-                      <option value="">Pilih 1 Karyawan Penanggung Jawab ({employeesList.length} terdaftar)</option>
-                      {employeesList.map((emp) => (
-                        <option key={emp.id} value={emp.nik}>
-                          {emp.name} ({emp.nik}) | {emp.department} | {emp.shift || (isMachineDept(emp.department) ? 'Shift 1' : 'Non-Shift')}
-                        </option>
-                      ))}
-                    </select>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Nama Karyawan / Penanggung Jawab *
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      Pindai RFID, ketik pencarian, atau pilih dari dropdown
+                    </span>
+                  </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setIsQuickAddEmpOpen(true)}
-                      className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors whitespace-nowrap cursor-pointer"
-                    >
-                      + Tambah Karyawan Baru
-                    </button>
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                    {/* Input ketik manual / cari cepat NIK atau Nama */}
+                    <div className="md:col-span-5 relative">
+                      <input
+                        type="text"
+                        value={empSearchQuery}
+                        onChange={(e) => setEmpSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (empSearchQuery.trim()) {
+                              handleRfidScan(empSearchQuery.trim());
+                            }
+                          }
+                        }}
+                        placeholder="Ketik NIK / nama untuk cari atau tap..."
+                        className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF]"
+                      />
+                    </div>
+
+                    {/* Dropdown pemilih karyawan */}
+                    <div className="md:col-span-4">
+                      <select
+                        value={employee?.nik || ''}
+                        onChange={(e) => {
+                          handleSelectEmployeeByNik(e.target.value);
+                          setEmpSearchQuery('');
+                        }}
+                        className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                      >
+                        <option value="">Pilih dari daftar ({filteredEmployeesList.length} orang)</option>
+                        {filteredEmployeesList.map((emp) => (
+                          <option key={emp.id} value={emp.nik}>
+                            {emp.name} ({emp.nik}) | {emp.department}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Tombol Scan RFID dengan icon scan dan hover tooltip */}
+                    <div className="md:col-span-3 flex items-center gap-2">
+                      <div className="relative group flex-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRfidModalOpen(true);
+                            setRfidScanStatus('IDLE');
+                            setRfidScanMessage('');
+                            setRfidInputCode('');
+                          }}
+                          title="Scan RFID / Barcode Kartu"
+                          className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-[#1E40AF] hover:text-[#1E40AF] rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <Scan className="w-4 h-4 text-[#1E40AF]" />
+                          <span>Scan RFID</span>
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex px-2 py-1 bg-slate-900 text-white text-[11px] font-medium rounded shadow-sm whitespace-nowrap z-20">
+                          Scan RFID / Barcode Kartu
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsQuickAddEmpOpen(true)}
+                        className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors whitespace-nowrap cursor-pointer"
+                      >
+                        + Baru
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1017,6 +1144,88 @@ export default function LoansPage() {
           </div>
         )}
       </div>
+
+      {/* MODAL PEMINDAI KARTU RFID & BARCODE KARYAWAN */}
+      {isRfidModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+          onClick={() => setIsRfidModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded border border-slate-300 shadow-xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Scan className="w-4 h-4 text-[#1E40AF]" />
+                <span className="text-xs font-bold font-heading text-slate-900 uppercase">
+                  Pemindai Kartu RFID &amp; Barcode
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                SIAP SCAN
+              </span>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <p className="text-slate-600 leading-relaxed">
+                Tempelkan kartu RFID karyawan ke reader USB atau arahkan pemindai barcode ke kartu ID karyawan.
+              </p>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleRfidScan();
+                }}
+                className="space-y-3"
+              >
+                <div className="space-y-1.5">
+                  <label className="block font-semibold text-slate-700">
+                    Kode UID RFID / NIK Kartu
+                  </label>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={rfidInputCode}
+                    onChange={(e) => setRfidInputCode(e.target.value.toUpperCase())}
+                    placeholder="Menunggu sinyal tap kartu RFID..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-2.5 font-mono text-sm font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-[#1E40AF]"
+                  />
+                </div>
+
+                {rfidScanStatus === 'SUCCESS' && (
+                  <div className="p-3 bg-slate-50 border border-slate-300 rounded text-xs text-slate-900 font-semibold">
+                    {rfidScanMessage}
+                  </div>
+                )}
+
+                {rfidScanStatus === 'ERROR' && (
+                  <div className="p-3 bg-slate-50 border border-slate-300 rounded text-xs text-slate-900 font-semibold">
+                    {rfidScanMessage}
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsRfidModalOpen(false)}
+                    className="px-3.5 py-1.5 font-medium text-slate-600 hover:text-slate-800 rounded transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!rfidInputCode.trim()}
+                    className="px-4 py-1.5 font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Verifikasi Kartu
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL CEPAT: TAMBAH KARYAWAN BARU JIKA BELUM ADA DI DAFTAR */}
       {isQuickAddEmpOpen && (
