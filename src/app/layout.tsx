@@ -6,6 +6,14 @@ import { ConfirmDialogProvider } from "@/components/ui/ConfirmDialog";
 export const metadata: Metadata = {
   title: "PT YPTI - Sistem Manajemen Tool Room & Inventaris",
   description: "Enterprise Tool Room & Inventory Management System PT Yogya Presisi Tehnikatama Industri",
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: 'any', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({
@@ -22,6 +30,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#1E40AF" />
       </head>
