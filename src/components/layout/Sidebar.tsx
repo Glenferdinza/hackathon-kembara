@@ -7,6 +7,8 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface SidebarProps {
   overdueCount?: number;
+  pendingRequestsCount?: number;
+  operatorPendingCount?: number;
   isOpen?: boolean;
   onClose?: () => void;
   userRole?: string;
@@ -22,6 +24,8 @@ interface NavItem {
 
 export function Sidebar({
   overdueCount = 0,
+  pendingRequestsCount = 0,
+  operatorPendingCount = 0,
   isOpen = true,
   onClose,
   userRole = 'SUPER_ADMIN',
@@ -53,11 +57,37 @@ export function Sidebar({
 
   const navGroups: { group: string; items: NavItem[] }[] = [
     {
+      group: 'PORTAL OPERATOR',
+      items: [
+        {
+          label: 'Dasbor Operator',
+          href: '/operator',
+          badge: operatorPendingCount > 0 ? `${operatorPendingCount}` : undefined,
+          allowedRoles: ['OPERATOR'],
+        },
+        {
+          label: 'Request Pinjam Tool',
+          href: '/operator/request',
+          allowedRoles: ['OPERATOR'],
+        },
+        {
+          label: 'Pengalihan Shift',
+          href: '/operator/handover',
+          allowedRoles: ['OPERATOR'],
+        },
+      ],
+    },
+    {
       group: 'MENU UTAMA',
       items: [
         {
           label: 'Beranda',
           href: '/',
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
+        },
+        {
+          label: 'Cek QR & Umur Tool',
+          href: '/scan-tool',
           allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
       ],
@@ -85,6 +115,12 @@ export function Sidebar({
     {
       group: 'TRANSAKSI & OPERASIONAL',
       items: [
+        {
+          label: 'Antrean Request Pinjam',
+          href: '/requests',
+          badge: pendingRequestsCount > 0 ? `${pendingRequestsCount}` : undefined,
+          allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
+        },
         {
           label: 'Peminjaman',
           href: '/loans',
@@ -148,7 +184,7 @@ export function Sidebar({
         }}
       >
         <div className="h-16 px-6 flex items-center border-b border-[#E2E8F0] bg-white">
-          <Link href="/" className="flex items-center">
+          <Link href={userRole === 'OPERATOR' ? '/operator' : '/'} className="flex items-center">
             <img
               src="/ypti-logo.png"
               alt="PT YPTI Logo"

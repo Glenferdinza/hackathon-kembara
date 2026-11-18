@@ -21,6 +21,8 @@ export async function GET(request: Request) {
         { employee: { name: { contains: search } } },
         { employee: { nik: { contains: search } } },
         { purpose: { contains: search } },
+        { items: { some: { toolUnit: { unitCode: { contains: search.toUpperCase() } } } } },
+        { items: { some: { currentHolder: { name: { contains: search } } } } },
       ];
     }
 
@@ -41,6 +43,8 @@ export async function GET(request: Request) {
           items: {
             include: {
               tool: { include: { category: true } },
+              toolUnit: true,
+              currentHolder: { select: { id: true, nik: true, name: true, shift: true, phone: true } },
               inventory: { include: { category: true } },
             },
           },

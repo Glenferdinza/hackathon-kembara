@@ -19,6 +19,11 @@ interface Employee {
   email?: string;
   status: string;
   cardVersion: number;
+  user?: {
+    id: string;
+    email: string;
+    status: string;
+  } | null;
 }
 
 export const isMachineDept = (dept: string = '') => {
@@ -149,13 +154,47 @@ export default function EmployeesPage() {
         return;
       }
 
-      showToast(`Anggota ${cleanNikText(nik)} berhasil didaftarkan.`, 'success');
+      showToast(
+        `Anggota ${cleanNikText(nik)} berhasil didaftarkan beserta akun login Operator (Sandi awal: operator123).`,
+        'success'
+      );
       setIsAddOpen(false);
       fetchEmployees();
     } catch {
       showToast('Terjadi kesalahan jaringan.', 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSyncOperatorAccount = async (emp: Employee) => {
+    const hasAccount = Boolean(emp.user);
+    const ok = await confirm({
+      title: hasAccount ? 'Reset Sandi Akun Login Operator' : 'Aktifkan Akun Login Operator',
+      message: hasAccount
+        ? `Reset kata sandi login Operator untuk ${emp.name} (ID ${emp.nik}) menjadi sandi standar "operator123"?`
+        : `Buatkan akun login portal Operator untuk ${emp.name} dengan ID Login "${emp.nik}" dan kata sandi awal "operator123"?`,
+      confirmText: hasAccount ? 'Reset Sandi' : 'Aktifkan Akun',
+      cancelText: 'Batal',
+      type: 'primary',
+    });
+    if (!ok) return;
+
+    try {
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_operator_account', id: emp.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Gagal mengaktifkan akun login Operator.', 'error');
+        return;
+      }
+      showToast(data.message || 'Akun login Operator aktif.', 'success');
+      fetchEmployees();
+    } catch {
+      showToast('Terjadi kesalahan jaringan.', 'error');
     }
   };
 
@@ -319,6 +358,7 @@ export default function EmployeesPage() {
                   <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">SHIFT / JADWAL KERJA</th>
                   <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap">AKUN PORTAL</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">VERSI KARTU</th>
                   <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
                   <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
@@ -348,6 +388,20 @@ export default function EmployeesPage() {
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
                       {emp.phone || '-'}
+                    </td>
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleSyncOperatorAccount(emp)}
+                        title={emp.user ? 'Klik untuk reset sandi Operator' : 'Klik untuk aktifkan akun login Operator'}
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold border cursor-pointer transition-colors ${
+                          emp.user
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
+                      >
+                        {emp.user ? 'Akun Aktif' : '+ Aktifkan Login'}
+                      </button>
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">
                       <span className="text-xs font-medium text-slate-700 tabular-nums">

@@ -18,6 +18,8 @@ export async function GET(request: Request) {
         items: {
           include: {
             tool: true,
+            toolUnit: true,
+            currentHolder: true,
             inventory: true,
           },
         },
@@ -48,37 +50,49 @@ export async function GET(request: Request) {
       }
 
       const itemsList = loan.items
+        .filter((i) => i.quantity - i.returnedQuantity > 0)
         .map((i) => {
-          const name = i.tool ? `${i.tool.code} - ${i.tool.name}` : `${i.inventory?.code} - ${i.inventory?.name}`;
+          const codeLabel = i.toolUnit
+            ? i.toolUnit.unitCode
+            : i.tool
+            ? i.tool.code
+            : i.inventory?.code;
+          const itemName = i.tool ? i.tool.name : i.inventory?.name;
           const unreturned = i.quantity - i.returnedQuantity;
-          return `${name} (${unreturned} unit)`;
+          return `${codeLabel} - ${itemName} (${unreturned} unit)`;
         })
         .join(', ');
+
+      // Jika item sudah dialihkan ke Shift 2 / orang terakhir, tagih ke pemegang terakhir
+      const activeShiftedItem = loan.items.find(
+        (i) => i.status === 'DIPINJAM' && i.currentHolder && i.currentHolder.id !== loan.employee.id
+      );
+      const targetPerson = activeShiftedItem?.currentHolder || loan.employee;
 
       // WhatsApp reminder link & template
       let waLink = null;
       let emailLink = null;
 
-      if (loan.employee.phone) {
-        // Clean phone number: remove +, -, spaces
-        let phone = loan.employee.phone.replace(/[^0-9]/g, '');
+      if (targetPerson.phone) {
+        let phone = targetPerson.phone.replace(/[^0-9]/g, '');
         if (phone.startsWith('0')) {
           phone = '62' + phone.slice(1);
         }
-        const message = `Halo Sdr/i ${loan.employee.name} (${loan.employee.department}),\n\nMengingatkan perihal peminjaman perkakas di Tool Room PT YPTI dengan No. Transaksi *${loan.transactionNumber}*:\nBarang: ${itemsList}\nTenggat Pengembalian: ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}\nStatus: *${status === 'TERLAMBAT' ? 'SUDAH MELEWATI TENGGAT' : 'JATUH TEMPO HARI INI'}*.\n\nMohon untuk segera mengembalikan unit tersebut ke ruang Tool Room / Gudang Pusat untuk verifikasi kondisi barang.\n\nTerima kasih.\n*Admin Tool Room PT YPTI*`;
+        const message = `Halo Sdr/i ${targetPerson.name} (${targetPerson.department}),\n\nMengingatkan perihal peminjaman perkakas di Tool Room PT YPTI dengan No. Transaksi *${loan.transactionNumber}*:\nBarang: ${itemsList}\nTenggat Pengembalian: ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}\nStatus: *${status === 'TERLAMBAT' ? 'SUDAH MELEWATI TENGGAT' : 'JATUH TEMPO HARI INI'}*.\n\nMohon untuk segera mengembalikan unit tersebut ke ruang Tool Room / Gudang Pusat untuk verifikasi kondisi barang.\n\nTerima kasih.\n*Admin Tool Room PT YPTI*`;
         waLink = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
       }
 
-      if (loan.employee.email) {
+      if (targetPerson.email) {
         const subject = `[PENGINGAT TOOL ROOM PT YPTI] Pengembalian ${loan.transactionNumber}`;
-        const body = `Halo ${loan.employee.name},\n\nMengingatkan perihal peminjaman alat:\nNo. Transaksi: ${loan.transactionNumber}\nBarang: ${itemsList}\nTenggat Pengembalian: ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}\n\nMohon segera dikembalikan ke Tool Room PT YPTI.\n\nSalam,\nAdmin Tool Room`;
-        emailLink = `mailto:${loan.employee.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        const body = `Halo ${targetPerson.name},\n\nMengingatkan perihal peminjaman alat:\nNo. Transaksi: ${loan.transactionNumber}\nBarang: ${itemsList}\nTenggat Pengembalian: ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}\n\nMohon segera dikembalikan ke Tool Room PT YPTI.\n\nSalam,\nAdmin Tool Room`;
+        emailLink = `mailto:${targetPerson.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       }
 
       return {
         id: loan.id,
         transactionNumber: loan.transactionNumber,
         employee: loan.employee,
+        currentHolder: targetPerson,
         loanDate: loan.loanDate,
         expectedReturnDate: loan.expectedReturnDate,
         purpose: loan.purpose,

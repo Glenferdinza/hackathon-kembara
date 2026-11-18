@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { generateToolUnitsTx } from '@/lib/tool-units';
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -9,6 +10,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       where: { id },
       include: {
         category: true,
+        units: {
+          orderBy: { unitCode: 'asc' },
+        },
         loanItems: {
           include: {
             loanTransaction: {
@@ -37,6 +41,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     if (!session || !session.id) {
       return NextResponse.json({ error: 'Akses ditolak. Sesi autentikasi tidak valid.' }, { status: 401 });
     }
+    if (session.role === 'OPERATOR') {
+      return NextResponse.json({ error: 'Akses ditolak.' }, { status: 403 });
+    }
     const { id } = await context.params;
     const body = await request.json();
 
@@ -45,31 +52,70 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Tool tidak ditemukan.' }, { status: 404 });
     }
 
-    const { name, categoryId, specifications, unit, location, condition, status, totalStock } = body;
+    const {
+      name,
+      categoryId,
+      specifications,
+      unit,
+      location,
+      condition,
+      status,
+      totalStock,
+      price,
+      maxLifeMinutes,
+      lifeAlertPercent,
+    } = body;
 
     let total = existing.totalStock;
     let available = existing.availableStock;
+    let addedQty = 0;
 
     if (totalStock !== undefined) {
       const newTotal = parseInt(totalStock, 10);
       const diff = newTotal - existing.totalStock;
       total = newTotal;
       available = Math.max(0, existing.availableStock + diff);
+      if (diff > 0) addedQty = diff;
     }
 
-    const updated = await prisma.tool.update({
-      where: { id },
-      data: {
-        name: name !== undefined ? name.trim() : existing.name,
-        categoryId: categoryId || existing.categoryId,
-        specifications: specifications !== undefined ? specifications.trim() : existing.specifications,
-        unit: unit ? unit.toUpperCase() : existing.unit,
-        location: location !== undefined ? location.trim() : existing.location,
-        condition: condition || existing.condition,
-        status: status || existing.status,
-        totalStock: total,
-        availableStock: available,
-      },
+    const updatedMaxLife =
+      maxLifeMinutes !== undefined
+        ? Math.max(10, parseInt(maxLifeMinutes, 10) || existing.maxLifeMinutes)
+        : existing.maxLifeMinutes;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.tool.update({
+        where: { id },
+        data: {
+          name: name !== undefined ? name.trim() : existing.name,
+          categoryId: categoryId || existing.categoryId,
+          specifications: specifications !== undefined ? specifications?.trim() || null : existing.specifications,
+          unit: unit ? unit.toUpperCase() : existing.unit,
+          location: location !== undefined ? location.trim() : existing.location,
+          condition: condition || existing.condition,
+          status: status || existing.status,
+          totalStock: total,
+          availableStock: available,
+          price: price !== undefined ? Math.max(0, parseInt(price, 10) || 0) : existing.price,
+          maxLifeMinutes: updatedMaxLife,
+          lifeAlertPercent:
+            lifeAlertPercent !== undefined
+              ? Math.min(50, Math.max(5, parseInt(lifeAlertPercent, 10) || existing.lifeAlertPercent))
+              : existing.lifeAlertPercent,
+        },
+      });
+
+      if (addedQty > 0) {
+        await generateToolUnitsTx(tx, {
+          toolId: u.id,
+          toolCode: u.code,
+          maxLifeMinutes: updatedMaxLife,
+          count: addedQty,
+          status: 'TERSEDIA',
+        });
+      }
+
+      return u;
     });
 
     await prisma.auditLog.create({

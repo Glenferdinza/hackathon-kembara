@@ -11,14 +11,19 @@ async function main() {
   // 1. Clean existing records (in reverse dependency order)
   await prisma.auditLog.deleteMany({});
   await prisma.notification.deleteMany({});
+  await prisma.shiftHandover.deleteMany({});
+  await prisma.toolUsageLog.deleteMany({});
+  await prisma.loanRequestItem.deleteMany({});
+  await prisma.loanRequest.deleteMany({});
   await prisma.returnTransaction.deleteMany({});
   await prisma.loanItem.deleteMany({});
   await prisma.loanTransaction.deleteMany({});
+  await prisma.toolUnit.deleteMany({});
   await prisma.tool.deleteMany({});
   await prisma.inventory.deleteMany({});
   await prisma.category.deleteMany({});
-  await prisma.employee.deleteMany({});
   await prisma.user.deleteMany({});
+  await prisma.employee.deleteMany({});
 
   // 2. Admin User
   const salt = await bcrypt.genSalt(10);
@@ -130,6 +135,21 @@ async function main() {
   ]);
   console.log(`Created ${employees.length} employees.`);
 
+  // 4B. Create Operator Login Accounts for all Employees (ID: NIK, pass: operator123)
+  const opPasswordHash = await bcrypt.hash('operator123', salt);
+  await prisma.user.createMany({
+    data: employees.map((emp) => ({
+      email: emp.nik,
+      name: emp.name,
+      passwordHash: opPasswordHash,
+      role: 'OPERATOR',
+      department: emp.department,
+      status: 'AKTIF',
+      employeeId: emp.id,
+    })),
+  });
+  console.log(`Created ${employees.length} Operator login accounts (password: operator123).`);
+
   // 5. Read real data from Excel
   const excelPath = path.join(process.cwd(), 'SAMPEL_DATABASE_INVENTARIS_TOOLS.xlsx');
   const wb = xlsx.readFile(excelPath);
@@ -232,6 +252,9 @@ async function main() {
         categoryId,
         specifications: specs || null,
         unit: sat || 'PCS',
+        price: 350000,
+        maxLifeMinutes: 1200,
+        lifeAlertPercent: 15,
         totalStock: qty,
         availableStock: available,
         borrowedStock: 0,
@@ -250,6 +273,31 @@ async function main() {
 
   console.log(`Inserting ${inventoryBatch.length} Inventories in batch...`);
   await prisma.inventory.createMany({ data: inventoryBatch });
+
+  // 5B. Generate ToolUnit QR records for tools
+  const allInsertedTools = await prisma.tool.findMany({ where: { totalStock: { gt: 0 } } });
+  const unitBatch: Array<{
+    toolId: string;
+    unitCode: string;
+    maxLifeMinutes: number;
+    remainingLifeMinutes: number;
+    status: string;
+  }> = [];
+  for (const t of allInsertedTools) {
+    for (let u = 1; u <= t.totalStock; u++) {
+      unitBatch.push({
+        toolId: t.id,
+        unitCode: `${t.code}-U${String(u).padStart(2, '0')}`,
+        maxLifeMinutes: t.maxLifeMinutes,
+        remainingLifeMinutes: t.maxLifeMinutes,
+        status: 'TERSEDIA',
+      });
+    }
+  }
+  if (unitBatch.length > 0) {
+    console.log(`Generating ${unitBatch.length} ToolUnit QR records...`);
+    await prisma.toolUnit.createMany({ data: unitBatch });
+  }
 
   // 6. Realistic Active Loans
   console.log('Seeding realistic operational loans and notifications...');

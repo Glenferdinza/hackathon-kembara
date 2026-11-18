@@ -143,12 +143,52 @@ const MENU_SUGGESTIONS = [
     roles: ['SUPER_ADMIN'],
   },
   {
+    id: 'menu-requests',
+    title: 'Antrean Request Pinjam',
+    subtitle: 'Proses pengajuan pinjam dari operator dan scan QR unit tool',
+    keywords: 'request pinjam antrean operator scan qr siapkan',
+    href: '/requests',
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+  },
+  {
+    id: 'menu-scan-tool',
+    title: 'Cek QR & Umur Tool',
+    subtitle: 'Pindai stiker QR kotak tool untuk cek sisa umur pakai dan pemegang',
+    keywords: 'scan qr stiker cek umur pakai tool life unit barcode',
+    href: '/scan-tool',
+    roles: ['SUPER_ADMIN', 'ADMIN'],
+  },
+  {
+    id: 'menu-operator-home',
+    title: 'Dasbor Operator',
+    subtitle: 'Ringkasan barang dipinjam, barang siap diambil, dan waiting list shift',
+    keywords: 'operator dasbor pinjaman waiting list terima tolak',
+    href: '/operator',
+    roles: ['OPERATOR'],
+  },
+  {
+    id: 'menu-operator-req',
+    title: 'Request Pinjam Tool',
+    subtitle: 'Ajukan permintaan peminjaman perkakas dan inventaris ke Tool Room',
+    keywords: 'request pinjam ajukan perkakas operator',
+    href: '/operator/request',
+    roles: ['OPERATOR'],
+  },
+  {
+    id: 'menu-operator-handover',
+    title: 'Pengalihan Shift',
+    subtitle: 'Input menit pakai dan alihkan hak pinjam barang ke operator shift 2',
+    keywords: 'pengalihan handover shift 2 alih pinjam menit pakai',
+    href: '/operator/handover',
+    roles: ['OPERATOR'],
+  },
+  {
     id: 'menu-help',
     title: 'Panduan Sistem',
     subtitle: 'Dokumentasi tata cara penggunaan sistem Tool Room PT YPTI',
     keywords: 'panduan bantuan sop cara pakai manual aturan',
     href: '/help',
-    roles: ['SUPER_ADMIN', 'ADMIN'],
+    roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'],
   },
 ];
 
@@ -183,6 +223,8 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
   const displayRole =
     effectiveRole === 'SUPER_ADMIN'
       ? 'Super Admin (Boss)'
+      : effectiveRole === 'OPERATOR'
+      ? 'Operator Produksi'
       : 'Admin';
   const initials = displayName
     .split(' ')
@@ -205,9 +247,9 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Debounced live search fetch from /api/search
+  // Debounced live search fetch from /api/search (Admin & Super Admin)
   useEffect(() => {
-    if (!isSearchOpen) return;
+    if (!isSearchOpen || effectiveRole === 'OPERATOR') return;
 
     const controller = new AbortController();
     const timer = setTimeout(async () => {
@@ -355,6 +397,11 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
     }
 
     setIsSearchOpen(false);
+    if (effectiveRole === 'OPERATOR') {
+      router.push(`/operator/request?search=${encodeURIComponent(q)}`);
+      return;
+    }
+
     const upper = q.toUpperCase();
     window.dispatchEvent(
       new CustomEvent('ypti-global-search', { detail: { search: q } })
@@ -399,6 +446,38 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
+        if (effectiveRole === 'OPERATOR') {
+          const res = await fetch('/api/operator/summary');
+          if (res.ok) {
+            const data = await res.json();
+            const items: NotificationItem[] = [];
+            (data.incomingHandovers || []).forEach((h: { id: string; handoverNumber: string; fromEmployee?: { name?: string }; toolUnit?: { unitCode?: string } }) => {
+              items.push({
+                id: `hov-${h.id}`,
+                title: `Menunggu Terima Shift (${h.handoverNumber})`,
+                message: `Pengalihan dari ${h.fromEmployee?.name || 'Operator'} untuk unit ${h.toolUnit?.unitCode || 'Tool'}`,
+                type: 'WARNING',
+                isRead: false,
+                link: '/operator',
+                createdAt: new Date().toISOString(),
+              });
+            });
+            (data.readyRequests || []).forEach((r: { id: string; requestNumber: string }) => {
+              items.push({
+                id: `req-${r.id}`,
+                title: `Barang Siap Diambil (${r.requestNumber})`,
+                message: 'Admin Tool Room telah memindai unit perkakas. Cek dan klik Terima.',
+                type: 'INFO',
+                isRead: false,
+                link: '/operator',
+                createdAt: new Date().toISOString(),
+              });
+            });
+            setNotifications(items);
+          }
+          return;
+        }
+
         const res = await fetch('/api/dashboard');
         if (res.ok) {
           const data = await res.json();
@@ -422,12 +501,22 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
     };
 
     fetchNotifs();
-  }, []);
+  }, [effectiveRole]);
 
   const getBreadcrumbs = () => {
     switch (pathname) {
       case '/':
         return { parent: 'PT YPTI', current: 'Beranda' };
+      case '/operator':
+        return { parent: 'Portal Operator', current: 'Dasbor Operator' };
+      case '/operator/request':
+        return { parent: 'Portal Operator', current: 'Request Pinjam Tool' };
+      case '/operator/handover':
+        return { parent: 'Portal Operator', current: 'Pengalihan Shift' };
+      case '/requests':
+        return { parent: 'Operasional', current: 'Antrean Request Pinjam' };
+      case '/scan-tool':
+        return { parent: 'Menu Utama', current: 'Cek QR & Umur Tool' };
       case '/master-tool':
         return { parent: 'Data Master', current: 'Data Tool' };
       case '/master-inventory':

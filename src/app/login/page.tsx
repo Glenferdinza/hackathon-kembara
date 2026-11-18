@@ -30,7 +30,8 @@ export default function LoginPage() {
         if (typeof window !== 'undefined' && json.user) {
           sessionStorage.setItem('ypti_erp_active_user', JSON.stringify(json.user));
         }
-        router.push('/');
+        const targetDest = json.user?.role === 'OPERATOR' ? '/operator' : '/';
+        router.push(targetDest);
         router.refresh();
       }
     } catch {
@@ -66,18 +67,16 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
           <div>
             <label htmlFor="login-userid" className="block font-semibold text-slate-700 mb-1.5">
-              ID Pengguna (Angka) *
+              ID Pengguna / NIK Karyawan *
             </label>
             <input
               id="login-userid"
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
               required
               autoComplete="username"
               value={userId}
-              onChange={(e) => setUserId(e.target.value.replace(/\D/g, ''))}
-              placeholder="Contoh 10001"
+              onChange={(e) => setUserId(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase())}
+              placeholder="Contoh 10001 atau EMP-0101"
               className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs font-mono font-bold tabular-nums text-slate-900 focus:outline-none focus:border-[#1E40AF] transition-colors"
             />
           </div>

@@ -68,6 +68,12 @@ export async function POST(request: Request) {
         }
 
         const itemCondition = ret.condition || condition || 'BAIK';
+        const usedMinutes = Math.max(0, parseInt(String(ret.usedMinutes ?? '0'), 10) || 0);
+        const isRepairCondition =
+          itemCondition === 'PERLU_ASAH' ||
+          itemCondition === 'AUS' ||
+          itemCondition === 'RUSAK' ||
+          itemCondition === 'PERBAIKAN';
 
         // Update Tool or Inventory physical stock
         if (loanItem.itemType === 'TOOL' && loanItem.toolId) {
@@ -85,8 +91,8 @@ export async function POST(request: Request) {
                 borrowedStock: newBorrowed,
               },
             });
-          } else if (itemCondition === 'AUS' || itemCondition === 'RUSAK' || itemCondition === 'PERBAIKAN') {
-            // Move to repair stock, NOT available stock (Flowchart Hal. 4: Aus / Perawatan untuk regrind)
+          } else if (isRepairCondition) {
+            // Move to repair stock, NOT available stock (Perlu asah / perawatan)
             await tx.tool.update({
               where: { id: tool.id },
               data: {
@@ -102,9 +108,62 @@ export async function POST(request: Request) {
               data: {
                 scrapStock: tool.scrapStock + qtyToReturn,
                 borrowedStock: newBorrowed,
-                totalStock: Math.max(0, tool.totalStock - qtyToReturn), // Lost items reduce physical total
+                totalStock: Math.max(0, tool.totalStock - qtyToReturn),
               },
             });
+          }
+
+          // Update individual ToolUnit & ToolUsageLog jika terikat unit QR
+          if (loanItem.toolUnitId) {
+            const unit = await tx.toolUnit.findUnique({ where: { id: loanItem.toolUnitId } });
+            if (unit) {
+              const remainingAfter = Math.max(0, unit.remainingLifeMinutes - usedMinutes);
+              const nextUnitStatus =
+                itemCondition === 'BAIK'
+                  ? 'TERSEDIA'
+                  : itemCondition === 'PERLU_ASAH' || itemCondition === 'AUS'
+                  ? 'PERLU_ASAH'
+                  : itemCondition === 'RUSAK' || itemCondition === 'PERBAIKAN'
+                  ? 'RUSAK'
+                  : 'HILANG';
+
+              await tx.toolUnit.update({
+                where: { id: unit.id },
+                data: {
+                  usedLifeMinutes: { increment: usedMinutes },
+                  remainingLifeMinutes: remainingAfter,
+                  status: nextUnitStatus,
+                },
+              });
+
+              if (usedMinutes > 0) {
+                await tx.toolUsageLog.create({
+                  data: {
+                    toolUnitId: unit.id,
+                    employeeId: loanItem.currentHolderId || loan.employeeId,
+                    loanTransactionId: loan.id,
+                    usedMinutes,
+                    remainingAfter,
+                    actionType: 'RETURN',
+                    notes: `Pengembalian (${itemCondition}) via ${returnNumber}`,
+                  },
+                });
+              }
+
+              const alertPct = tool.lifeAlertPercent || 15;
+              const pctLeft = unit.maxLifeMinutes > 0 ? (remainingAfter / unit.maxLifeMinutes) * 100 : 100;
+              if (itemCondition === 'BAIK' && pctLeft <= alertPct) {
+                await tx.notification.create({
+                  data: {
+                    title: `Umur Pakai Mendekati Habis (${unit.unitCode})`,
+                    message: `Unit ${unit.unitCode} baru dikembalikan dengan sisa umur ${remainingAfter} menit (${pctLeft.toFixed(0)}%). Pertimbangkan untuk diasah sebelum dipinjamkan lagi.`,
+                    type: 'WARNING',
+                    targetRole: 'ADMIN',
+                    link: '/scan-tool',
+                  },
+                });
+              }
+            }
           }
         } else if (loanItem.itemType === 'INVENTORY' && loanItem.inventoryId) {
           const inv = await tx.inventory.findUnique({ where: { id: loanItem.inventoryId } });
@@ -120,7 +179,7 @@ export async function POST(request: Request) {
                 borrowedStock: newBorrowed,
               },
             });
-          } else if (itemCondition === 'AUS' || itemCondition === 'RUSAK' || itemCondition === 'PERBAIKAN') {
+          } else if (isRepairCondition) {
             await tx.inventory.update({
               where: { id: inv.id },
               data: {
@@ -141,6 +200,12 @@ export async function POST(request: Request) {
           }
         }
 
+        // Batalkan handover pending jika item sudah dikembalikan fisik ke Tool Room
+        await tx.shiftHandover.updateMany({
+          where: { loanItemId: loanItem.id, status: 'PENDING' },
+          data: { status: 'CANCELLED', respondedAt: new Date() },
+        });
+
         // Update LoanItem returned quantity
         const newReturnedQty = loanItem.returnedQuantity + qtyToReturn;
         const isItemComplete = newReturnedQty >= loanItem.quantity;
@@ -149,7 +214,13 @@ export async function POST(request: Request) {
           where: { id: loanItem.id },
           data: {
             returnedQuantity: newReturnedQty,
-            status: isItemComplete ? (itemCondition === 'BAIK' ? 'SELESAI' : 'RUSAK') : 'DIPINJAM',
+            status: isItemComplete
+              ? itemCondition === 'BAIK'
+                ? 'SELESAI'
+                : itemCondition === 'PERLU_ASAH' || itemCondition === 'AUS'
+                ? 'PERLU_ASAH'
+                : 'RUSAK'
+              : 'DIPINJAM',
           },
         });
 

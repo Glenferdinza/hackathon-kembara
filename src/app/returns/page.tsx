@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Scan } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { QrScannerModal } from '@/components/qr/QrScannerModal';
 
 function ReturnsContent() {
   const { showToast } = useToast();
@@ -16,14 +18,14 @@ function ReturnsContent() {
   const [activeLoans, setActiveLoans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(txParam);
-  const [barcodeInput, setBarcodeInput] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [returnPage, setReturnPage] = useState(1);
   const returnPageSize = 8;
 
   // Return modal state
   const [selectedLoan, setSelectedLoan] = useState<any | null>(null);
   const [returnItems, setReturnItems] = useState<{
-    [loanItemId: string]: { qty: number; condition: string };
+    [loanItemId: string]: { qty: number; condition: string; usedMinutes: number };
   }>({});
   const [returnNotes, setReturnNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,41 +68,52 @@ function ReturnsContent() {
 
   const handleOpenReturnModal = (loan: any) => {
     setSelectedLoan(loan);
-    const initialItems: Record<string, { qty: number; condition: string }> = {};
+    const initialItems: Record<string, { qty: number; condition: string; usedMinutes: number }> = {};
     for (const item of loan.items) {
       const remaining = item.quantity - item.returnedQuantity;
       if (remaining > 0) {
-        initialItems[item.id] = { qty: remaining, condition: 'BAIK' };
+        initialItems[item.id] = { qty: remaining, condition: 'BAIK', usedMinutes: 0 };
       }
     }
     setReturnItems(initialItems);
     setReturnNotes('');
   };
 
-  const handleFastBarcodeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = barcodeInput.trim().toUpperCase();
+  const handleScanReturnCode = (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
     if (!code) return;
 
     // 1. Cek No. Transaksi
     const matchedTx = activeLoans.find((l) => l.transactionNumber.toUpperCase() === code);
     if (matchedTx) {
       handleOpenReturnModal(matchedTx);
-      setBarcodeInput('');
       showToast(`Transaksi ${matchedTx.transactionNumber} ditemukan.`, 'success');
       return;
     }
 
-    // 2. Cek NIK Karyawan
-    const matchedEmp = activeLoans.find((l) => l.employee?.nik?.toUpperCase() === code);
-    if (matchedEmp) {
-      handleOpenReturnModal(matchedEmp);
-      setBarcodeInput('');
-      showToast(`Transaksi peminjam ${matchedEmp.employee?.name} ditemukan.`, 'success');
+    // 2. Cek Kode QR Unit Tool (ToolUnit.unitCode)
+    const matchedUnitTx = activeLoans.find((l) =>
+      (l.items || []).some((it: any) => it.toolUnit?.unitCode?.toUpperCase() === code)
+    );
+    if (matchedUnitTx) {
+      handleOpenReturnModal(matchedUnitTx);
+      showToast(`Unit QR ${code} ditemukan pada transaksi ${matchedUnitTx.transactionNumber}.`, 'success');
       return;
     }
 
-    showToast(`Tidak ada pinjaman aktif untuk ID "${code}".`, 'error');
+    // 3. Cek NIK Karyawan (peminjam awal atau pemegang terakhir)
+    const matchedEmp = activeLoans.find(
+      (l) =>
+        l.employee?.nik?.toUpperCase() === code ||
+        (l.items || []).some((it: any) => it.currentHolder?.nik?.toUpperCase() === code)
+    );
+    if (matchedEmp) {
+      handleOpenReturnModal(matchedEmp);
+      showToast(`Transaksi untuk NIK ${code} ditemukan.`, 'success');
+      return;
+    }
+
+    showToast(`Tidak ada pinjaman aktif untuk kode "${code}".`, 'error');
   };
 
   const handleProcessReturn = async () => {
@@ -112,6 +125,7 @@ function ReturnsContent() {
         loanItemId,
         quantity: val.qty,
         condition: val.condition,
+        usedMinutes: val.usedMinutes || 0,
       }));
 
     if (itemsToReturn.length === 0) {
@@ -139,7 +153,7 @@ function ReturnsContent() {
       } else {
         showToast(
           json.data?.allDone
-            ? 'Pengembalian selesai penuh! Stok fisik telah bertambah di rak.'
+            ? 'Pengembalian selesai penuh! Stok fisik & sisa umur pakai telah diperbarui.'
             : 'Pengembalian parsial berhasil dicatat.',
           'success'
         );
@@ -158,7 +172,13 @@ function ReturnsContent() {
     return (
       l.transactionNumber.toLowerCase().includes(q) ||
       l.employee?.name.toLowerCase().includes(q) ||
-      l.employee?.nik.toLowerCase().includes(q)
+      l.employee?.nik.toLowerCase().includes(q) ||
+      (l.items || []).some(
+        (it: any) =>
+          it.toolUnit?.unitCode?.toLowerCase().includes(q) ||
+          it.currentHolder?.name?.toLowerCase().includes(q) ||
+          it.currentHolder?.nik?.toLowerCase().includes(q)
+      )
     );
   });
 
@@ -184,36 +204,49 @@ function ReturnsContent() {
         <RefreshButton onRefresh={fetchActiveLoans} loading={loading} />
       </div>
 
-      {/* Unified Search & Fast Barcode Input */}
+      {/* Unified Search & Fast Barcode/QR Input */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (filteredLoans.length === 1) {
-              handleOpenReturnModal(filteredLoans[0]);
-            }
-          }}
-          className="w-full max-w-md flex items-center gap-2"
-        >
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setReturnPage(1);
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full max-w-xl">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (filteredLoans.length === 1) {
+                handleOpenReturnModal(filteredLoans[0]);
+              } else if (search.trim()) {
+                handleScanReturnCode(search);
+              }
             }}
-            placeholder="Scan atau ketik no. transaksi, nama peminjam, atau NIK..."
-            className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1E40AF]"
-          />
-          {filteredLoans.length === 1 && search.trim() !== '' && (
-            <button
-              type="submit"
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-            >
-              Verifikasi
-            </button>
-          )}
-        </form>
+            className="flex-1 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setReturnPage(1);
+              }}
+              placeholder="Scan QR unit, no. transaksi, nama peminjam, atau NIK..."
+              className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1E40AF]"
+            />
+            {filteredLoans.length === 1 && search.trim() !== '' && (
+              <button
+                type="submit"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                Verifikasi
+              </button>
+            )}
+          </form>
+
+          <button
+            type="button"
+            onClick={() => setIsScannerOpen(true)}
+            className="px-3 py-1.5 text-xs font-semibold text-[#1E40AF] bg-white border border-[#1E40AF] hover:bg-blue-50 rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
+          >
+            <Scan className="w-3.5 h-3.5" />
+            <span>Scan QR Unit</span>
+          </button>
+        </div>
         <span className="text-xs text-slate-500 font-medium tabular-nums">
           {filteredLoans.length} Transaksi Menunggu Pengembalian
         </span>
@@ -264,13 +297,19 @@ function ReturnsContent() {
                       {loan.items.map((it: any) => {
                         const remaining = it.quantity - it.returnedQuantity;
                         const name = it.tool ? it.tool.name : it.inventory?.name;
-                        const code = it.tool ? it.tool.code : it.inventory?.code;
+                        const code = it.toolUnit ? it.toolUnit.unitCode : (it.tool ? it.tool.code : it.inventory?.code);
+                        const holder = it.currentHolder && it.currentHolder.id !== loan.employee?.id ? it.currentHolder : null;
                         return (
-                          <div key={it.id} className="flex items-center justify-between text-[11px]">
+                          <div key={it.id} className="flex items-center justify-between text-[11px] gap-2">
                             <span className="truncate text-slate-800">
-                              <span className="font-bold text-slate-900 tabular-nums">{code}</span> {name}
+                              <span className="font-mono font-bold text-slate-900 tabular-nums">{code}</span> {name}
+                              {holder && (
+                                <span className="ml-1 text-[10px] font-semibold text-[#1E40AF]">
+                                  (Shift: {holder.name})
+                                </span>
+                              )}
                             </span>
-                            <span className="font-semibold text-[#1E40AF] ml-2 shrink-0 tabular-nums">
+                            <span className="font-semibold text-[#1E40AF] shrink-0 tabular-nums">
                               {remaining} / {it.quantity} unit
                             </span>
                           </div>
@@ -398,24 +437,26 @@ function ReturnsContent() {
                     if (remaining <= 0) return null;
 
                     const name = item.tool ? item.tool.name : item.inventory?.name;
-                    const code = item.tool ? item.tool.code : item.inventory?.code;
-                    const currentVal = returnItems[item.id] || { qty: remaining, condition: 'BAIK' };
+                    const code = item.toolUnit ? item.toolUnit.unitCode : (item.tool ? item.tool.code : item.inventory?.code);
+                    const currentVal = returnItems[item.id] || { qty: remaining, condition: 'BAIK', usedMinutes: 0 };
 
                     return (
                       <div key={item.id} className="p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-900">
-                            <span className="tabular-nums font-bold text-slate-900">{code}</span> | {name}
+                            <span className="font-mono tabular-nums font-bold text-[#1E40AF]">{code}</span> | {name}
                           </span>
                           <span className="text-slate-500 text-[11px] tabular-nums">
-                            Tersisa {remaining} unit
+                            {item.toolUnit
+                              ? `Sisa Umur: ${item.toolUnit.remainingLifeMinutes} mnt`
+                              : `Tersisa ${remaining} unit`}
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
                           {/* Return Qty */}
-                          <div className="flex items-center gap-2">
-                            <label className="text-[11px] text-slate-600 font-medium">Jml Kembali</label>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[11px] text-slate-600 font-medium">Jml</label>
                             <input
                               type="number"
                               min={0}
@@ -428,13 +469,36 @@ function ReturnsContent() {
                                   [item.id]: { ...currentVal, qty: q },
                                 });
                               }}
-                              className="w-16 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-center font-bold tabular-nums"
+                              className="w-14 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-center font-bold tabular-nums"
                             />
                             <span className="text-[11px] text-slate-400">Unit</span>
                           </div>
 
+                          {/* Used Minutes for ToolUnit */}
+                          {item.toolUnit ? (
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[11px] text-slate-600 font-medium whitespace-nowrap">Pakai</label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={currentVal.usedMinutes}
+                                onChange={(e) => {
+                                  const m = Math.max(0, parseInt(e.target.value) || 0);
+                                  setReturnItems({
+                                    ...returnItems,
+                                    [item.id]: { ...currentVal, usedMinutes: m },
+                                  });
+                                }}
+                                className="w-16 bg-white border border-slate-300 rounded px-2 py-1 text-xs text-center font-bold tabular-nums"
+                              />
+                              <span className="text-[11px] text-slate-400">mnt</span>
+                            </div>
+                          ) : (
+                            <div />
+                          )}
+
                           {/* Condition Selector (Single-Color Dropdown) */}
-                          <div className="flex items-center gap-2 sm:justify-end">
+                          <div className="flex items-center gap-1.5 sm:justify-end">
                             <label className="text-[11px] text-slate-600 font-medium whitespace-nowrap">
                               Kondisi
                             </label>
@@ -446,9 +510,10 @@ function ReturnsContent() {
                                   [item.id]: { ...currentVal, condition: e.target.value },
                                 })
                               }
-                              className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
                             >
-                              <option value="BAIK">Kondisi Baik (Siap Pakai)</option>
+                              <option value="BAIK">Baik (Siap Pakai)</option>
+                              <option value="PERLU_ASAH">Perlu Asah / Mendekati Habis</option>
                               <option value="RUSAK">Rusak / Perlu Servis</option>
                               <option value="HILANG">Hilang</option>
                             </select>
@@ -496,6 +561,16 @@ function ReturnsContent() {
           </div>
         </div>
       )}
+
+      <QrScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={(code) => {
+          setIsScannerOpen(false);
+          handleScanReturnCode(code);
+        }}
+        title="Pindai QR Unit Pengembalian"
+      />
     </div>
   );
 }

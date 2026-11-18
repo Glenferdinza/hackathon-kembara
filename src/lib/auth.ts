@@ -8,9 +8,11 @@ export interface AdminSession {
   id: string;
   name: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR' | string;
   department: string;
   status: string;
+  employeeId?: string | null;
+  employeeNik?: string | null;
 }
 
 let hasEnsuredDefaults = false;
@@ -41,10 +43,10 @@ export async function ensureDefaultUsers() {
     }
   }
 
-  // Migrasi role lama (OPERATOR, SUPERVISOR) menjadi ADMIN
+  // Migrasi role lama (SUPERVISOR) menjadi ADMIN; pertahankan role OPERATOR untuk akun karyawan
   await prisma.user
     .updateMany({
-      where: { role: { in: ['OPERATOR', 'SUPERVISOR'] } },
+      where: { role: 'SUPERVISOR' },
       data: { role: 'ADMIN' },
     })
     .catch(() => {});
@@ -125,6 +127,11 @@ export async function getSession(): Promise<AdminSession | null> {
     try {
       const dbPromise = prisma.user.findUnique({
         where: { id: parsed.id },
+        include: {
+          employee: {
+            select: { id: true, nik: true, department: true },
+          },
+        },
       });
       const timeoutPromise = new Promise<null>((_, reject) =>
         setTimeout(() => reject(new Error('DB_TIMEOUT')), 2500)
@@ -147,8 +154,10 @@ export async function getSession(): Promise<AdminSession | null> {
       name: dbUser.name,
       email: dbUser.email,
       role: dbUser.role,
-      department: dbUser.department || 'Tool Room & Warehouse',
+      department: dbUser.department || dbUser.employee?.department || 'Tool Room & Warehouse',
       status: dbUser.status || 'AKTIF',
+      employeeId: dbUser.employeeId ?? dbUser.employee?.id ?? null,
+      employeeNik: dbUser.employee?.nik ?? null,
     };
   } catch {
     return null;
@@ -162,9 +171,25 @@ export async function loginAdmin(
   await ensureDefaultUsers();
 
   const cleanUsername = usernameInput.trim();
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { email: cleanUsername },
+    include: {
+      employee: {
+        select: { id: true, nik: true, department: true },
+      },
+    },
   });
+
+  if (!user && cleanUsername.toUpperCase() !== cleanUsername) {
+    user = await prisma.user.findUnique({
+      where: { email: cleanUsername.toUpperCase() },
+      include: {
+        employee: {
+          select: { id: true, nik: true, department: true },
+        },
+      },
+    });
+  }
 
   if (!user) {
     return { success: false, error: 'ID Pengguna tidak ditemukan dalam sistem.' };
@@ -187,8 +212,10 @@ export async function loginAdmin(
     name: user.name,
     email: user.email,
     role: user.role,
-    department: user.department || 'Tool Room & Central Warehouse',
+    department: user.department || user.employee?.department || 'Tool Room & Central Warehouse',
     status: user.status || 'AKTIF',
+    employeeId: user.employeeId ?? user.employee?.id ?? null,
+    employeeNik: user.employee?.nik ?? null,
   };
 
   const cookieStore = await cookies();

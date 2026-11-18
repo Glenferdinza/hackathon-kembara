@@ -11,13 +11,20 @@ export interface ActiveUser {
   email: string;
   role: string;
   department: string;
+  employeeId?: string | null;
+  employeeNik?: string | null;
 }
+
+const isOperatorAllowedRoute = (path: string) =>
+  path === '/operator' || path.startsWith('/operator/') || path === '/help';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [overdueCount, setOverdueCount] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [operatorPendingCount, setOperatorPendingCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<ActiveUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -34,15 +41,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (cached) {
           const parsed = JSON.parse(cached) as ActiveUser;
           if (parsed?.id) {
+            if (parsed.role === 'OPERATOR' && !isOperatorAllowedRoute(pathname)) {
+              router.replace('/operator');
+              return;
+            }
+            if (pathname === '/users' && parsed.role !== 'SUPER_ADMIN') {
+              router.replace(parsed.role === 'OPERATOR' ? '/operator' : '/');
+              return;
+            }
             setCurrentUser(parsed);
             setAuthChecked(true);
             hasLocalSession = true;
-
-            // Proteksi rute khusus Super Admin
-            if (pathname === '/users' && parsed.role !== 'SUPER_ADMIN') {
-              router.replace('/');
-              return;
-            }
           }
         }
       } catch {
@@ -69,29 +78,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             sessionStorage.setItem('ypti_erp_active_user', JSON.stringify(user));
           }
 
+          // Proteksi rute portal Operator
+          if (user.role === 'OPERATOR' && !isOperatorAllowedRoute(pathname)) {
+            router.replace('/operator');
+            return;
+          }
+
           // Proteksi rute khusus Super Admin (Manajemen Akun Pengguna)
           if (pathname === '/users' && user.role !== 'SUPER_ADMIN') {
-            router.replace('/');
+            router.replace(user.role === 'OPERATOR' ? '/operator' : '/');
             return;
           }
 
           setAuthChecked(true);
+
+          if (user.role === 'OPERATOR') {
+            fetch('/api/operator/summary?countOnly=true')
+              .then((res) => (res.ok ? res.json() : null))
+              .then((json) => {
+                if (typeof json?.pendingActionCount === 'number') {
+                  setOperatorPendingCount(json.pendingActionCount);
+                }
+              })
+              .catch(() => {});
+          } else {
+            // Ambil notifikasi keterlambatan & antrean request secara non-blocking di latar belakang
+            fetch('/api/dashboard')
+              .then((res) => (res.ok ? res.json() : null))
+              .then((json) => {
+                if (json?.kpi && typeof json.kpi.overdueLoansCount === 'number') {
+                  setOverdueCount(json.kpi.overdueLoansCount);
+                }
+              })
+              .catch(() => {});
+
+            fetch('/api/loan-requests?countOnly=true')
+              .then((res) => (res.ok ? res.json() : null))
+              .then((json) => {
+                if (typeof json?.waitingAdminCount === 'number') {
+                  setPendingRequestsCount(json.waitingAdminCount);
+                }
+              })
+              .catch(() => {});
+          }
         } else {
           if (!hasLocalSession) {
             router.replace('/login');
             return;
           }
         }
-
-        // Ambil notifikasi keterlambatan secara non-blocking di latar belakang
-        fetch('/api/dashboard')
-          .then((res) => (res.ok ? res.json() : null))
-          .then((json) => {
-            if (json?.kpi && typeof json.kpi.overdueLoansCount === 'number') {
-              setOverdueCount(json.kpi.overdueLoansCount);
-            }
-          })
-          .catch(() => {});
       } catch {
         setAuthChecked(true);
       }
@@ -137,6 +172,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         overdueCount={overdueCount}
+        pendingRequestsCount={pendingRequestsCount}
+        operatorPendingCount={operatorPendingCount}
         userRole={currentUser?.role || 'SUPER_ADMIN'}
       />
 
