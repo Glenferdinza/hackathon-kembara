@@ -1,0 +1,27 @@
+{
+  auto_https disable_redirects
+}
+
+{$CADDY_SITE_ADDRESS::443} {
+  {$CADDY_TLS_DIRECTIVE:tls internal}
+
+  encode gzip zstd
+
+  reverse_proxy app:3000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+}
+
+:80 {
+  encode gzip zstd
+
+  reverse_proxy app:3000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+}

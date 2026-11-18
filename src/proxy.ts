@@ -19,10 +19,11 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
 
-  // 1. Abaikan berkas statis, favicon, logo, manifest, sw, halaman unduhan publik, dan API publik auth
+  // 1. Abaikan berkas statis, favicon, logo, manifest, sw, halaman unduhan publik, healthcheck, dan API publik auth
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
+    pathname === '/api/health' ||
     pathname === '/favicon.ico' ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||

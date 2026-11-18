@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# on-premise deployment runtime & backups
+.env.server
+backups/
+deploy/certs/
+deploy/snapshot/*.json

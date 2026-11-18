@@ -1,0 +1,125 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ypti-toolroom-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ypti_erp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ypti_secret_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-ypti_toolroom}
+    volumes:
+      - ypti_pg_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ypti_erp} -d ${POSTGRES_DB:-ypti_toolroom}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - ypti_net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ypti-toolroom-erp:latest
+    container_name: ypti-toolroom-app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL:-${DATABASE_URL}}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-PT YPTI Tool Room & Inventory ERP}
+      NEXT_PUBLIC_DESKTOP_RELEASE_URL: ${NEXT_PUBLIC_DESKTOP_RELEASE_URL:-https://github.com/Glenferdinza/hackathon-kembara/releases/latest}
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./deploy/snapshot:/app/deploy/snapshot:ro
+    networks:
+      - ypti_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ypti-toolroom-proxy
+    restart: always
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-:443}
+      CADDY_TLS_DIRECTIVE: ${CADDY_TLS_DIRECTIVE:-tls internal}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ypti_caddy_data:/data
+      - ypti_caddy_config:/config
+    networks:
+      - ypti_net
+
+  db-backup:
+    image: postgres:16-alpine
+    container_name: ypti-toolroom-backup
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-ypti_erp}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-ypti_secret_change_me}
+      PGDATABASE: ${POSTGRES_DB:-ypti_toolroom}
+    volumes:
+      - ./backups:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "PT YPTI PostgreSQL Auto-Backup service started (daily interval, 14-day retention)."
+        while true; do
+          TS=$$(date +%Y%m%d-%H%M%S)
+          TMP_SQL="/tmp/ypti-db-$$TS.sql"
+          OUT="/backups/ypti-db-$$TS.sql.gz"
+          if pg_dump --clean --if-exists --no-owner --no-privileges > "$$TMP_SQL" && gzip -c "$$TMP_SQL" > "$$OUT"; then
+            rm -f "$$TMP_SQL"
+            echo "[BACKUP OK] $$OUT"
+            find /backups -name "ypti-db-*.sql.gz" -type f -mtime +14 -delete
+          else
+            rm -f "$$TMP_SQL" "$$OUT"
+            echo "[BACKUP WARN] pg_dump failed at $$TS"
+          fi
+          sleep 86400
+        done
+    networks:
+      - ypti_net
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: ypti-toolroom-tunnel
+    restart: always
+    profiles:
+      - tunnel
+    depends_on:
+      app:
+        condition: service_healthy
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - ypti_net
+
+volumes:
+  ypti_pg_data:
+  ypti_caddy_data:
+  ypti_caddy_config:
+
+networks:
+  ypti_net:
+    driver: bridge

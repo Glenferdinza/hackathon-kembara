@@ -1,0 +1,13 @@
+.git
+.github
+.next
+.env
+.env.*
+node_modules
+desktop/node_modules
+desktop/dist
+desktop/app-config.json
+backups
+deploy/certs
+*.tsbuildinfo
+npm-debug.log*

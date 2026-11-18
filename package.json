@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:export-snapshot": "node scripts/db-snapshot.mjs export",
+    "db:bootstrap": "node scripts/bootstrap-db.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
