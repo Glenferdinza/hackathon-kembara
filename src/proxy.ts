@@ -24,6 +24,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
     pathname === '/api/health' ||
+    pathname === '/api/download/desktop' ||
     pathname === '/favicon.ico' ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||

@@ -38,11 +38,13 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-PT YPTI Tool Room & Inventory ERP}
       NEXT_PUBLIC_DESKTOP_RELEASE_URL: ${NEXT_PUBLIC_DESKTOP_RELEASE_URL:-https://github.com/Glenferdinza/hackathon-kembara/releases/latest}
+      DESKTOP_EXE_DIRECT_URL: ${DESKTOP_EXE_DIRECT_URL:-}
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
     ports:
       - "3000:3000"
     volumes:
       - ./deploy/snapshot:/app/deploy/snapshot:ro
+      - ./public/downloads:/app/public/downloads:ro
     networks:
       - ypti_net
 
