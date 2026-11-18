@@ -232,13 +232,21 @@ export function Sidebar({
         </div>
 
         <div className="p-3 border-t border-[#E2E8F0] bg-slate-50">
-          <div className="flex items-center justify-between px-2">
-            <Link
-              href="/help"
-              className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"
-            >
-              Bantuan Sistem
-            </Link>
+          <div className="flex items-center justify-between gap-2 px-2">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/help"
+                className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"
+              >
+                Bantuan
+              </Link>
+              <Link
+                href="/download"
+                className="text-xs text-slate-500 hover:text-[#1E40AF] font-medium transition-colors"
+              >
+                Unduh App
+              </Link>
+            </div>
 
             <button
               onClick={handleLogout}

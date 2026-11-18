@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ConfirmDialogProvider } from "@/components/ui/ConfirmDialog";
+import { PwaRegister } from "@/components/pwa/PwaRegister";
 
 export const metadata: Metadata = {
   title: "PT YPTI - Sistem Manajemen Tool Room & Inventaris",
@@ -37,6 +38,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-[#F8FAFC] text-slate-800 flex flex-col">
         <ToastProvider>
+          <PwaRegister />
           <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
         </ToastProvider>
       </body>

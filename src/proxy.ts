@@ -19,12 +19,14 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
 
-  // 1. Abaikan berkas statis, favicon, logo, manifest, dan API publik auth
+  // 1. Abaikan berkas statis, favicon, logo, manifest, sw, halaman unduhan publik, dan API publik auth
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
     pathname === '/favicon.ico' ||
     pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/download' ||
     pathname.endsWith('.png') ||
     pathname.endsWith('.svg') ||
     pathname.endsWith('.ico') ||
@@ -85,7 +87,8 @@ export function proxy(request: NextRequest) {
     const isAllowedPage =
       pathname === '/operator' ||
       pathname.startsWith('/operator/') ||
-      pathname === '/help';
+      pathname === '/help' ||
+      pathname === '/download';
 
     if (!isAllowedPage) {
       return NextResponse.redirect(new URL('/operator', request.url));

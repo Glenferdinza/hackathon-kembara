@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -114,6 +115,15 @@ export default function LoginPage() {
             {loading ? 'Memverifikasi Akses...' : 'Masuk ke Sistem'}
           </button>
         </form>
+
+        <div className="pt-3 border-t border-slate-100 text-center">
+          <Link
+            href="/download"
+            className="text-[11px] font-medium text-slate-600 hover:text-[#1E40AF] underline transition-colors"
+          >
+            Unduh Aplikasi Desktop (.exe) atau Pasang di Perangkat
+          </Link>
+        </div>
       </div>
     </div>
   );

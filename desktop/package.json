@@ -1,0 +1,52 @@
+{
+  "name": "ypti-toolroom-desktop",
+  "version": "1.0.0",
+  "description": "PT YPTI Tool Room and Inventory Management System Desktop Client",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "prepare-config": "node scripts/prepare-config.mjs",
+    "start": "node scripts/prepare-config.mjs --allow-local && electron .",
+    "build:dir": "node scripts/prepare-config.mjs && electron-builder --win --dir",
+    "build:win": "node scripts/prepare-config.mjs && electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^35.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "id.co.ypti.toolroom.erp",
+    "productName": "PT YPTI Tool Room ERP",
+    "artifactName": "PT-YPTI-ToolRoom-Setup-${version}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "offline.html",
+      "app-config.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "../public/app-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PT YPTI Tool Room ERP",
+      "installerIcon": "../public/app-icon.ico",
+      "uninstallerIcon": "../public/app-icon.ico"
+    }
+  }
+}

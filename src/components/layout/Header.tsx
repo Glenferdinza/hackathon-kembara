@@ -190,6 +190,14 @@ const MENU_SUGGESTIONS = [
     href: '/help',
     roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'],
   },
+  {
+    id: 'menu-download',
+    title: 'Unduh Aplikasi Desktop & Mobile',
+    subtitle: 'Installer Windows .exe dan pemasangan cepat PWA di browser atau tablet',
+    keywords: 'download unduh exe desktop installer windows pwa aplikasi android',
+    href: '/download',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'OPERATOR'],
+  },
 ];
 
 export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
@@ -535,6 +543,8 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
         return { parent: 'Kontrol & Audit', current: 'Manajemen Akun' };
       case '/help':
         return { parent: 'Panduan', current: 'Panduan Sistem' };
+      case '/download':
+        return { parent: 'Aplikasi', current: 'Unduh Desktop & PWA' };
       default:
         return { parent: 'PT YPTI', current: 'Beranda' };
     }

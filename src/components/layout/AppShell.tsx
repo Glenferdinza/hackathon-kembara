@@ -16,7 +16,10 @@ export interface ActiveUser {
 }
 
 const isOperatorAllowedRoute = (path: string) =>
-  path === '/operator' || path.startsWith('/operator/') || path === '/help';
+  path === '/operator' ||
+  path.startsWith('/operator/') ||
+  path === '/help' ||
+  path === '/download';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
