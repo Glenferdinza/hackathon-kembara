@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Scan, RotateCcw } from 'lucide-react';
+import React, { useCallback, useRef, useState } from 'react';
+import { ScanBarcode, RotateCcw } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
-import { QrScannerModal } from '@/components/qr/QrScannerModal';
+import { BarcodeScannerModal } from '@/components/qr/QrScannerModal';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 interface ScannedUnitDetail {
   id: string;
@@ -54,27 +55,53 @@ export default function ScanToolPage() {
   const [loading, setLoading] = useState(false);
   const [unitDetail, setUnitDetail] = useState<ScannedUnitDetail | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const queryInputRef = useRef<HTMLInputElement | null>(null);
+  const lookupSeqRef = useRef(0);
 
-  const lookupUnit = async (codeToFind?: string) => {
-    const clean = (codeToFind ?? queryCode).trim().toUpperCase();
-    if (!clean) return;
-    setQueryCode(clean);
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/tool-units?code=${encodeURIComponent(clean)}`);
-      const json = await res.json();
-      if (!res.ok) {
-        showToast(json.error || `Unit QR "${clean}" tidak ditemukan.`, 'error');
-        setUnitDetail(null);
-      } else {
-        setUnitDetail(json.data);
+  const lookupUnit = useCallback(
+    async (codeToFind?: string) => {
+      const clean = (codeToFind ?? queryCode).trim().toUpperCase();
+      if (!clean) return;
+      const seq = ++lookupSeqRef.current;
+      setQueryCode(clean);
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/tool-units?code=${encodeURIComponent(clean)}`);
+        const json = await res.json();
+        if (lookupSeqRef.current !== seq) return;
+        if (!res.ok) {
+          showToast(json.error || `Unit barcode "${clean}" tidak ditemukan.`, 'error');
+          setUnitDetail(null);
+          if (document.activeElement === queryInputRef.current) {
+            queryInputRef.current?.select();
+          }
+        } else {
+          setUnitDetail(json.data);
+          // Kosongkan input setelah scan sukses agar tembakan USB barcode berikutnya tidak menumpuk
+          setQueryCode('');
+        }
+      } catch {
+        if (lookupSeqRef.current !== seq) return;
+        showToast('Gagal memeriksa kode barcode unit.', 'error');
+        if (document.activeElement === queryInputRef.current) {
+          queryInputRef.current?.select();
+        }
+      } finally {
+        if (lookupSeqRef.current === seq) {
+          setLoading(false);
+        }
       }
-    } catch {
-      showToast('Gagal memeriksa kode QR unit.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [queryCode, showToast]
+  );
+
+  // Auto-capture USB Barcode Scanner langsung di halaman tanpa perlu buka modal
+  useBarcodeScanner({
+    enabled: !isScannerOpen,
+    onScan: (code) => {
+      void lookupUnit(code);
+    },
+  });
 
   const handleResharpen = async () => {
     if (!unitDetail) return;
@@ -117,19 +144,24 @@ export default function ScanToolPage() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
-              Cek Stiker QR &amp; Sisa Umur Pakai Unit Tool
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+                Cek Barcode &amp; Umur Tool
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                Scanner USB Otomatis Aktif
+              </span>
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Pindai kode QR pada kotak wadah tool untuk mengecek sisa umur pakai (menit), harga, dan pemegang aktif.
+              Tembakkan scanner barcode USB langsung ke stiker wadah tool untuk mengecek sisa umur pakai (menit), harga, dan pemegang aktif.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setIsScannerOpen(true)}
-            className="px-3.5 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
           >
-            <Scan className="w-4 h-4" />
+            <ScanBarcode className="w-4 h-4" />
             <span>Buka Pemindai Kamera / USB</span>
           </button>
         </div>
@@ -143,11 +175,12 @@ export default function ScanToolPage() {
           className="bg-white border border-slate-200 rounded p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5"
         >
           <input
+            ref={queryInputRef}
             type="text"
             autoFocus
             value={queryCode}
             onChange={(e) => setQueryCode(e.target.value.toUpperCase())}
-            placeholder="Scan barcode/QR unit kotak tool (contoh TOL-001-U01) lalu tekan Enter..."
+            placeholder="Scan barcode unit wadah tool (contoh TOL-001-U01) lalu tekan Enter..."
             className="flex-1 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-[#1E40AF]"
           />
           <button
@@ -162,8 +195,8 @@ export default function ScanToolPage() {
         {!unitDetail ? (
           <div className="bg-white border border-slate-200 rounded">
             <EmptyState
-              title="Siap Memindai QR Kotak Wadah Tool"
-              description="Arahkan scanner USB ke stiker QR wadah tool atau tekan tombol Buka Pemindai Kamera di atas."
+              title="Siap Memindai Barcode Wadah Tool"
+              description="Tembakkan scanner barcode USB langsung ke stiker wadah tool atau tekan tombol Buka Pemindai Kamera / USB di atas."
             />
           </div>
         ) : (
@@ -309,14 +342,14 @@ export default function ScanToolPage() {
         )}
       </div>
 
-      <QrScannerModal
+      <BarcodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={(code) => {
           setIsScannerOpen(false);
           lookupUnit(code);
         }}
-        title="Pindai QR Kotak Wadah Tool"
+        title="Pindai Barcode Wadah Tool"
       />
     </AppShell>
   );

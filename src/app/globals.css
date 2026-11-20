@@ -107,4 +107,34 @@
     background: #ffffff !important;
     color: #0f172a !important;
   }
+
+  /* Multi-Page Print Isolation for 1D Barcode Sticker Sheets */
+  body.ypti-printing-barcodes > *:not(.ypti-barcode-print-root) {
+    display: none !important;
+  }
+  body.ypti-printing-barcodes .ypti-barcode-print-root,
+  body.ypti-printing-barcodes .ypti-barcode-print-root * {
+    visibility: visible !important;
+  }
+  body.ypti-printing-barcodes .ypti-barcode-print-root {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+  body.ypti-printing-barcodes .ypti-barcode-print-root .print\:hidden {
+    display: none !important;
+  }
+  body.ypti-printing-barcodes #ypti-barcode-print-area {
+    position: static !important;
+    width: 100% !important;
+    padding: 4mm !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
       if (!unit) {
         return NextResponse.json(
-          { error: `Kode unit QR "${cleanCode}" tidak ditemukan di database.` },
+          { error: `Kode unit barcode "${cleanCode}" tidak ditemukan di database.` },
           { status: 404 }
         );
       }
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
           action: 'TAMBAH_UNIT_TOOL',
           adminId: session.id,
           adminName: session.name || 'Admin',
-          details: `Menambahkan ${qty} unit QR baru untuk ${tool.code} (${tool.name}): ${units.map((u) => u.unitCode).join(', ')}`,
+          details: `Menambahkan ${qty} unit barcode baru untuk ${tool.code} (${tool.name}): ${units.map((u) => u.unitCode).join(', ')}`,
         },
       });
 

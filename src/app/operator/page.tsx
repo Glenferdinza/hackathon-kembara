@@ -144,8 +144,8 @@ export default function OperatorDashboardPage() {
     const ok = await confirm({
       title: isAccept ? 'Konfirmasi Terima Perkakas' : 'Tolak Penyiapan Barang',
       message: isAccept
-        ? 'Pastikan fisik unit perkakas yang Anda terima di loket sesuai dengan kode QR di daftar. Lanjutkan menerima barang?'
-        : 'Tolak barang yang disiapkan? Unit QR akan dikembalikan menjadi tersedia di Tool Room.',
+        ? 'Pastikan fisik unit perkakas yang Anda terima di loket sesuai dengan kode barcode di daftar. Lanjutkan menerima barang?'
+        : 'Tolak barang yang disiapkan? Unit barcode akan dikembalikan menjadi tersedia di Tool Room.',
       confirmText: isAccept ? 'Terima Sekarang' : 'Ya, Tolak',
       cancelText: 'Batal',
       type: isAccept ? 'primary' : 'warning',
@@ -272,7 +272,7 @@ export default function OperatorDashboardPage() {
                   Barang Siap Diambil dari Tool Room ({readyRequests.length})
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Admin sudah memindai kode QR unit tool. Periksa fisik barang lalu klik Terima Barang.
+                  Admin sudah memindai kode barcode unit tool. Periksa fisik barang lalu klik Terima Barang.
                 </p>
               </div>
               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#1E40AF] border border-blue-200">
@@ -298,7 +298,7 @@ export default function OperatorDashboardPage() {
                           ({it.requestedQty} unit)
                           {it.assignedUnits && it.assignedUnits.length > 0 && (
                             <span className="ml-2 font-mono text-[11px] text-[#1E40AF] font-semibold">
-                              QR: {it.assignedUnits.map((u) => `${u.unitCode} (${u.remainingLifeMinutes} mnt)`).join(', ')}
+                              Barcode: {it.assignedUnits.map((u) => `${u.unitCode} (${u.remainingLifeMinutes} mnt)`).join(', ')}
                             </span>
                           )}
                         </div>
@@ -482,7 +482,7 @@ export default function OperatorDashboardPage() {
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
                   <tr>
                     <th className="py-2.5 px-3">NO. PINJAMAN</th>
-                    <th className="py-2.5 px-3">KODE QR / BARANG</th>
+                    <th className="py-2.5 px-3">KODE BARCODE / BARANG</th>
                     <th className="py-2.5 px-3 text-center">QTY</th>
                     <th className="py-2.5 px-3 w-52">SISA UMUR PAKAI (MENIT)</th>
                     <th className="py-2.5 px-3">TENGGAT KEMBALI</th>
@@ -509,7 +509,7 @@ export default function OperatorDashboardPage() {
                           </div>
                           {hi.toolUnit ? (
                             <div className="font-mono text-[11px] font-bold text-[#1E40AF]">
-                              QR: {hi.toolUnit.unitCode}
+                              Barcode: {hi.toolUnit.unitCode}
                             </div>
                           ) : (
                             <div className="font-mono text-[11px] text-slate-500">

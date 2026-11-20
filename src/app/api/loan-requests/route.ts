@@ -201,7 +201,7 @@ export async function POST(request: Request) {
       await tx.notification.create({
         data: {
           title: `Request Pinjam Baru: ${requestNumber}`,
-          message: `${employee.name} (${employee.nik}) mengajukan ${items.length} jenis barang. Segera siapkan dan scan QR unit.`,
+          message: `${employee.name} (${employee.nik}) mengajukan ${items.length} jenis barang. Segera siapkan dan scan barcode unit.`,
           type: 'INFO',
           targetRole: 'ADMIN',
           link: '/requests',

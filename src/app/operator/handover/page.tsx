@@ -356,7 +356,7 @@ export default function OperatorHandoverPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block font-semibold text-slate-700">
-                    Pilih Barang / Unit QR yang Dialihkan *
+                    Pilih Barang / Unit Barcode yang Dialihkan *
                   </label>
                   <select
                     required
@@ -492,7 +492,7 @@ export default function OperatorHandoverPage() {
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
                   <tr>
                     <th className="py-2.5 px-3">NO. SERAH TERIMA</th>
-                    <th className="py-2.5 px-3">BARANG / QR UNIT</th>
+                    <th className="py-2.5 px-3">BARANG / BARCODE UNIT</th>
                     <th className="py-2.5 px-3">DARI → KEPADA</th>
                     <th className="py-2.5 px-3 text-right">DURASI PAKAI</th>
                     <th className="py-2.5 px-3 text-center">STATUS</th>

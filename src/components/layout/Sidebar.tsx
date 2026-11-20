@@ -86,7 +86,7 @@ export function Sidebar({
           allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },
         {
-          label: 'Cek QR & Umur Tool',
+          label: 'Cek Barcode & Umur Tool',
           href: '/scan-tool',
           allowedRoles: ['SUPER_ADMIN', 'ADMIN'],
         },

@@ -1,18 +1,20 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { Scan } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ScanBarcode } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
-import { QrScannerModal } from '@/components/qr/QrScannerModal';
+import { BarcodeScannerModal } from '@/components/qr/QrScannerModal';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 
 interface AvailableUnit {
   id: string;
   unitCode: string;
+  supplierCode?: string | null;
   remainingLifeMinutes: number;
   maxLifeMinutes: number;
   status: string;
@@ -57,6 +59,24 @@ export default function AdminRequestsQueuePage() {
   const [quickCodeInput, setQuickCodeInput] = useState<Record<string, string>>({});
   const [submittingPrepare, setSubmittingPrepare] = useState(false);
 
+  // Refs untuk mencegah race condition saat tembakan USB scanner beruntun cepat
+  const prepareSessionRef = useRef(0);
+  const isLoadingUnitsRef = useRef(false);
+  const queueLookupBusyRef = useRef(false);
+  const pendingScansRef = useRef<string[]>([]);
+  const selectedUnitIdsRef = useRef<Record<string, string[]>>({});
+
+  const closePrepareModal = useCallback(() => {
+    prepareSessionRef.current += 1;
+    isLoadingUnitsRef.current = false;
+    pendingScansRef.current = [];
+    selectedUnitIdsRef.current = {};
+    setPreparingReq(null);
+    setAvailableUnitsByTool({});
+    setSelectedUnitIdsByItem({});
+    setQuickCodeInput({});
+  }, []);
+
   const loadRequestsData = useCallback(async () => {
     const q = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
     const res = await fetch(`/api/loan-requests${q}`);
@@ -99,10 +119,99 @@ export default function AdminRequestsQueuePage() {
     };
   }, [statusFilter, showToast]);
 
-  const handleOpenPrepareModal = async (req: LoanReq) => {
+  const assignMatchedUnitToItem = useCallback(
+    (reqItem: RequestItem, matched: AvailableUnit, reqNumber?: string) => {
+      const currentMap = selectedUnitIdsRef.current;
+      const allPickedIds = Object.values(currentMap).flat();
+      if (allPickedIds.includes(matched.id)) {
+        showToast(`Unit ${matched.unitCode} sudah ditambahkan ke daftar.`, 'info');
+        return false;
+      }
+
+      const current = currentMap[reqItem.id] || [];
+      if (current.length >= reqItem.requestedQty) {
+        showToast(`Jumlah unit sudah mencukupi (${reqItem.requestedQty} unit).`, 'error');
+        return false;
+      }
+
+      const nextMap: Record<string, string[]> = {
+        ...currentMap,
+        [reqItem.id]: [...current, matched.id],
+      };
+      selectedUnitIdsRef.current = nextMap;
+      setSelectedUnitIdsByItem(nextMap);
+      setQuickCodeInput((prev) => ({ ...prev, [reqItem.id]: '' }));
+      showToast(
+        reqNumber
+          ? `Request ${reqNumber} dibuka & unit barcode ${matched.unitCode} otomatis dipilih.`
+          : `Unit barcode ${matched.unitCode} terverifikasi.`,
+        'success'
+      );
+      return true;
+    },
+    [showToast]
+  );
+
+  const assignCodeAcrossRequest = useCallback(
+    (
+      req: LoanReq,
+      unitsMap: Record<string, AvailableUnit[]>,
+      rawCode: string,
+      includeOpenedPrefix = false
+    ) => {
+      const code = rawCode.trim().toUpperCase();
+      if (!code) return;
+
+      const toolItems = req.items.filter((i) => i.itemType === 'TOOL' && i.toolId);
+      let firstMatchedItem: RequestItem | null = null;
+      let firstMatchedUnit: AvailableUnit | null = null;
+
+      for (const item of toolItems) {
+        const pool = unitsMap[item.toolId as string] || [];
+        const matched = pool.find(
+          (u) =>
+            u.unitCode.toUpperCase() === code ||
+            (u.supplierCode && u.supplierCode.toUpperCase() === code)
+        );
+        if (!matched) continue;
+
+        if (!firstMatchedItem) {
+          firstMatchedItem = item;
+          firstMatchedUnit = matched;
+        }
+
+        const picked = selectedUnitIdsRef.current[item.id] || [];
+        if (picked.length < item.requestedQty) {
+          assignMatchedUnitToItem(item, matched, includeOpenedPrefix ? req.requestNumber : undefined);
+          return;
+        }
+      }
+
+      if (firstMatchedItem && firstMatchedUnit) {
+        assignMatchedUnitToItem(firstMatchedItem, firstMatchedUnit);
+        return;
+      }
+
+      showToast(
+        `Kode barcode "${code}" tidak tersedia atau bukan milik perkakas pada request ${req.requestNumber}.`,
+        'error'
+      );
+    },
+    [assignMatchedUnitToItem, showToast]
+  );
+
+  const handleOpenPrepareModal = async (req: LoanReq, initialScanCodes?: string[]) => {
+    const sessionId = ++prepareSessionRef.current;
+    isLoadingUnitsRef.current = true;
+    selectedUnitIdsRef.current = {};
     setPreparingReq(req);
+    setAvailableUnitsByTool({});
     setSelectedUnitIdsByItem({});
     setQuickCodeInput({});
+
+    if (initialScanCodes && initialScanCodes.length > 0) {
+      pendingScansRef.current = [...initialScanCodes, ...pendingScansRef.current];
+    }
 
     const toolIds = Array.from(
       new Set(req.items.filter((i) => i.itemType === 'TOOL' && i.toolId).map((i) => i.toolId as string))
@@ -122,7 +231,17 @@ export default function AdminRequestsQueuePage() {
         }
       })
     );
+
+    // Abaikan jika modal sudah ditutup atau berpindah ke request lain
+    if (prepareSessionRef.current !== sessionId) return;
+
+    isLoadingUnitsRef.current = false;
     setAvailableUnitsByTool(unitsMap);
+
+    const queued = pendingScansRef.current.splice(0, pendingScansRef.current.length);
+    queued.forEach((queuedCode, idx) => {
+      assignCodeAcrossRequest(req, unitsMap, queuedCode, idx === 0);
+    });
   };
 
   const assignUnitCodeToItem = (reqItem: RequestItem, rawCode: string) => {
@@ -130,38 +249,108 @@ export default function AdminRequestsQueuePage() {
     if (!code || !reqItem.toolId) return;
 
     const pool = availableUnitsByTool[reqItem.toolId] || [];
-    const matched = pool.find((u) => u.unitCode.toUpperCase() === code);
+    const matched = pool.find(
+      (u) =>
+        u.unitCode.toUpperCase() === code ||
+        (u.supplierCode && u.supplierCode.toUpperCase() === code)
+    );
     if (!matched) {
       showToast(
-        `Kode unit "${code}" tidak tersedia atau bukan milik ${reqItem.tool?.name}.`,
+        `Kode barcode "${code}" tidak tersedia atau bukan milik ${reqItem.tool?.name}.`,
         'error'
       );
       return;
     }
 
-    const current = selectedUnitIdsByItem[reqItem.id] || [];
-    if (current.includes(matched.id)) {
-      showToast(`Unit ${matched.unitCode} sudah ditambahkan ke daftar.`, 'info');
-      return;
-    }
-    if (current.length >= reqItem.requestedQty) {
-      showToast(`Jumlah unit sudah mencukupi (${reqItem.requestedQty} unit).`, 'error');
-      return;
-    }
-
-    setSelectedUnitIdsByItem((prev) => ({
-      ...prev,
-      [reqItem.id]: [...current, matched.id],
-    }));
-    setQuickCodeInput((prev) => ({ ...prev, [reqItem.id]: '' }));
-    showToast(`Unit QR ${matched.unitCode} terverifikasi.`, 'success');
+    assignMatchedUnitToItem(reqItem, matched);
   };
 
+  const handleGlobalBarcodeScan = async (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return;
+
+    // Jika modal penyiapan sudah terbuka, antrekan jika pool unit masih dimuat atau langsung cocokkan
+    if (preparingReq) {
+      if (isLoadingUnitsRef.current) {
+        pendingScansRef.current.push(code);
+        return;
+      }
+      assignCodeAcrossRequest(preparingReq, availableUnitsByTool, code);
+      return;
+    }
+
+    // Jika lookup antrean sebelumnya sedang berjalan, antrekan scan kedua agar tidak hilang
+    if (queueLookupBusyRef.current) {
+      pendingScansRef.current.push(code);
+      return;
+    }
+
+    // Jika berada di daftar antrean, cocokkan No. Request atau lookup ToolUnit -> buka modal request terkait
+    const waitingRequests = requests.filter((r) => r.status === 'MENUNGGU_ADMIN');
+    const matchedReqByNo = waitingRequests.find((r) => r.requestNumber.toUpperCase() === code);
+    if (matchedReqByNo) {
+      await handleOpenPrepareModal(matchedReqByNo);
+      return;
+    }
+
+    queueLookupBusyRef.current = true;
+    try {
+      const res = await fetch(`/api/tool-units?code=${encodeURIComponent(code)}`);
+      if (!res.ok) {
+        pendingScansRef.current = [];
+        showToast(`Kode barcode "${code}" tidak ditemukan di database.`, 'error');
+        return;
+      }
+      const json = await res.json();
+      const unitData = json.data as { toolId?: string; unitCode?: string; status?: string } | undefined;
+      if (!unitData?.toolId) {
+        pendingScansRef.current = [];
+        showToast(`Kode barcode "${code}" tidak valid.`, 'error');
+        return;
+      }
+      if (unitData.status && unitData.status !== 'TERSEDIA') {
+        pendingScansRef.current = [];
+        showToast(
+          `Unit barcode ${unitData.unitCode || code} berstatus ${unitData.status} (tidak tersedia untuk disiapkan).`,
+          'error'
+        );
+        return;
+      }
+      const matchedReq = waitingRequests.find((r) =>
+        r.items.some((it) => it.itemType === 'TOOL' && it.toolId === unitData.toolId)
+      );
+      if (!matchedReq) {
+        pendingScansRef.current = [];
+        showToast(
+          `Unit barcode ${unitData.unitCode || code} tidak cocok dengan antrean request yang menunggu diproses.`,
+          'info'
+        );
+        return;
+      }
+      await handleOpenPrepareModal(matchedReq, [unitData.unitCode || code]);
+    } catch {
+      pendingScansRef.current = [];
+      showToast('Gagal memeriksa kode barcode unit.', 'error');
+    } finally {
+      queueLookupBusyRef.current = false;
+    }
+  };
+
+  // Auto-capture USB Barcode Scanner langsung di halaman Antrean & Modal Penyiapan
+  useBarcodeScanner({
+    enabled: !scanTargetItemId,
+    onScan: (code) => {
+      void handleGlobalBarcodeScan(code);
+    },
+  });
+
   const removeAssignedUnit = (reqItemId: string, unitId: string) => {
-    setSelectedUnitIdsByItem((prev) => ({
-      ...prev,
-      [reqItemId]: (prev[reqItemId] || []).filter((id) => id !== unitId),
-    }));
+    const nextMap: Record<string, string[]> = {
+      ...selectedUnitIdsRef.current,
+      [reqItemId]: (selectedUnitIdsRef.current[reqItemId] || []).filter((id) => id !== unitId),
+    };
+    selectedUnitIdsRef.current = nextMap;
+    setSelectedUnitIdsByItem(nextMap);
   };
 
   const handleConfirmPrepare = async () => {
@@ -179,7 +368,7 @@ export default function AdminRequestsQueuePage() {
         const picked = selectedUnitIdsByItem[item.id] || [];
         if (picked.length !== item.requestedQty) {
           showToast(
-            `Harap scan/pilih tepat ${item.requestedQty} unit QR untuk "${item.tool?.name}".`,
+            `Harap scan/pilih tepat ${item.requestedQty} unit barcode untuk "${item.tool?.name}".`,
             'error'
           );
           return;
@@ -205,7 +394,7 @@ export default function AdminRequestsQueuePage() {
           `Request ${preparingReq.requestNumber} siap diambil! Menunggu konfirmasi Terima dari Operator.`,
           'success'
         );
-        setPreparingReq(null);
+        closePrepareModal();
         fetchRequests();
       }
     } catch {
@@ -250,11 +439,16 @@ export default function AdminRequestsQueuePage() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
-              Antrean Request Pinjam Operator
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+                Antrean Request Pinjam Operator
+              </h1>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                Scanner USB Otomatis Aktif
+              </span>
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Daftar permintaan pinjaman dari operator lantai produksi. Ambil barang di rak, scan QR unit, lalu klik OK.
+              Daftar permintaan pinjaman dari operator lantai produksi. Ambil barang di rak, scan barcode unit langsung via USB atau kamera, lalu klik OK.
             </p>
           </div>
           <RefreshButton onRefresh={fetchRequests} loading={loading} />
@@ -298,7 +492,7 @@ export default function AdminRequestsQueuePage() {
                 <tr>
                   <th className="py-2.5 px-3">NO. REQUEST</th>
                   <th className="py-2.5 px-3">PEMOHON (OPERATOR)</th>
-                  <th className="py-2.5 px-3">BARANG &amp; UNIT QR</th>
+                  <th className="py-2.5 px-3">BARANG &amp; UNIT BARCODE</th>
                   <th className="py-2.5 px-3">KEPERLUAN &amp; TENGGAT</th>
                   <th className="py-2.5 px-3 text-center">STATUS</th>
                   <th className="py-2.5 px-3 text-right">AKSI</th>
@@ -328,7 +522,7 @@ export default function AdminRequestsQueuePage() {
                             Rak: {it.tool?.location || it.inventory?.location}
                             {it.assignedUnits && it.assignedUnits.length > 0 && (
                               <span className="ml-2 font-mono font-semibold text-[#1E40AF]">
-                                Unit QR: {it.assignedUnits.map((u) => u.unitCode).join(', ')}
+                                Unit Barcode: {it.assignedUnits.map((u) => u.unitCode).join(', ')}
                               </span>
                             )}
                           </div>
@@ -364,7 +558,7 @@ export default function AdminRequestsQueuePage() {
                             onClick={() => handleOpenPrepareModal(req)}
                             className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded cursor-pointer"
                           >
-                            Scan QR &amp; Siapkan
+                            Scan Barcode &amp; Siapkan
                           </button>
                           <button
                             type="button"
@@ -386,23 +580,28 @@ export default function AdminRequestsQueuePage() {
         )}
       </div>
 
-      {/* Modal Admin Siapkan & Scan QR Unit Perkakas */}
+      {/* Modal Admin Siapkan & Scan Barcode Unit Perkakas */}
       {preparingReq && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
-          onClick={() => setPreparingReq(null)}
+          onClick={closePrepareModal}
         >
           <div
             className="bg-white rounded border border-slate-300 shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
-              <h2 className="text-sm font-heading font-bold text-slate-900">
-                Siapkan &amp; Pindai QR Unit Tool — {preparingReq.requestNumber}
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                Pemohon {preparingReq.employee.name} ({preparingReq.employee.nik}) | Scan stiker QR dari kotak wadah perkakas.
-              </p>
+            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-heading font-bold text-slate-900">
+                  Siapkan &amp; Scan Barcode Unit — {preparingReq.requestNumber}
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  Pemohon {preparingReq.employee.name} ({preparingReq.employee.nik}) | Tembak scanner USB langsung ke stiker barcode wadah perkakas.
+                </p>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white text-slate-700 border border-slate-200 self-start sm:self-auto shrink-0">
+                USB Auto-Scan Siap
+              </span>
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto text-xs">
@@ -430,7 +629,7 @@ export default function AdminRequestsQueuePage() {
                               : 'bg-amber-50 text-amber-800 border-amber-200'
                           }`}
                         >
-                          {pickedIds.length} / {item.requestedQty} Unit QR
+                          {pickedIds.length} / {item.requestedQty} Unit Barcode
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
@@ -456,7 +655,7 @@ export default function AdminRequestsQueuePage() {
                                   assignUnitCodeToItem(item, quickCodeInput[item.id] || '');
                                 }
                               }}
-                              placeholder="Scan QR / ketik kode unit (contoh TOL-001-U01)..."
+                              placeholder="Scan barcode / ketik kode unit (contoh TOL-001-U01)..."
                               className="flex-1 bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs font-bold focus:outline-none focus:border-[#1E40AF]"
                             />
                             <button
@@ -488,12 +687,12 @@ export default function AdminRequestsQueuePage() {
                             onClick={() => setScanTargetItemId(item.id)}
                             className="px-2.5 py-1.5 text-xs font-semibold text-[#1E40AF] bg-white border border-[#1E40AF] hover:bg-blue-50 rounded flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
                           >
-                            <Scan className="w-3.5 h-3.5" />
-                            <span>Kamera QR</span>
+                            <ScanBarcode className="w-3.5 h-3.5" />
+                            <span>Kamera Barcode</span>
                           </button>
                         </div>
 
-                        {/* Daftar Unit QR Terpilih */}
+                        {/* Daftar Unit Barcode Terpilih */}
                         {pickedIds.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {pickedIds.map((uid) => {
@@ -528,7 +727,7 @@ export default function AdminRequestsQueuePage() {
             <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setPreparingReq(null)}
+                onClick={closePrepareModal}
                 className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
               >
                 Batal
@@ -546,7 +745,7 @@ export default function AdminRequestsQueuePage() {
         </div>
       )}
 
-      <QrScannerModal
+      <BarcodeScannerModal
         isOpen={Boolean(scanTargetItem)}
         onClose={() => setScanTargetItemId(null)}
         onScan={(code) => {
@@ -555,7 +754,8 @@ export default function AdminRequestsQueuePage() {
           }
           setScanTargetItemId(null);
         }}
-        title={scanTargetItem ? `Scan QR: ${scanTargetItem.tool?.name}` : 'Scan QR Unit Tool'}
+        title={scanTargetItem ? `Scan Barcode: ${scanTargetItem.tool?.name}` : 'Scan Barcode Unit'}
+        defaultMode="CAMERA"
       />
     </AppShell>
   );

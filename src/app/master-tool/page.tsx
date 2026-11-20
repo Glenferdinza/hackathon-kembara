@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { QrCode } from 'lucide-react';
+import { Barcode } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -10,7 +10,7 @@ import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { ImportExcelModal } from '@/components/modals/ImportExcelModal';
-import { QrStickerModal, PrintableToolUnit } from '@/components/qr/QrStickerModal';
+import { BarcodeStickerModal, PrintableToolUnit } from '@/components/qr/QrStickerModal';
 
 interface ToolUnitItem extends PrintableToolUnit {
   toolId: string;
@@ -45,6 +45,19 @@ interface Tool {
   status: string;
 }
 
+interface ToolDetail extends Tool {
+  loanItems?: Array<{
+    id: string;
+    quantity: number;
+    status: string;
+    loanTransaction?: {
+      transactionNumber?: string;
+      expectedReturnDate?: string;
+      employee?: { name: string; nik: string } | null;
+    } | null;
+  }>;
+}
+
 export default function MasterToolPage() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
@@ -73,16 +86,16 @@ export default function MasterToolPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
-  const [detailTool, setDetailTool] = useState<any | null>(null);
+  const [detailTool, setDetailTool] = useState<ToolDetail | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Unit & QR Stiker Management Modal
+  // Unit & Barcode Stiker Management Modal
   const [unitsModalTool, setUnitsModalTool] = useState<Tool | null>(null);
   const [unitsList, setUnitsList] = useState<ToolUnitItem[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [addUnitQty, setAddUnitQty] = useState('1');
   const [isAddingUnits, setIsAddingUnits] = useState(false);
-  const [qrPrintUnits, setQrPrintUnits] = useState<PrintableToolUnit[] | null>(null);
+  const [barcodePrintUnits, setBarcodePrintUnits] = useState<PrintableToolUnit[] | null>(null);
 
   // Form inputs
   const [formCode, setFormCode] = useState('');
@@ -99,13 +112,17 @@ export default function MasterToolPage() {
 
   // Load categories & initial URL search param + global search listener
   useEffect(() => {
+    let cancelled = false;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlSearch = params.get('search');
       if (urlSearch !== null) {
-        setSearchInput(urlSearch);
-        setSearch(urlSearch);
-        setPage(1);
+        queueMicrotask(() => {
+          if (cancelled) return;
+          setSearchInput(urlSearch);
+          setSearch(urlSearch);
+          setPage(1);
+        });
       }
     }
     const handleGlobalSearchEvent = (e: Event) => {
@@ -117,7 +134,10 @@ export default function MasterToolPage() {
       }
     };
     window.addEventListener('ypti-global-search', handleGlobalSearchEvent);
-    return () => window.removeEventListener('ypti-global-search', handleGlobalSearchEvent);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('ypti-global-search', handleGlobalSearchEvent);
+    };
   }, []);
 
   useEffect(() => {
@@ -159,8 +179,36 @@ export default function MasterToolPage() {
   }, [search, categoryFilter, page, pageSize, showToast]);
 
   useEffect(() => {
-    fetchTools();
-  }, [fetchTools]);
+    let active = true;
+    const loadTools = async () => {
+      try {
+        const query = new URLSearchParams({
+          search,
+          category: categoryFilter,
+          page: String(page),
+          limit: String(pageSize),
+        });
+        const res = await fetch(`/api/tools?${query.toString()}`);
+        if (res.ok && active) {
+          const json = await res.json();
+          setTools(json.data || []);
+          setTotalPages(json.pagination?.totalPages || 1);
+          setTotalCount(json.pagination?.total || 0);
+        }
+      } catch {
+        if (active) showToast('Gagal memuat master tool.', 'error');
+      } finally {
+        if (active) {
+          setLoading(false);
+          setIsFetching(false);
+        }
+      }
+    };
+    void loadTools();
+    return () => {
+      active = false;
+    };
+  }, [search, categoryFilter, page, pageSize, showToast]);
 
   const handleOpenAdd = () => {
     setEditingTool(null);
@@ -232,9 +280,9 @@ export default function MasterToolPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        showToast(json.error || 'Gagal generate unit QR baru.', 'error');
+        showToast(json.error || 'Gagal generate unit barcode baru.', 'error');
       } else {
-        showToast(`${qty} unit QR baru berhasil dibuat dan masuk stok.`, 'success');
+        showToast(`${qty} unit barcode baru berhasil dibuat dan masuk stok.`, 'success');
         await handleOpenUnitsModal(unitsModalTool);
         fetchTools();
       }
@@ -532,13 +580,13 @@ export default function MasterToolPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenUnitsModal(t)}
-                          aria-label="Kelola Unit & Stiker QR"
-                          title="Kelola Unit & Stiker QR"
+                          aria-label="Kelola Unit & Stiker Barcode"
+                          title="Kelola Unit & Stiker Barcode"
                           className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-[#1E40AF] hover:bg-blue-50 hover:border-[#1E40AF] flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          <QrCode className="w-3.5 h-3.5" />
+                          <Barcode className="w-3.5 h-3.5" />
                           <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Unit &amp; Stiker QR
+                            Unit &amp; Stiker Barcode
                           </span>
                         </button>
                         <button
@@ -869,7 +917,7 @@ export default function MasterToolPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {detailTool.loanItems && detailTool.loanItems.length > 0 ? (
-                        detailTool.loanItems.map((li: any) => (
+                        detailTool.loanItems.map((li) => (
                           <tr key={li.id} className="hover:bg-slate-50">
                             <td className="py-2 px-2.5 font-bold text-slate-900">
                               {li.loanTransaction?.transactionNumber}
@@ -916,7 +964,7 @@ export default function MasterToolPage() {
           </div>
         </div>
       )}
-      {/* Modal Kelola Unit Unik & Stiker QR Code */}
+      {/* Modal Kelola Unit Unik & Stiker Barcode 1D */}
       {unitsModalTool && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
@@ -929,7 +977,7 @@ export default function MasterToolPage() {
             <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-heading font-bold text-slate-900">
-                  Daftar Unit QR &amp; Sisa Umur Pakai — {unitsModalTool.code}
+                  Daftar Unit Barcode &amp; Sisa Umur Pakai — {unitsModalTool.code}
                 </h2>
                 <p className="text-[11px] text-slate-500">
                   {unitsModalTool.name} | Harga Rp{(unitsModalTool.price || 0).toLocaleString('id-ID')} | Batas Umur {(unitsModalTool.maxLifeMinutes || 1200).toLocaleString('id-ID')} menit
@@ -939,25 +987,25 @@ export default function MasterToolPage() {
                 {unitsList.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setQrPrintUnits(unitsList)}
+                    onClick={() => setBarcodePrintUnits(unitsList)}
                     className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors cursor-pointer"
                   >
-                    Cetak Semua Stiker QR ({unitsList.length})
+                    Cetak Semua Stiker Barcode ({unitsList.length})
                   </button>
                 )}
               </div>
             </div>
 
             <div className="p-4 space-y-4 overflow-y-auto text-xs">
-              {/* Bar Tambah Stok & Auto-Generate Unit QR Baru */}
+              {/* Bar Tambah Stok & Auto-Generate Unit Barcode Baru */}
               <form
                 onSubmit={handleAddMoreUnits}
                 className="flex flex-col sm:flex-row items-stretch sm:items-end justify-between gap-3 pb-3 border-b border-slate-200"
               >
                 <div className="space-y-1">
-                  <div className="font-semibold text-slate-800">Tambah Stok Unit Baru &amp; Generate QR Otomatis</div>
+                  <div className="font-semibold text-slate-800">Tambah Stok Unit Baru &amp; Generate Barcode Otomatis</div>
                   <div className="text-[11px] text-slate-500">
-                    Unit yang ditambahkan otomatis menambah total stok tersedia dan langsung siap dicetak stikernya.
+                    Unit yang ditambahkan otomatis menambah total stok tersedia dan langsung siap dicetak stiker barcode 1D-nya.
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -974,7 +1022,7 @@ export default function MasterToolPage() {
                     disabled={isAddingUnits}
                     className="px-3.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
                   >
-                    {isAddingUnits ? 'Membuat...' : '+ Tambah Unit QR'}
+                    {isAddingUnits ? 'Membuat...' : '+ Tambah Unit Barcode'}
                   </button>
                 </div>
               </form>
@@ -983,15 +1031,15 @@ export default function MasterToolPage() {
                 <SkeletonTable rows={5} cols={6} />
               ) : unitsList.length === 0 ? (
                 <EmptyState
-                  title="Belum Ada Unit QR Terdaftar"
-                  description="Gunakan formulir di atas untuk membuat kode unit QR pertama bagi perkakas ini."
+                  title="Belum Ada Unit Barcode Terdaftar"
+                  description="Gunakan formulir di atas untuk membuat kode unit barcode pertama bagi perkakas ini."
                 />
               ) : (
                 <div className="overflow-x-auto border border-slate-200 rounded">
                   <table className="w-full text-left text-xs min-w-[700px]">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
                       <tr>
-                        <th className="py-2 px-3">KODE UNIT QR</th>
+                        <th className="py-2 px-3">KODE UNIT BARCODE</th>
                         <th className="py-2 px-3">STATUS</th>
                         <th className="py-2 px-3">PEMEGANG / LOKASI</th>
                         <th className="py-2 px-3 w-48">SISA UMUR PAKAI</th>
@@ -1053,10 +1101,10 @@ export default function MasterToolPage() {
                             <td className="py-2 px-3 text-right whitespace-nowrap space-x-2">
                               <button
                                 type="button"
-                                onClick={() => setQrPrintUnits([u])}
+                                onClick={() => setBarcodePrintUnits([u])}
                                 className="text-[#1E40AF] hover:underline font-semibold cursor-pointer"
                               >
-                                Cetak QR
+                                Cetak Barcode
                               </button>
                               {(u.status === 'PERLU_ASAH' || u.status === 'RUSAK' || pct <= 15) &&
                                 u.status !== 'DIPINJAM' &&
@@ -1092,15 +1140,15 @@ export default function MasterToolPage() {
         </div>
       )}
 
-      {/* Modal Cetak Stiker QR Code */}
-      {unitsModalTool && qrPrintUnits && (
-        <QrStickerModal
+      {/* Modal Cetak Stiker Barcode 1D */}
+      {unitsModalTool && barcodePrintUnits && (
+        <BarcodeStickerModal
           isOpen={true}
-          onClose={() => setQrPrintUnits(null)}
+          onClose={() => setBarcodePrintUnits(null)}
           toolCode={unitsModalTool.code}
           toolName={unitsModalTool.name}
           toolSpecs={unitsModalTool.specifications}
-          units={qrPrintUnits}
+          units={barcodePrintUnits}
         />
       )}
 

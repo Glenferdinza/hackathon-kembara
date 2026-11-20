@@ -208,7 +208,7 @@ function DownloadContent({
             Unduh Aplikasi Desktop &amp; Perangkat Mobile
           </h1>
           <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-            Pilih installer Windows (.exe) khusus PC Admin Tool Room atau pasang Web App (PWA) ke HP dan tablet Operator. Seluruh data peminjaman, unit QR, dan handover tersinkron otomatis secara real-time dengan server pusat tanpa menyimpan kredensial database di perangkat pengguna.
+            Pilih installer Windows (.exe) khusus PC Admin Tool Room atau pasang Web App (PWA) ke HP dan tablet Operator. Seluruh data peminjaman, unit barcode, dan handover tersinkron otomatis secara real-time dengan server pusat tanpa menyimpan kredensial database di perangkat pengguna.
           </p>
         </div>
 
@@ -238,7 +238,7 @@ function DownloadContent({
 
           <div className="p-5 space-y-4 text-xs text-slate-600">
             <p className="leading-relaxed">
-              Installer desktop Windows untuk komputer loket Tool Room. Setelah terpasang, aplikasi otomatis terhubung aman ke server pusat PT YPTI serta mendukung scanner QR USB dan cetak stiker QR.
+              Installer desktop Windows untuk komputer loket Tool Room. Setelah terpasang, aplikasi otomatis terhubung aman ke server pusat PT YPTI serta mendukung scanner barcode USB otomatis dan cetak stiker barcode 1D.
             </p>
 
             <div className="border-t border-slate-100 pt-3 space-y-1.5">
@@ -440,7 +440,7 @@ function DownloadContent({
           <div className="p-5 flex-1 flex flex-col justify-between space-y-5 text-xs text-slate-600">
             <div className="space-y-3">
               <p className="leading-relaxed">
-                Cocok untuk Operator produksi di area mesin maupun Admin yang ingin membuka sistem layaknya aplikasi native tanpa mengunduh file installer besar. Mendukung kamera scan QR dan foto bukti Shift Handover.
+                Cocok untuk Operator produksi di area mesin maupun Admin yang ingin membuka sistem layaknya aplikasi native tanpa mengunduh file installer besar. Mendukung kamera scan barcode dan foto bukti Shift Handover.
               </p>
 
               <div className="border-t border-slate-100 pt-3 space-y-1.5">

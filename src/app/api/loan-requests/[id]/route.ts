@@ -33,7 +33,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Permintaan peminjaman tidak ditemukan.' }, { status: 404 });
     }
 
-    // 1. ADMIN_PREPARE: Admin memindai QR Code unit tool & klik OK / Siap Diambil
+    // 1. ADMIN_PREPARE: Admin memindai Barcode unit tool & klik OK / Siap Diambil
     if (action === 'ADMIN_PREPARE') {
       if (session.role === 'OPERATOR') {
         return NextResponse.json({ error: 'Hanya Admin Tool Room yang dapat menyiapkan barang.' }, { status: 403 });
@@ -54,7 +54,7 @@ export async function PATCH(
         }
       }
 
-      // Validasi seluruh item TOOL wajib memiliki unit QR sejumlah requestedQty
+      // Validasi seluruh item TOOL wajib memiliki unit barcode sejumlah requestedQty
       const allAssignedUnitIds: string[] = [];
       for (const item of existingReq.items) {
         if (item.itemType === 'TOOL') {
@@ -62,7 +62,7 @@ export async function PATCH(
           if (unitIds.length !== item.requestedQty) {
             return NextResponse.json(
               {
-                error: `Item "${item.tool?.name}" membutuhkan scan tepat ${item.requestedQty} unit QR (baru terpindai ${unitIds.length}).`,
+                error: `Item "${item.tool?.name}" membutuhkan scan tepat ${item.requestedQty} unit barcode (baru terpindai ${unitIds.length}).`,
               },
               { status: 400 }
             );
@@ -70,7 +70,7 @@ export async function PATCH(
           const uniqueSet = new Set(unitIds);
           if (uniqueSet.size !== unitIds.length) {
             return NextResponse.json(
-              { error: `Terdapat duplikasi scan unit QR pada item "${item.tool?.name}".` },
+              { error: `Terdapat duplikasi scan unit barcode pada item "${item.tool?.name}".` },
               { status: 400 }
             );
           }
@@ -88,7 +88,7 @@ export async function PATCH(
             });
 
             if (dbUnits.length !== unitIds.length) {
-              throw new Error('Sebagian kode unit QR tidak ditemukan di database.');
+              throw new Error('Sebagian kode unit barcode tidak ditemukan di database.');
             }
             for (const u of dbUnits) {
               if (u.toolId !== item.toolId) {
@@ -122,7 +122,7 @@ export async function PATCH(
         await tx.notification.create({
           data: {
             title: `Barang Siap Diambil (${existingReq.requestNumber})`,
-            message: `Admin ${session.name} telah menyiapkan unit QR yang Anda ajukan. Cek fisik & klik Terima di portal Anda.`,
+            message: `Admin ${session.name} telah menyiapkan unit barcode yang Anda ajukan. Cek fisik & klik Terima di portal Anda.`,
             type: 'INFO',
             targetRole: 'OPERATOR',
             employeeId: existingReq.employeeId,
@@ -135,7 +135,7 @@ export async function PATCH(
             action: 'SIAPKAN_REQUEST_PINJAM',
             adminId: session.id,
             adminName: session.name || 'Admin',
-            details: `Admin menyiapkan request ${existingReq.requestNumber} untuk ${existingReq.employee.name} (${allAssignedUnitIds.length} unit QR dipindai).`,
+            details: `Admin menyiapkan request ${existingReq.requestNumber} untuk ${existingReq.employee.name} (${allAssignedUnitIds.length} unit barcode dipindai).`,
           },
         });
 
@@ -218,7 +218,7 @@ export async function PATCH(
               unitIds = [];
             }
             if (unitIds.length !== reqItem.requestedQty) {
-              throw new Error('Data unit QR yang disiapkan tidak lengkap.');
+              throw new Error('Data unit barcode yang disiapkan tidak lengkap.');
             }
 
             const tool = await tx.tool.findUnique({ where: { id: reqItem.toolId } });
@@ -355,7 +355,7 @@ export async function PATCH(
         await tx.notification.create({
           data: {
             title: `Request ${nextStatus === 'DITOLAK' ? 'Ditolak Operator' : 'Dibatalkan'} (${existingReq.requestNumber})`,
-            message: `${existingReq.employee.name} ${nextStatus === 'DITOLAK' ? 'menolak penerimaan barang' : 'membatalkan pengajuan'}. Unit QR otomatis dikembalikan ke status TERSEDIA.`,
+            message: `${existingReq.employee.name} ${nextStatus === 'DITOLAK' ? 'menolak penerimaan barang' : 'membatalkan pengajuan'}. Unit barcode otomatis dikembalikan ke status TERSEDIA.`,
             type: 'WARNING',
             targetRole: 'ADMIN',
             link: '/requests',

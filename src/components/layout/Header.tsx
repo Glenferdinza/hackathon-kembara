@@ -145,16 +145,16 @@ const MENU_SUGGESTIONS = [
   {
     id: 'menu-requests',
     title: 'Antrean Request Pinjam',
-    subtitle: 'Proses pengajuan pinjam dari operator dan scan QR unit tool',
-    keywords: 'request pinjam antrean operator scan qr siapkan',
+    subtitle: 'Proses pengajuan pinjam dari operator dan scan barcode unit tool',
+    keywords: 'request pinjam antrean operator scan barcode qr siapkan',
     href: '/requests',
     roles: ['SUPER_ADMIN', 'ADMIN'],
   },
   {
     id: 'menu-scan-tool',
-    title: 'Cek QR & Umur Tool',
-    subtitle: 'Pindai stiker QR kotak tool untuk cek sisa umur pakai dan pemegang',
-    keywords: 'scan qr stiker cek umur pakai tool life unit barcode',
+    title: 'Cek Barcode & Umur Tool',
+    subtitle: 'Pindai stiker barcode wadah tool untuk cek sisa umur pakai dan pemegang',
+    keywords: 'scan barcode stiker cek umur pakai tool life unit qr',
     href: '/scan-tool',
     roles: ['SUPER_ADMIN', 'ADMIN'],
   },
@@ -524,7 +524,7 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
       case '/requests':
         return { parent: 'Operasional', current: 'Antrean Request Pinjam' };
       case '/scan-tool':
-        return { parent: 'Menu Utama', current: 'Cek QR & Umur Tool' };
+        return { parent: 'Menu Utama', current: 'Cek Barcode & Umur Tool' };
       case '/master-tool':
         return { parent: 'Data Master', current: 'Data Tool' };
       case '/master-inventory':

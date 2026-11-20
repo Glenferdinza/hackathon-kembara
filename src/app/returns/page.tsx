@@ -2,20 +2,53 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Scan } from 'lucide-react';
+import { ScanBarcode } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
-import { QrScannerModal } from '@/components/qr/QrScannerModal';
+import { BarcodeScannerModal } from '@/components/qr/QrScannerModal';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+
+interface ReturnEmployeeRef {
+  id: string;
+  nik: string;
+  name: string;
+  department?: string;
+}
+
+interface ActiveLoanItem {
+  id: string;
+  quantity: number;
+  returnedQuantity: number;
+  tool?: { code: string; name: string } | null;
+  inventory?: { code: string; name: string } | null;
+  toolUnit?: {
+    unitCode: string;
+    supplierCode?: string | null;
+    remainingLifeMinutes: number;
+  } | null;
+  currentHolder?: ReturnEmployeeRef | null;
+}
+
+interface ActiveLoan {
+  id: string;
+  transactionNumber: string;
+  status: string;
+  computedStatus?: string;
+  loanDate: string;
+  expectedReturnDate: string;
+  employee?: ReturnEmployeeRef | null;
+  items: ActiveLoanItem[];
+}
 
 function ReturnsContent() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const txParam = searchParams.get('tx') || '';
 
-  const [activeLoans, setActiveLoans] = useState<any[]>([]);
+  const [activeLoans, setActiveLoans] = useState<ActiveLoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(txParam);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -23,50 +56,14 @@ function ReturnsContent() {
   const returnPageSize = 8;
 
   // Return modal state
-  const [selectedLoan, setSelectedLoan] = useState<any | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<ActiveLoan | null>(null);
   const [returnItems, setReturnItems] = useState<{
     [loanItemId: string]: { qty: number; condition: string; usedMinutes: number };
   }>({});
   const [returnNotes, setReturnNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchActiveLoans = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/loans?limit=100');
-      if (res.ok) {
-        const json = await res.json();
-        const active = (json.data || []).filter((l: any) => l.status !== 'SELESAI');
-        setActiveLoans(active);
-
-        const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-        const empParam = params?.get('emp') || params?.get('nik');
-
-        if (txParam) {
-          const matched = active.find((l: any) => l.transactionNumber === txParam);
-          if (matched) {
-            handleOpenReturnModal(matched);
-          }
-        } else if (empParam) {
-          setSearch(empParam);
-          const matchedEmp = active.find((l: any) => l.employee?.nik?.toUpperCase() === empParam.toUpperCase());
-          if (matchedEmp) {
-            handleOpenReturnModal(matchedEmp);
-          }
-        }
-      }
-    } catch {
-      showToast('Gagal memuat transaksi aktif.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [txParam, showToast]);
-
-  useEffect(() => {
-    fetchActiveLoans();
-  }, [fetchActiveLoans]);
-
-  const handleOpenReturnModal = (loan: any) => {
+  const handleOpenReturnModal = useCallback((loan: ActiveLoan) => {
     setSelectedLoan(loan);
     const initialItems: Record<string, { qty: number; condition: string; usedMinutes: number }> = {};
     for (const item of loan.items) {
@@ -77,7 +74,60 @@ function ReturnsContent() {
     }
     setReturnItems(initialItems);
     setReturnNotes('');
-  };
+  }, []);
+
+  const loadActiveLoansData = useCallback(async () => {
+    const res = await fetch('/api/loans?limit=100');
+    if (res.ok) {
+      const json = await res.json();
+      const active = ((json.data || []) as ActiveLoan[]).filter((l) => l.status !== 'SELESAI');
+      setActiveLoans(active);
+
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const empParam = params?.get('emp') || params?.get('nik');
+
+      if (txParam) {
+        const matched = active.find((l) => l.transactionNumber === txParam);
+        if (matched) {
+          handleOpenReturnModal(matched);
+        }
+      } else if (empParam) {
+        setSearch(empParam);
+        const matchedEmp = active.find((l) => l.employee?.nik?.toUpperCase() === empParam.toUpperCase());
+        if (matchedEmp) {
+          handleOpenReturnModal(matchedEmp);
+        }
+      }
+    }
+  }, [txParam, handleOpenReturnModal]);
+
+  const fetchActiveLoans = useCallback(async () => {
+    setLoading(true);
+    try {
+      await loadActiveLoansData();
+    } catch {
+      showToast('Gagal memuat transaksi aktif.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadActiveLoansData, showToast]);
+
+  useEffect(() => {
+    let active = true;
+    const init = async () => {
+      try {
+        await loadActiveLoansData();
+      } catch {
+        if (active) showToast('Gagal memuat transaksi aktif.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void init();
+    return () => {
+      active = false;
+    };
+  }, [loadActiveLoansData, showToast]);
 
   const handleScanReturnCode = (rawCode: string) => {
     const code = rawCode.trim().toUpperCase();
@@ -87,28 +137,40 @@ function ReturnsContent() {
     const matchedTx = activeLoans.find((l) => l.transactionNumber.toUpperCase() === code);
     if (matchedTx) {
       handleOpenReturnModal(matchedTx);
+      setSearch('');
       showToast(`Transaksi ${matchedTx.transactionNumber} ditemukan.`, 'success');
       return;
     }
 
-    // 2. Cek Kode QR Unit Tool (ToolUnit.unitCode)
+    // 2. Cek Kode Barcode Unit Tool yang masih belum dikembalikan (ToolUnit.unitCode / supplierCode)
     const matchedUnitTx = activeLoans.find((l) =>
-      (l.items || []).some((it: any) => it.toolUnit?.unitCode?.toUpperCase() === code)
+      (l.items || []).some(
+        (it) =>
+          it.quantity - it.returnedQuantity > 0 &&
+          (it.toolUnit?.unitCode?.toUpperCase() === code ||
+            it.toolUnit?.supplierCode?.toUpperCase() === code)
+      )
     );
     if (matchedUnitTx) {
       handleOpenReturnModal(matchedUnitTx);
-      showToast(`Unit QR ${code} ditemukan pada transaksi ${matchedUnitTx.transactionNumber}.`, 'success');
+      setSearch('');
+      showToast(`Unit barcode ${code} ditemukan pada transaksi ${matchedUnitTx.transactionNumber}.`, 'success');
       return;
     }
 
-    // 3. Cek NIK Karyawan (peminjam awal atau pemegang terakhir)
+    // 3. Cek NIK Karyawan (peminjam awal atau pemegang terakhir yang masih membawa item aktif)
     const matchedEmp = activeLoans.find(
       (l) =>
         l.employee?.nik?.toUpperCase() === code ||
-        (l.items || []).some((it: any) => it.currentHolder?.nik?.toUpperCase() === code)
+        (l.items || []).some(
+          (it) =>
+            it.quantity - it.returnedQuantity > 0 &&
+            it.currentHolder?.nik?.toUpperCase() === code
+        )
     );
     if (matchedEmp) {
       handleOpenReturnModal(matchedEmp);
+      setSearch('');
       showToast(`Transaksi untuk NIK ${code} ditemukan.`, 'success');
       return;
     }
@@ -116,11 +178,19 @@ function ReturnsContent() {
     showToast(`Tidak ada pinjaman aktif untuk kode "${code}".`, 'error');
   };
 
+  // Auto-capture USB Barcode Scanner langsung di halaman Pengembalian
+  useBarcodeScanner({
+    enabled: !isScannerOpen && !selectedLoan,
+    onScan: (code) => {
+      handleScanReturnCode(code);
+    },
+  });
+
   const handleProcessReturn = async () => {
     if (!selectedLoan) return;
 
     const itemsToReturn = Object.entries(returnItems)
-      .filter(([_, val]) => val.qty > 0)
+      .filter(([, val]) => val.qty > 0)
       .map(([loanItemId, val]) => ({
         loanItemId,
         quantity: val.qty,
@@ -174,8 +244,9 @@ function ReturnsContent() {
       l.employee?.name.toLowerCase().includes(q) ||
       l.employee?.nik.toLowerCase().includes(q) ||
       (l.items || []).some(
-        (it: any) =>
+        (it) =>
           it.toolUnit?.unitCode?.toLowerCase().includes(q) ||
+          it.toolUnit?.supplierCode?.toLowerCase().includes(q) ||
           it.currentHolder?.name?.toLowerCase().includes(q) ||
           it.currentHolder?.nik?.toLowerCase().includes(q)
       )
@@ -193,18 +264,23 @@ function ReturnsContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
-            Pengembalian &amp; Inspeksi Fisik
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+              Pengembalian &amp; Inspeksi Fisik
+            </h1>
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              Scanner USB Otomatis Aktif
+            </span>
+          </div>
           <p className="text-xs text-slate-500">
-            Pencarian transaksi peminjaman aktif, verifikasi kondisi perkakas (Baik, Rusak, Hilang), dan pengembalian stok atomik
+            Tembakkan scanner barcode USB ke stiker unit untuk langsung membuka verifikasi pengembalian, inspeksi kondisi, dan pengembalian stok atomik.
           </p>
         </div>
 
         <RefreshButton onRefresh={fetchActiveLoans} loading={loading} />
       </div>
 
-      {/* Unified Search & Fast Barcode/QR Input */}
+      {/* Unified Search & Fast Barcode Input */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full max-w-xl">
           <form
@@ -225,7 +301,7 @@ function ReturnsContent() {
                 setSearch(e.target.value);
                 setReturnPage(1);
               }}
-              placeholder="Scan QR unit, no. transaksi, nama peminjam, atau NIK..."
+              placeholder="Scan barcode unit, no. transaksi, nama peminjam, atau NIK..."
               className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1E40AF]"
             />
             {filteredLoans.length === 1 && search.trim() !== '' && (
@@ -243,8 +319,8 @@ function ReturnsContent() {
             onClick={() => setIsScannerOpen(true)}
             className="px-3 py-1.5 text-xs font-semibold text-[#1E40AF] bg-white border border-[#1E40AF] hover:bg-blue-50 rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <Scan className="w-3.5 h-3.5" />
-            <span>Scan QR Unit</span>
+            <ScanBarcode className="w-3.5 h-3.5" />
+            <span>Scan Barcode Unit</span>
           </button>
         </div>
         <span className="text-xs text-slate-500 font-medium tabular-nums">
@@ -294,7 +370,7 @@ function ReturnsContent() {
                   </td>
                   <td className="py-2.5 px-3">
                     <div className="space-y-1 max-w-sm">
-                      {loan.items.map((it: any) => {
+                      {loan.items.map((it) => {
                         const remaining = it.quantity - it.returnedQuantity;
                         const name = it.tool ? it.tool.name : it.inventory?.name;
                         const code = it.toolUnit ? it.toolUnit.unitCode : (it.tool ? it.tool.code : it.inventory?.code);
@@ -432,7 +508,7 @@ function ReturnsContent() {
                 </div>
 
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded max-h-[260px] overflow-y-auto">
-                  {selectedLoan.items.map((item: any) => {
+                  {selectedLoan.items.map((item) => {
                     const remaining = item.quantity - item.returnedQuantity;
                     if (remaining <= 0) return null;
 
@@ -562,14 +638,14 @@ function ReturnsContent() {
         </div>
       )}
 
-      <QrScannerModal
+      <BarcodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={(code) => {
           setIsScannerOpen(false);
           handleScanReturnCode(code);
         }}
-        title="Pindai QR Unit Pengembalian"
+        title="Pindai Barcode Unit Pengembalian"
       />
     </div>
   );
