@@ -162,7 +162,7 @@ export default function HelpPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-5xl mx-auto pb-10">
+      <div className="space-y-6 max-w-5xl mx-auto pb-4">
         {/* Page Header */}
         <div className="pb-3 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -200,12 +200,12 @@ export default function HelpPage() {
             <div
               key={sec.id}
               id={sec.id}
-              className="bg-white border border-[#E2E8F0] rounded-md p-5 space-y-4 scroll-mt-20"
+              className="bg-white border border-[#E2E8F0] rounded-md p-3.5 sm:p-5 space-y-4 scroll-mt-20"
             >
               {/* SOP Card Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-[#1E40AF]">
                       {sec.number}
                     </span>

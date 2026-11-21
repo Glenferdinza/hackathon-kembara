@@ -10,6 +10,62 @@ import { RefreshButton } from '@/components/ui/RefreshButton';
 
 type ReportTab = 'riwayat' | 'pemakaian' | 'keterlambatan' | 'umur_pakai';
 
+interface HistoryTxItem {
+  id: string;
+  quantity: number;
+  tool?: { name: string } | null;
+  inventory?: { name: string } | null;
+}
+
+interface HistoryTransaction {
+  id: string;
+  transactionNumber: string;
+  loanDate: string;
+  expectedReturnDate: string;
+  actualReturnDate?: string | null;
+  status: string;
+  employee?: { nik?: string; name?: string; department?: string } | null;
+  admin?: { name?: string } | null;
+  items?: HistoryTxItem[];
+}
+
+interface UsageStatItem {
+  code: string;
+  name: string;
+  type: string;
+  brand: string;
+  timesBorrowed: number;
+  totalQtyBorrowed: number;
+  availableStock: number;
+  totalStock: number;
+  minStock: number;
+}
+
+interface DelinquentWorker {
+  id: string;
+  nik: string;
+  name: string;
+  department: string;
+  shift: string;
+  phone: string;
+  currentOverdueCount: number;
+  totalLateCount: number;
+  status: string;
+  overdueDetails: Array<{ loanNumber: string; items: string }>;
+}
+
+interface MaintenanceItem {
+  id: string;
+  itemType: string;
+  code: string;
+  name: string;
+  type: string;
+  totalStock: number;
+  availableStock: number;
+  repairStock: number;
+  scrapStock: number;
+}
+
 export default function HistoryPage() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<ReportTab>('riwayat');
@@ -17,70 +73,89 @@ export default function HistoryPage() {
   const [search, setSearch] = useState('');
 
   // Tab 1: Riwayat Transaksi
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<HistoryTransaction[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [totalPages, setTotalPages] = useState(1);
   const [totalTransactions, setTotalTransactions] = useState(0);
 
   // Tab 2: Pemakaian & Frekuensi
-  const [usageList, setUsageList] = useState<any[]>([]);
+  const [usageList, setUsageList] = useState<UsageStatItem[]>([]);
   const [tab2Page, setTab2Page] = useState(1);
   const tab2PageSize = 10;
 
   // Tab 3: Keterlambatan per Pekerja
-  const [delinquents, setDelinquents] = useState<any[]>([]);
+  const [delinquents, setDelinquents] = useState<DelinquentWorker[]>([]);
   const [tab3Page, setTab3Page] = useState(1);
   const tab3PageSize = 10;
 
   // Tab 4: Umur Pakai & Kondisi
   const [lifespanData, setLifespanData] = useState<{
     summary: { totalReturns: number; baikCount: number; ausCount: number; rusakCount: number; hilangCount: number };
-    maintenanceItems: any[];
-    returnLogs: any[];
+    maintenanceItems: MaintenanceItem[];
+    returnLogs: unknown[];
   } | null>(null);
   const [repairingId, setRepairingId] = useState<string | null>(null);
+
+  const loadTabData = useCallback(async () => {
+    if (activeTab === 'riwayat') {
+      const res = await fetch(`/api/history?tab=transactions&search=${encodeURIComponent(search)}&page=${page}&limit=${pageSize}`);
+      if (res.ok) {
+        const json = await res.json();
+        setTransactions(json.data || []);
+        setTotalPages(json.pagination?.totalPages || 1);
+        setTotalTransactions(json.pagination?.total || 0);
+      }
+    } else if (activeTab === 'pemakaian') {
+      const res = await fetch(`/api/history?tab=usage&search=${encodeURIComponent(search)}`);
+      if (res.ok) {
+        const json = await res.json();
+        setUsageList(json.data || []);
+      }
+    } else if (activeTab === 'keterlambatan') {
+      const res = await fetch(`/api/history?tab=delinquency&search=${encodeURIComponent(search)}`);
+      if (res.ok) {
+        const json = await res.json();
+        setDelinquents(json.data || []);
+      }
+    } else if (activeTab === 'umur_pakai') {
+      const res = await fetch(`/api/history?tab=lifespan`);
+      if (res.ok) {
+        const json = await res.json();
+        setLifespanData(json);
+      }
+    }
+  }, [activeTab, search, page, pageSize]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      if (activeTab === 'riwayat') {
-        const res = await fetch(`/api/history?tab=transactions&search=${encodeURIComponent(search)}&page=${page}&limit=${pageSize}`);
-        if (res.ok) {
-          const json = await res.json();
-          setTransactions(json.data || []);
-          setTotalPages(json.pagination?.totalPages || 1);
-          setTotalTransactions(json.pagination?.total || 0);
-        }
-      } else if (activeTab === 'pemakaian') {
-        const res = await fetch(`/api/history?tab=usage&search=${encodeURIComponent(search)}`);
-        if (res.ok) {
-          const json = await res.json();
-          setUsageList(json.data || []);
-        }
-      } else if (activeTab === 'keterlambatan') {
-        const res = await fetch(`/api/history?tab=delinquency&search=${encodeURIComponent(search)}`);
-        if (res.ok) {
-          const json = await res.json();
-          setDelinquents(json.data || []);
-        }
-      } else if (activeTab === 'umur_pakai') {
-        const res = await fetch(`/api/history?tab=lifespan`);
-        if (res.ok) {
-          const json = await res.json();
-          setLifespanData(json);
-        }
-      }
+      await loadTabData();
     } catch {
       showToast('Gagal memuat data laporan.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [activeTab, search, page, pageSize, showToast]);
+  }, [loadTabData, showToast]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      if (!active) return;
+      setLoading(true);
+      try {
+        await loadTabData();
+      } catch {
+        if (active) showToast('Gagal memuat data laporan.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [loadTabData, showToast]);
 
   const handleTabChange = (tab: ReportTab) => {
     setActiveTab(tab);
@@ -90,7 +165,7 @@ export default function HistoryPage() {
     setTab3Page(1);
   };
 
-  const handleCompleteRepair = async (tool: any) => {
+  const handleCompleteRepair = async (tool: MaintenanceItem) => {
     if (!tool.id || !tool.itemType) return;
     setRepairingId(tool.id);
     try {
@@ -129,11 +204,11 @@ export default function HistoryPage() {
 
   return (
     <AppShell>
-      <div className="space-y-3 pb-24">
+      <div className="space-y-3 pb-4">
         {/* Header - Flowchart Hal. 8: Riwayat & Laporan */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
                 Riwayat &amp; Laporan Operasional
               </h1>
@@ -146,7 +221,7 @@ export default function HistoryPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RefreshButton onRefresh={fetchData} loading={loading} />
             <a
               href={getExportUrl()}
@@ -277,7 +352,7 @@ export default function HistoryPage() {
                         </td>
                         <td className="py-2.5 px-3 max-w-xs">
                           <div className="space-y-0.5">
-                            {tx.items?.map((item: any) => (
+                            {tx.items?.map((item: HistoryTxItem) => (
                               <p key={item.id} className="truncate text-slate-800">
                                 - {item.tool?.name || item.inventory?.name} ({item.quantity}x)
                               </p>
@@ -414,7 +489,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Tab 2 Pagination */}
-                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-2 border-t border-slate-200">
                   <span>
                     Menampilkan {(tab2Page - 1) * tab2PageSize + 1} -{' '}
                     {Math.min(tab2Page * tab2PageSize, usageList.length)} dari {usageList.length} perkakas
@@ -507,7 +582,7 @@ export default function HistoryPage() {
                             <td className="py-2.5 px-3 max-w-xs">
                               {worker.overdueDetails.length > 0 ? (
                                 <div className="space-y-1">
-                                  {worker.overdueDetails.map((det: any, dIdx: number) => (
+                                  {worker.overdueDetails.map((det, dIdx) => (
                                     <div key={dIdx} className="text-[11px] text-slate-800">
                                       <span className="font-bold tabular-nums">{det.loanNumber}</span> ({det.items})
                                     </div>
@@ -531,7 +606,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Tab 3 Pagination */}
-                <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-2 border-t border-slate-200">
                   <span>
                     Menampilkan {(tab3Page - 1) * tab3PageSize + 1} -{' '}
                     {Math.min(tab3Page * tab3PageSize, delinquents.length)} dari {delinquents.length} pekerja
@@ -567,33 +642,33 @@ export default function HistoryPage() {
         {activeTab === 'umur_pakai' && (
           <div className="space-y-4">
             {/* KPI Strip Umur Pakai (Flat horizontal) */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 border-y border-slate-200 divide-x divide-slate-200 py-3 bg-white">
-              <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">TOTAL PENGEMBALIAN</span>
+            <div className="grid grid-cols-2 sm:grid-cols-5 border border-slate-200 rounded bg-white overflow-hidden">
+              <div className="px-3 py-2.5 min-w-0 border-b border-r sm:border-b-0 border-slate-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">TOTAL PENGEMBALIAN</span>
                 <p className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                   {lifespanData?.summary?.totalReturns || 0} unit
                 </p>
               </div>
-              <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E40AF]">KONDISI BAIK</span>
+              <div className="px-3 py-2.5 min-w-0 border-b sm:border-b-0 sm:border-r border-slate-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E40AF] block truncate">KONDISI BAIK</span>
                 <p className="text-base font-bold text-[#1E40AF] mt-0.5 tabular-nums">
                   {lifespanData?.summary?.baikCount || 0} unit
                 </p>
               </div>
-              <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">KONDISI AUS (REGRIND)</span>
+              <div className="px-3 py-2.5 min-w-0 border-b border-r sm:border-b-0 border-slate-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">KONDISI AUS (REGRIND)</span>
                 <p className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                   {lifespanData?.summary?.ausCount || 0} unit
                 </p>
               </div>
-              <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">KONDISI RUSAK</span>
+              <div className="px-3 py-2.5 min-w-0 border-b sm:border-b-0 sm:border-r border-slate-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">KONDISI RUSAK</span>
                 <p className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                   {lifespanData?.summary?.rusakCount || 0} unit
                 </p>
               </div>
-              <div className="px-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">HILANG</span>
+              <div className="col-span-2 sm:col-span-1 px-3 py-2.5 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 block truncate">HILANG</span>
                 <p className="text-base font-bold text-slate-800 mt-0.5 tabular-nums">
                   {lifespanData?.summary?.hilangCount || 0} unit
                 </p>
@@ -602,7 +677,7 @@ export default function HistoryPage() {
 
             {/* Maintenance & Repair Stock Tracking Table */}
             <div>
-              <div className="pb-2 border-b border-slate-200 flex items-center justify-between">
+              <div className="pb-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-bold font-heading text-slate-900 uppercase">
                   Daftar Tool Dalam Perawatan (Regrind / Service) & Afkir
                 </h3>
@@ -633,7 +708,7 @@ export default function HistoryPage() {
                         </td>
                       </tr>
                     ) : (
-                      lifespanData.maintenanceItems.map((tool: any) => (
+                      lifespanData.maintenanceItems.map((tool: MaintenanceItem) => (
                         <tr key={tool.code} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
                             {tool.code}

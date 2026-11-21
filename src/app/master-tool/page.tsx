@@ -418,7 +418,7 @@ export default function MasterToolPage() {
       <div className="space-y-4">
         {/* Header Bar matching ERP Titian Pic 3/4/5 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
               Data Tool &amp; Perkakas Mesin
             </h1>
@@ -427,7 +427,7 @@ export default function MasterToolPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RefreshButton onRefresh={fetchTools} loading={loading} />
             <button
               onClick={() => setIsImportOpen(true)}
@@ -677,17 +677,17 @@ export default function MasterToolPage() {
           onClick={() => setIsAddOpen(false)}
         >
           <div
-            className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full overflow-hidden"
+            className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
               <h2 className="text-sm font-heading font-bold text-slate-900">
                 {editingTool ? `Edit Master Tool ${editingTool.code}` : 'Tambah Master Tool Baru'}
               </h2>
             </div>
 
-            <form onSubmit={handleSubmitForm} className="p-5 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSubmitForm} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Kode Tool *
@@ -748,7 +748,7 @@ export default function MasterToolPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Satuan *
@@ -791,7 +791,7 @@ export default function MasterToolPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Harga Satuan (Rp)
@@ -904,8 +904,8 @@ export default function MasterToolPage() {
               {/* History Table */}
               <div>
                 <span className="font-semibold text-slate-800">10 Histori Peminjaman Terakhir</span>
-                <div className="mt-2 border border-slate-200 rounded overflow-hidden">
-                  <table className="w-full text-left">
+                <div className="mt-2 border border-slate-200 rounded overflow-x-auto">
+                  <table className="w-full text-left min-w-[520px]">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
                       <tr>
                         <th className="py-2 px-2.5">No. Transaksi</th>

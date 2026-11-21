@@ -31,14 +31,36 @@ interface Inventory {
   status: string;
 }
 
+interface InventoryLoanItem {
+  id: string;
+  quantity: number;
+  status: string;
+  loanTransaction?: {
+    transactionNumber?: string;
+    expectedReturnDate?: string;
+    employee?: { name?: string; nik?: string } | null;
+  } | null;
+}
+
+interface InventoryDetail extends Inventory {
+  loanItems?: InventoryLoanItem[];
+}
+
+function getInitialUrlSearch(): string {
+  if (typeof window !== 'undefined') {
+    return new URLSearchParams(window.location.search).get('search') || '';
+  }
+  return '';
+}
+
 export default function MasterInventoryPage() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(getInitialUrlSearch);
+  const [search, setSearch] = useState(getInitialUrlSearch);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [trackingFilter, setTrackingFilter] = useState('');
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -60,7 +82,7 @@ export default function MasterInventoryPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingInv, setEditingInv] = useState<Inventory | null>(null);
-  const [detailInv, setDetailInv] = useState<any | null>(null);
+  const [detailInv, setDetailInv] = useState<InventoryDetail | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Form inputs
@@ -78,14 +100,6 @@ export default function MasterInventoryPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlSearch = new URLSearchParams(window.location.search).get('search');
-      if (urlSearch !== null) {
-        setSearchInput(urlSearch);
-        setSearch(urlSearch);
-        setPage(1);
-      }
-    }
     const handleGlobalSearchEvent = (e: Event) => {
       const custom = e as CustomEvent<{ search?: string }>;
       if (custom.detail && typeof custom.detail.search === 'string') {
@@ -138,7 +152,14 @@ export default function MasterInventoryPage() {
   }, [search, categoryFilter, trackingFilter, page, pageSize, showToast]);
 
   useEffect(() => {
-    fetchInventories();
+    let active = true;
+    const timer = window.setTimeout(() => {
+      if (active) void fetchInventories();
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [fetchInventories]);
 
   const handleOpenAdd = () => {
@@ -278,7 +299,7 @@ export default function MasterInventoryPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RefreshButton onRefresh={fetchInventories} loading={loading} />
             <button
               onClick={() => setIsImportOpen(true)}
@@ -320,14 +341,14 @@ export default function MasterInventoryPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <select
               value={trackingFilter}
               onChange={(e) => {
                 setTrackingFilter(e.target.value);
                 setPage(1);
               }}
-              className="bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
+              className="flex-1 sm:flex-initial min-w-0 bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
             >
               <option value="">Semua Model Tracking</option>
               <option value="INDIVIDUAL">Pelacakan Individual (Serial Number)</option>
@@ -340,7 +361,7 @@ export default function MasterInventoryPage() {
                 setCategoryFilter(e.target.value);
                 setPage(1);
               }}
-              className="bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
+              className="flex-1 sm:flex-initial min-w-0 bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
             >
               <option value="">Semua Kategori</option>
               {categories.map((c) => (
@@ -519,17 +540,17 @@ export default function MasterInventoryPage() {
           onClick={() => setIsAddOpen(false)}
         >
           <div
-            className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full overflow-hidden"
+            className="bg-white rounded border border-slate-300 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
               <h2 className="text-sm font-heading font-bold text-slate-900">
                 {editingInv ? `Edit Inventaris ${editingInv.code}` : 'Tambah Inventaris Baru'}
               </h2>
             </div>
 
-            <form onSubmit={handleSubmitForm} className="p-5 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSubmitForm} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Kode Inventaris *
@@ -577,7 +598,7 @@ export default function MasterInventoryPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Merek
@@ -655,7 +676,7 @@ export default function MasterInventoryPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Satuan
@@ -758,8 +779,8 @@ export default function MasterInventoryPage() {
               {/* History Table */}
               <div>
                 <span className="font-semibold text-slate-800">Histori Peminjaman</span>
-                <div className="mt-2 border border-slate-200 rounded overflow-hidden">
-                  <table className="w-full text-left">
+                <div className="mt-2 border border-slate-200 rounded overflow-x-auto">
+                  <table className="w-full text-left min-w-[520px]">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
                       <tr>
                         <th className="py-2 px-2.5">No. Transaksi</th>
@@ -771,7 +792,7 @@ export default function MasterInventoryPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {detailInv.loanItems && detailInv.loanItems.length > 0 ? (
-                        detailInv.loanItems.map((li: any) => (
+                        detailInv.loanItems.map((li: InventoryLoanItem) => (
                           <tr key={li.id} className="hover:bg-slate-50">
                             <td className="py-2 px-2.5 font-bold text-slate-900">
                               {li.loanTransaction?.transactionNumber}

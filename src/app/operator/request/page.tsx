@@ -219,9 +219,9 @@ export default function OperatorRequestPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* Katalog Barang (Kiri - 7 kolom) */}
-          <div className="lg:col-span-7 bg-white border border-slate-200 rounded p-4 space-y-3">
+          <div className="lg:col-span-7 min-w-0 bg-white border border-slate-200 rounded p-3.5 sm:p-4 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -328,7 +328,7 @@ export default function OperatorRequestPage() {
           {/* Keranjang Pengajuan (Kanan - 5 kolom) */}
           <form
             onSubmit={handleSubmitRequest}
-            className="lg:col-span-5 bg-white border border-slate-200 rounded p-4 space-y-4 text-xs"
+            className="lg:col-span-5 min-w-0 bg-white border border-slate-200 rounded p-3.5 sm:p-4 space-y-4 text-xs"
           >
             <div className="pb-2 border-b border-slate-200 flex items-center justify-between">
               <h2 className="font-bold font-heading text-slate-900 uppercase tracking-wider">
@@ -347,13 +347,13 @@ export default function OperatorRequestPage() {
 
             {cart.length === 0 ? (
               <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded text-slate-500">
-                Belum ada barang dipilih. Klik &quot;+ Pilih&quot; pada daftar di sebelah kiri.
+                Belum ada barang dipilih. Klik &quot;+ Pilih&quot; pada daftar katalog.
               </div>
             ) : (
               <div className="divide-y divide-slate-200 border border-slate-200 rounded">
                 {cart.map((c) => (
                   <div key={`${c.itemType}-${c.id}`} className="p-2.5 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="font-semibold text-slate-900 truncate">{c.name}</div>
                       <div className="text-[11px] font-mono text-slate-500">
                         {c.code} ({c.itemType})

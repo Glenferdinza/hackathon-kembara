@@ -224,7 +224,7 @@ function DownloadContent({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <section className="bg-white border border-slate-200 rounded flex flex-col">
-          <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+          <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <Monitor className="w-4 h-4 text-[#1E40AF]" />
               <h2 className="text-sm font-bold font-heading text-slate-900">
@@ -425,7 +425,7 @@ function DownloadContent({
         </section>
 
         <section className="bg-white border border-slate-200 rounded flex flex-col">
-          <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2">
+          <div className="px-4 sm:px-5 py-3.5 sm:py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <Smartphone className="w-4 h-4 text-slate-700" />
               <h2 className="text-sm font-bold font-heading text-slate-900">

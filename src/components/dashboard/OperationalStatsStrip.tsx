@@ -38,9 +38,9 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
   const borrowedPct = formatPercentage(kpi.totalBorrowed, total);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-y md:divide-y-0 md:divide-x divide-slate-200 border border-slate-200 rounded py-3 bg-white">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border border-slate-200 rounded bg-white overflow-hidden">
       {/* 1. TOTAL FISIK */}
-      <div className="px-3.5 py-1 min-w-0">
+      <div className="px-3.5 py-2.5 min-w-0 border-b border-r lg:border-b-0 border-slate-200">
         <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
           TOTAL FISIK
         </div>
@@ -58,7 +58,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
       </div>
 
       {/* 2. STOK TERSEDIA */}
-      <div className="px-3.5 py-1 min-w-0">
+      <div className="px-3.5 py-2.5 min-w-0 border-b md:border-r lg:border-b-0 border-slate-200">
         <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
           STOK TERSEDIA
         </div>
@@ -76,7 +76,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
       </div>
 
       {/* 3. SEDANG DIPINJAM */}
-      <div className="px-3.5 py-1 min-w-0">
+      <div className="px-3.5 py-2.5 min-w-0 border-b border-r md:border-r-0 lg:border-b-0 lg:border-r border-slate-200">
         <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
           SEDANG DIPINJAM
         </div>
@@ -94,7 +94,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
       </div>
 
       {/* 4. JATUH TEMPO */}
-      <div className="px-3.5 py-1 min-w-0">
+      <div className="px-3.5 py-2.5 min-w-0 border-b md:border-b-0 md:border-r border-slate-200">
         <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
           JATUH TEMPO
         </div>
@@ -114,7 +114,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
       </div>
 
       {/* 5. TERLAMBAT */}
-      <div className="px-3.5 py-1 min-w-0">
+      <div className="px-3.5 py-2.5 min-w-0 border-r border-slate-200">
         <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
           TERLAMBAT
         </div>
@@ -134,7 +134,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
       </div>
 
       {/* 6. STOK MENIPIS */}
-      <div className="px-3.5 py-1 min-w-0">
+      <div className="px-3.5 py-2.5 min-w-0">
         <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
           STOK MENIPIS
         </div>

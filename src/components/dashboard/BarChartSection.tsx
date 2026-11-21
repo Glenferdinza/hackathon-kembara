@@ -41,11 +41,56 @@ function getShortCategoryName(name: string): string {
   return name;
 }
 
+interface FormattedBarItem extends BarData {
+  shortName: string;
+  fullName: string;
+  percentAvailable: string;
+}
+
+interface BarTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: FormattedBarItem }>;
+}
+
+function BarCustomTooltip({ active, payload }: BarTooltipProps) {
+  if (active && payload && payload.length) {
+    const item = payload[0].payload;
+    return (
+      <div className="bg-white px-3 py-2.5 border border-slate-300 rounded shadow-md text-xs min-w-[210px] z-50 pointer-events-none">
+        <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 mb-2 leading-snug">
+          {item.fullName}
+        </div>
+        <div className="space-y-1.5 text-[11px]">
+          <div className="flex items-center justify-between text-slate-600">
+            <span>Total Unit</span>
+            <span className="font-bold text-slate-900 tabular-nums">
+              {item.total.toLocaleString('id-ID')} unit
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[#1E40AF]">
+            <span>Stok Tersedia</span>
+            <span className="font-bold tabular-nums">
+              {item.available.toLocaleString('id-ID')} unit ({item.percentAvailable}%)
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-amber-700">
+            <span>Sedang Dipinjam</span>
+            <span className="font-bold tabular-nums">
+              {item.borrowed.toLocaleString('id-ID')} unit
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function BarChartSection({ data }: BarChartSectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('horizontal');
 
   // Format, calculate percentage, and sort descending by total stock
-  const formattedData = [...data]
+  const formattedData: FormattedBarItem[] = [...data]
     .map((d) => {
       const shortName = getShortCategoryName(d.name);
       const percentAvailable = d.total > 0 ? ((d.available / d.total) * 100).toFixed(1) : '0';
@@ -58,50 +103,15 @@ export function BarChartSection({ data }: BarChartSectionProps) {
     })
     .sort((a, b) => b.total - a.total);
 
-  // Custom ERP Tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const item = payload[0].payload;
-      return (
-        <div className="bg-white px-3 py-2.5 border border-slate-300 rounded shadow-md text-xs min-w-[210px] z-50 pointer-events-none">
-          <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 mb-2 leading-snug">
-            {item.fullName}
-          </div>
-          <div className="space-y-1.5 text-[11px]">
-            <div className="flex items-center justify-between text-slate-600">
-              <span>Total Unit</span>
-              <span className="font-bold text-slate-900 tabular-nums">
-                {item.total.toLocaleString('id-ID')} unit
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-[#1E40AF]">
-              <span>Stok Tersedia</span>
-              <span className="font-bold tabular-nums">
-                {item.available.toLocaleString('id-ID')} unit ({item.percentAvailable}%)
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-amber-700">
-              <span>Sedang Dipinjam</span>
-              <span className="font-bold tabular-nums">
-                {item.borrowed.toLocaleString('id-ID')} unit
-              </span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="w-full">
       {/* Header with Title and View Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2.5 border-b border-slate-200 gap-2">
         <div className="min-w-0">
-          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider whitespace-nowrap">
+          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
             Distribusi Stok per Kategori
           </h2>
-          <p className="text-[11px] text-slate-500 whitespace-nowrap">
+          <p className="text-[11px] text-slate-500">
             Unit siap pakai &amp; dipinjam
           </p>
         </div>
@@ -148,7 +158,7 @@ export function BarChartSection({ data }: BarChartSectionProps) {
                 axisLine={{ stroke: '#CBD5E1' }}
                 tickLine={false}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<BarCustomTooltip />} />
               <Legend
                 wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
                 iconType="square"
@@ -185,7 +195,7 @@ export function BarChartSection({ data }: BarChartSectionProps) {
                 tickLine={false}
                 axisLine={{ stroke: '#CBD5E1' }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<BarCustomTooltip />} />
               <Legend
                 verticalAlign="top"
                 wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}

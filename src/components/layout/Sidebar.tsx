@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -10,6 +10,7 @@ interface SidebarProps {
   pendingRequestsCount?: number;
   operatorPendingCount?: number;
   isOpen?: boolean;
+  isMobileOpen?: boolean;
   onClose?: () => void;
   userRole?: string;
 }
@@ -27,6 +28,7 @@ export function Sidebar({
   pendingRequestsCount = 0,
   operatorPendingCount = 0,
   isOpen = true,
+  isMobileOpen = false,
   onClose,
   userRole = 'SUPER_ADMIN',
 }: SidebarProps) {
@@ -164,33 +166,65 @@ export function Sidebar({
     }))
     .filter((grp) => grp.items.length > 0);
 
+  const closeMobileDrawer = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024 && onClose) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    if (!isMobileOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileOpen, onClose]);
+
   return (
     <>
-      {isOpen && (
+      {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden"
+          className="fixed inset-0 bg-slate-900/40 z-[35] lg:hidden print:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col ${
-          isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+        id="mobile-navigation-drawer"
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col print:hidden transition-transform duration-300 ease-in-out ${
+          isMobileOpen
+            ? 'translate-x-0 pointer-events-auto'
+            : '-translate-x-full pointer-events-none'
+        } ${
+          isOpen
+            ? 'lg:translate-x-0 lg:pointer-events-auto'
+            : 'lg:-translate-x-full lg:pointer-events-none'
         }`}
-        style={{
-          transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-          willChange: 'transform',
-        }}
       >
-        <div className="h-16 px-6 flex items-center border-b border-[#E2E8F0] bg-white">
-          <Link href={userRole === 'OPERATOR' ? '/operator' : '/'} className="flex items-center">
+        <div className="h-16 px-4 sm:px-6 flex items-center justify-between border-b border-[#E2E8F0] bg-white shrink-0">
+          <Link
+            href={userRole === 'OPERATOR' ? '/operator' : '/'}
+            onClick={closeMobileDrawer}
+            className="flex items-center"
+          >
             <img
               src="/ypti-logo.png"
               alt="PT YPTI Logo"
-              className="h-9 w-auto max-w-[180px] object-contain"
+              className="h-9 w-auto max-w-[168px] object-contain"
             />
           </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup menu navigasi"
+            className="lg:hidden px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded cursor-pointer"
+          >
+            Tutup
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
@@ -206,11 +240,7 @@ export function Sidebar({
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => {
-                        if (typeof window !== 'undefined' && window.innerWidth < 1024 && onClose) {
-                          onClose();
-                        }
-                      }}
+                      onClick={closeMobileDrawer}
                       className={`flex items-center justify-between px-3 py-2 rounded text-xs font-heading transition-colors ${
                         isActive
                           ? 'bg-blue-50 text-[#1E40AF] font-bold'
@@ -231,26 +261,32 @@ export function Sidebar({
           ))}
         </div>
 
-        <div className="p-3 border-t border-[#E2E8F0] bg-slate-50">
-          <div className="flex items-center justify-between gap-2 px-2">
-            <div className="flex items-center gap-3">
+        <div
+          className="px-3 pt-2.5 border-t border-[#E2E8F0] bg-slate-50 lg:pb-3"
+          style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2">
               <Link
                 href="/help"
-                className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"
+                onClick={closeMobileDrawer}
+                className="py-1.5 px-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors"
               >
                 Bantuan
               </Link>
               <Link
                 href="/download"
-                className="text-xs text-slate-500 hover:text-[#1E40AF] font-medium transition-colors"
+                onClick={closeMobileDrawer}
+                className="py-1.5 px-1.5 text-xs text-slate-600 hover:text-[#1E40AF] font-medium transition-colors"
               >
                 Unduh App
               </Link>
             </div>
 
             <button
+              type="button"
               onClick={handleLogout}
-              className="text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors cursor-pointer"
+              className="py-1.5 px-2 text-xs text-slate-600 hover:text-slate-900 font-semibold transition-colors cursor-pointer"
             >
               Keluar
             </button>

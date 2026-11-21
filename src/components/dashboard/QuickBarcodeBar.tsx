@@ -4,11 +4,28 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/Toast';
 
-interface ScannedEntity {
-  type: 'EMPLOYEE' | 'TOOL' | 'INVENTORY' | 'NOT_FOUND';
-  data: any;
-  rawCode: string;
+interface ScannedEmployeeData {
+  name: string;
+  nik: string;
+  department: string;
+  shift?: string | null;
+  loans?: Array<unknown>;
 }
+
+interface ScannedCatalogData {
+  code: string;
+  name: string;
+  location: string;
+  availableStock: number;
+  totalStock: number;
+  unit: string;
+  category?: { name?: string } | string | null;
+}
+
+type ScannedEntity =
+  | { type: 'EMPLOYEE'; data: ScannedEmployeeData; rawCode: string }
+  | { type: 'TOOL' | 'INVENTORY'; data: ScannedCatalogData; rawCode: string }
+  | { type: 'NOT_FOUND'; data: null; rawCode: string };
 
 export function QuickBarcodeBar() {
   const { showToast } = useToast();
@@ -40,7 +57,7 @@ export function QuickBarcodeBar() {
       const toolRes = await fetch(`/api/tools?search=${encodeURIComponent(code)}`);
       if (toolRes.ok) {
         const toolJson = await toolRes.json();
-        const match = (toolJson.data || []).find((t: any) => t.code.toUpperCase() === code);
+        const match = (toolJson.data || []).find((t: ScannedCatalogData) => t.code.toUpperCase() === code);
         if (match) {
           setResult({ type: 'TOOL', data: match, rawCode: code });
           showToast(`Perkakas terdeteksi: ${match.name} (${match.code})`, 'info');
@@ -53,7 +70,7 @@ export function QuickBarcodeBar() {
       const invRes = await fetch(`/api/inventories?search=${encodeURIComponent(code)}`);
       if (invRes.ok) {
         const invJson = await invRes.json();
-        const match = (invJson.data || []).find((i: any) => i.code.toUpperCase() === code);
+        const match = (invJson.data || []).find((i: ScannedCatalogData) => i.code.toUpperCase() === code);
         if (match) {
           setResult({ type: 'INVENTORY', data: match, rawCode: code });
           showToast(`Inventaris terdeteksi: ${match.name} (${match.code})`, 'info');
@@ -92,8 +109,8 @@ export function QuickBarcodeBar() {
       </div>
 
       {/* Input Field Row */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="relative flex-1 min-w-0">
           <input
             type="text"
             value={query}
@@ -109,22 +126,24 @@ export function QuickBarcodeBar() {
           />
         </div>
 
-        <button
-          onClick={() => handleScan()}
-          disabled={isScanning || !query.trim()}
-          className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
-        >
-          {isScanning ? 'Mencari...' : 'Cari Data'}
-        </button>
-
-        {result && (
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={handleClear}
-            className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+            onClick={() => handleScan()}
+            disabled={isScanning || !query.trim()}
+            className="flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
           >
-            Reset
+            {isScanning ? 'Mencari...' : 'Cari Data'}
           </button>
-        )}
+
+          {result && (
+            <button
+              onClick={handleClear}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Scanned Result Banner */}
@@ -137,7 +156,7 @@ export function QuickBarcodeBar() {
                   {result.data.name.charAt(0)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="font-heading font-bold text-slate-900">{result.data.name}</span>
                     <span className="text-[11px] font-bold text-slate-700 tabular-nums">
                       ({result.data.nik})
@@ -160,7 +179,7 @@ export function QuickBarcodeBar() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <Link
                   href={`/loans?emp=${result.data.nik}`}
                   className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
@@ -180,13 +199,13 @@ export function QuickBarcodeBar() {
           {(result.type === 'TOOL' || result.type === 'INVENTORY') && (
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="font-bold text-slate-900 tabular-nums text-[11px]">
                     {result.data.code}
                   </span>
                   <span className="font-heading font-bold text-slate-900">{result.data.name}</span>
                   <span className="text-[10px] text-slate-500">
-                    ({result.data.category?.name || result.data.category || '-'})
+                    ({typeof result.data.category === 'string' ? result.data.category : result.data.category?.name || '-'})
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600 mt-0.5">
@@ -195,7 +214,7 @@ export function QuickBarcodeBar() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <Link
                   href={`/loans?item=${result.data.code}`}
                   className="px-3 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"

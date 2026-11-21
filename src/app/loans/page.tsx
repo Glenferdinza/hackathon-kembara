@@ -18,7 +18,33 @@ interface Employee {
   phone?: string;
   email?: string;
   status: string;
-  loans?: any[];
+  loans?: Array<unknown>;
+}
+
+interface CatalogItem {
+  id: string;
+  code: string;
+  name: string;
+  location?: string;
+  availableStock: number;
+  unit?: string;
+  category?: { name?: string } | null;
+}
+
+interface CompletedTx {
+  transactionNumber: string;
+  employeeName: string;
+  employeeNik: string;
+  employeeDept: string;
+  itemCount: number;
+  expectedReturnDate: string;
+  items: SelectedItem[];
+}
+
+function computePresetDateStr(hours: number): string {
+  const d = new Date(Date.now() + hours * 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const isMachineDept = (dept: string = '') => {
@@ -70,36 +96,28 @@ export default function LoansPage() {
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogPage, setCatalogPage] = useState(1);
   const catalogPageSize = 5;
-  const [availableTools, setAvailableTools] = useState<any[]>([]);
-  const [availableInventories, setAvailableInventories] = useState<any[]>([]);
+  const [availableTools, setAvailableTools] = useState<CatalogItem[]>([]);
+  const [availableInventories, setAvailableInventories] = useState<CatalogItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
   // 3. Daftar Alat yang Dipinjam
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 
   // 4. Durasi (Dropdown 1 Warna), Tenggat, & Catatan
-  const [expectedReturnDate, setExpectedReturnDate] = useState('');
+  const [expectedReturnDate, setExpectedReturnDate] = useState(() => computePresetDateStr(8));
   const [activePreset, setActivePreset] = useState<number>(8);
   const [purpose, setPurpose] = useState('Pengerjaan Part Machining & Moulding Shift Kerja');
   const [notes, setNotes] = useState('');
 
   // 5. Submit & Bukti Transaksi Selesai
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [completedTx, setCompletedTx] = useState<any | null>(null);
+  const [completedTx, setCompletedTx] = useState<CompletedTx | null>(null);
 
   const setDeadlinePreset = (hours: number) => {
     setActivePreset(hours);
     if (hours <= 0) return;
-    const d = new Date(Date.now() + hours * 60 * 60 * 1000);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    setExpectedReturnDate(
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-    );
+    setExpectedReturnDate(computePresetDateStr(hours));
   };
-
-  useEffect(() => {
-    setDeadlinePreset(8);
-  }, []);
 
   // Load Daftar Karyawan
   useEffect(() => {
@@ -135,8 +153,8 @@ export default function LoansPage() {
         fetch('/api/inventories?limit=150&status=AKTIF'),
       ]);
 
-      let loadedTools: any[] = [];
-      let loadedInventories: any[] = [];
+      let loadedTools: CatalogItem[] = [];
+      let loadedInventories: CatalogItem[] = [];
 
       if (toolRes.ok) {
         const json = await toolRes.json();
@@ -206,7 +224,14 @@ export default function LoansPage() {
   };
 
   useEffect(() => {
-    fetchCatalog();
+    let active = true;
+    const timer = window.setTimeout(() => {
+      if (active) void fetchCatalog();
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, []);
 
   const handleSelectEmployeeByNik = (nik: string) => {
@@ -326,7 +351,7 @@ export default function LoansPage() {
 
   // Filter Katalog
   const currentCatalogList = activeCatalogTab === 'TOOL' ? availableTools : availableInventories;
-  const filteredCatalog = currentCatalogList.filter((item: any) => {
+  const filteredCatalog = currentCatalogList.filter((item: CatalogItem) => {
     const search = catalogSearch.toLowerCase();
     return (
       item.code?.toLowerCase().includes(search) ||
@@ -342,7 +367,7 @@ export default function LoansPage() {
     catalogPage * catalogPageSize
   );
 
-  const handleAddItem = (item: any, type: 'TOOL' | 'INVENTORY') => {
+  const handleAddItem = (item: CatalogItem, type: 'TOOL' | 'INVENTORY') => {
     if (item.availableStock <= 0) {
       showToast(`Stok "${item.name}" sedang habis!`, 'error');
       return;
@@ -450,8 +475,9 @@ export default function LoansPage() {
       setSelectedItems([]);
       fetchCatalog();
       showToast('Peminjaman perkakas berhasil dicatat.', 'info');
-    } catch (err: any) {
-      showToast(err.message || 'Terjadi kesalahan sistem saat menyimpan transaksi.', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat menyimpan transaksi.';
+      showToast(message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -468,7 +494,7 @@ export default function LoansPage() {
 
   return (
     <AppShell>
-      <div className="space-y-4 pb-12 max-w-3xl mx-auto">
+      <div className="space-y-4 pb-4 max-w-3xl mx-auto">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
@@ -564,11 +590,11 @@ export default function LoansPage() {
           </div>
         ) : (
           /* SATU KARTU FORMULIR FOKUS (Berpindah Layar dengan Lanjut / Kembali) */
-          <div className="bg-white border border-slate-200 rounded p-5 space-y-4">
+          <div className="bg-white border border-slate-200 rounded p-3.5 sm:p-5 space-y-4">
             {/* LAYAR 1: PENANGGUNG JAWAB PEMINJAMAN (1 ORANG) */}
             {currentView === 'PIC' && (
               <div className="space-y-4">
-                <div className="pb-2.5 border-b border-slate-200 flex items-center justify-between">
+                <div className="pb-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h2 className="text-xs font-bold font-heading text-slate-900 uppercase tracking-wider">
                       Penanggung Jawab Peminjaman
@@ -583,7 +609,7 @@ export default function LoansPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <label className="block text-xs font-semibold text-slate-700">
                       Nama Karyawan / Penanggung Jawab *
                     </label>
@@ -801,7 +827,7 @@ export default function LoansPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {paginatedCatalog.map((item: any) => {
+                        {paginatedCatalog.map((item: CatalogItem) => {
                           const selectedIdx = selectedItems.findIndex(
                             (si) => si.id === item.id && si.itemType === activeCatalogTab
                           );
@@ -980,7 +1006,7 @@ export default function LoansPage() {
                 </div>
 
                 {/* Navigasi Bawah: Kembali / Lanjut */}
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+                <div className="pt-3 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => setCurrentView('PIC')}
@@ -1122,7 +1148,7 @@ export default function LoansPage() {
                 </div>
 
                 {/* Navigasi Bawah: Kembali / Simpan Transaksi */}
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+                <div className="pt-3 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => setCurrentView('ITEMS')}
@@ -1238,7 +1264,7 @@ export default function LoansPage() {
               </span>
             </div>
             <form onSubmit={handleQuickCreateEmployee} className="p-4 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">NIK *</label>
                   <input
@@ -1262,7 +1288,7 @@ export default function LoansPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Departemen *</label>
                   <select

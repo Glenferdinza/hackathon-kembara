@@ -36,7 +36,12 @@ export default function EmployeesPage() {
   const { confirm } = useConfirm();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('search') || '';
+    }
+    return '';
+  });
   const [statusFilter, setStatusFilter] = useState('');
 
   // Modals
@@ -66,12 +71,6 @@ export default function EmployeesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlSearch = new URLSearchParams(window.location.search).get('search');
-      if (urlSearch !== null) {
-        setSearch(urlSearch);
-      }
-    }
     const handleGlobalSearchEvent = (e: Event) => {
       const custom = e as CustomEvent<{ search?: string }>;
       if (custom.detail && typeof custom.detail.search === 'string') {
@@ -82,28 +81,47 @@ export default function EmployeesPage() {
     return () => window.removeEventListener('ypti-global-search', handleGlobalSearchEvent);
   }, []);
 
+  const loadEmployeesData = useCallback(async () => {
+    const res = await fetch(`/api/employees?search=${encodeURIComponent(search)}`);
+    if (res.ok) {
+      const json = await res.json();
+      let list: Employee[] = json.data || [];
+      if (statusFilter) {
+        list = list.filter((e) => e.status === statusFilter);
+      }
+      setEmployees(list);
+    }
+  }, [search, statusFilter]);
+
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/employees?search=${encodeURIComponent(search)}`);
-      if (res.ok) {
-        const json = await res.json();
-        let list: Employee[] = json.data || [];
-        if (statusFilter) {
-          list = list.filter((e) => e.status === statusFilter);
-        }
-        setEmployees(list);
-      }
+      await loadEmployeesData();
     } catch {
       showToast('Gagal memuat data anggota.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, showToast]);
+  }, [loadEmployeesData, showToast]);
 
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      if (!active) return;
+      setLoading(true);
+      try {
+        await loadEmployeesData();
+      } catch {
+        if (active) showToast('Gagal memuat data anggota.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [loadEmployeesData, showToast]);
 
   const handleOpenAdd = () => {
     setNik('');
@@ -272,11 +290,11 @@ export default function EmployeesPage() {
 
   return (
     <AppShell>
-      <div className="space-y-3 pb-24">
+      <div className="space-y-3 pb-4">
         {/* Header - Flowchart Hal. 7: Data Anggota */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
                 Data Karyawan
               </h1>
@@ -289,7 +307,7 @@ export default function EmployeesPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RefreshButton onRefresh={fetchEmployees} loading={loading} />
             <button
               onClick={handleOpenAdd}
@@ -488,16 +506,16 @@ export default function EmployeesPage() {
           onClick={() => setIsAddOpen(false)}
         >
           <div
-            className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden"
+            className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/50">
+            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50/50 shrink-0">
               <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">Tambah Anggota Baru</h2>
               <p className="text-[11px] text-slate-500">Pendaftaran Identitas &amp; Penugasan Anggota</p>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="p-5 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleAddSubmit} className="p-4 sm:p-5 space-y-3 text-xs overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     NIK / ID Karyawan *
@@ -526,7 +544,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Peran / Jabatan *
@@ -566,7 +584,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Jadwal / Shift Kerja *
@@ -642,10 +660,10 @@ export default function EmployeesPage() {
           onClick={() => setIsEditOpen(false)}
         >
           <div
-            className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden"
+            className="bg-white rounded border border-slate-200 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50/50">
+            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50/50 shrink-0">
               <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">
                 Edit Data Anggota {selectedEmp.nik}
               </h2>
@@ -654,8 +672,8 @@ export default function EmployeesPage() {
               </p>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="p-5 space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleEditSubmit} className="p-4 sm:p-5 space-y-3 text-xs overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     NIK (Tidak Dapat Diubah)
@@ -681,7 +699,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Peran / Jabatan
@@ -721,7 +739,7 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     Jadwal / Shift Kerja *

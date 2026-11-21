@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export interface PaginationProps {
   currentPage: number;
@@ -101,9 +101,9 @@ export function Pagination({
       </div>
 
       {/* Right: Numbered Pagination Bar & Jump To Page */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 max-w-full">
         {/* Navigation Buttons and Numbers */}
-        <div className="inline-flex items-center gap-1 bg-slate-50 p-1 rounded border border-slate-200 whitespace-nowrap">
+        <div className="inline-flex items-center gap-1 bg-slate-50 p-1 rounded border border-slate-200 whitespace-nowrap max-w-full overflow-x-auto">
           {/* Previous Page */}
           <button
             type="button"
@@ -158,7 +158,7 @@ export function Pagination({
 
         {/* Jump To Page Input */}
         {totalPages > 3 && (
-          <form onSubmit={handleJumpSubmit} className="flex items-center gap-1.5 pl-2 border-l border-slate-300">
+          <form onSubmit={handleJumpSubmit} className="flex items-center gap-1.5 sm:pl-2 sm:border-l sm:border-slate-300">
             <span className="text-slate-500 whitespace-nowrap">Ke hal</span>
             <input
               type="number"

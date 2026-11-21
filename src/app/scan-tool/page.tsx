@@ -201,7 +201,7 @@ export default function ScanToolPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="bg-white border border-slate-200 rounded p-5 space-y-4">
+            <div className="bg-white border border-slate-200 rounded p-3.5 sm:p-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-200">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function ScanToolPage() {
               {/* Indikator Sisa Umur Pakai */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div className="md:col-span-2 p-3.5 bg-slate-50 border border-slate-200 rounded space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <span className="font-semibold text-slate-700">Sisa Umur Pakai Unit (Tool Life)</span>
                     <span className={`font-bold tabular-nums ${pct <= (unitDetail.tool.lifeAlertPercent || 15) ? 'text-red-800' : 'text-[#1E40AF]'}`}>
                       {unitDetail.remainingLifeMinutes.toLocaleString('id-ID')} / {unitDetail.maxLifeMinutes.toLocaleString('id-ID')} Menit ({pct}%)
@@ -256,7 +256,7 @@ export default function ScanToolPage() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 tabular-nums">
+                  <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-500 tabular-nums">
                     <span>Total Terpakai {unitDetail.usedLifeMinutes.toLocaleString('id-ID')} menit</span>
                     <span>Riwayat Asah Ulang {unitDetail.resharpenCount} kali</span>
                   </div>

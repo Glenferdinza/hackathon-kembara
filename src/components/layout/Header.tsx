@@ -225,6 +225,7 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const notificationsContainerRef = useRef<HTMLDivElement>(null);
 
   const effectiveRole = userRole || 'SUPER_ADMIN';
   const displayName = userName || 'Agung Setiawan';
@@ -241,7 +242,7 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
     .slice(0, 2)
     .toUpperCase();
 
-  // Close search dropdown when clicking outside
+  // Close search & notifications dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -249,6 +250,12 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
         !searchContainerRef.current.contains(e.target as Node)
       ) {
         setIsSearchOpen(false);
+      }
+      if (
+        notificationsContainerRef.current &&
+        !notificationsContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowNotifications(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -287,7 +294,7 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [globalSearch, isSearchOpen]);
+  }, [globalSearch, isSearchOpen, effectiveRole]);
 
   // Build unified flat list of recommendations for rendering & keyboard navigation
   const flatSuggestions = useMemo<FlatSuggestion[]>(() => {
@@ -569,12 +576,12 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-20 h-16 bg-white border-b border-[#E2E8F0] px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-4">
+    <header className="sticky top-0 z-20 h-14 sm:h-16 bg-white border-b border-[#E2E8F0] px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-4 print:hidden">
       <div className="flex items-center gap-2.5 shrink-0">
         <button
           id="sidebar-toggle-btn"
           onClick={onToggleSidebar}
-          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
+          className="hidden lg:flex p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 items-center justify-center shrink-0 cursor-pointer"
           aria-label="Toggle navigasi sidebar"
           title="Buka / Tutup Sidebar"
         >
@@ -583,13 +590,25 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
           </svg>
         </button>
 
+        <Link
+          href={effectiveRole === 'OPERATOR' ? '/operator' : '/'}
+          className="lg:hidden flex items-center shrink-0"
+          aria-label="PT YPTI Beranda"
+        >
+          <img
+            src="/logo.png"
+            alt="PT YPTI"
+            className="h-7 w-7 object-contain"
+          />
+        </Link>
+
         <div className="hidden sm:block text-sm lg:text-base font-heading font-semibold text-slate-900 tracking-tight leading-tight whitespace-nowrap">
           {breadcrumbs.current}
         </div>
       </div>
 
       {/* Responsive Global Search with Live Recommendations Dropdown */}
-      <div ref={searchContainerRef} className="relative flex-1 max-w-lg mx-1 sm:mx-4">
+      <div ref={searchContainerRef} className="relative flex-1 min-w-0 max-w-lg mx-1 sm:mx-4">
         <form onSubmit={handleGlobalSearchSubmit} className="relative flex items-center w-full">
           <svg
             className="w-3.5 h-3.5 text-slate-400 absolute left-3 pointer-events-none"
@@ -615,7 +634,11 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
               setActiveIndex(0);
             }}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Cari menu, kode tool, inventaris, NIK, atau transaksi..."
+            placeholder={
+              effectiveRole === 'OPERATOR'
+                ? 'Cari menu, kode tool, atau inventaris...'
+                : 'Cari menu, kode tool, inventaris, NIK, atau transaksi...'
+            }
             aria-label="Pencarian cepat global"
             className="w-full bg-slate-50 border border-slate-200 rounded pl-8 pr-7 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors"
           />
@@ -704,7 +727,7 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-        <div className="relative">
+        <div ref={notificationsContainerRef} className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
             className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
@@ -727,7 +750,7 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-md shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-full sm:mt-2 sm:w-80 bg-white border border-slate-200 rounded-md shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
                 <span className="text-xs font-heading font-semibold text-slate-800">Pemberitahuan Sistem</span>
                 <span className="text-[10px] text-slate-500 font-medium">{unreadCount} baru</span>

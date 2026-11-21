@@ -60,9 +60,24 @@ function computeLiveTiming(expectedReturnDate: string, nowMs: number, fallbackDu
   };
 }
 
+interface MonitoringLoanItem {
+  id: string;
+  transactionNumber: string;
+  expectedReturnDate: string;
+  durationText?: string;
+  itemsList: string;
+  waLink?: string;
+  emailLink?: string;
+  employee?: {
+    name?: string;
+    nik?: string;
+    department?: string;
+  } | null;
+}
+
 export default function MonitoringPage() {
   const { showToast } = useToast();
-  const [loans, setLoans] = useState<any[]>([]);
+  const [loans, setLoans] = useState<MonitoringLoanItem[]>([]);
   const [counts, setCounts] = useState({ total: 0, overdue: 0, dueSoon: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'OVERDUE' | 'DUE_SOON'>('ALL');
@@ -71,43 +86,67 @@ export default function MonitoringPage() {
   const [nowMs, setNowMs] = useState<number>(0);
   const pageSize = 10;
 
+  const loadMonitoringData = useCallback(async () => {
+    const query = new URLSearchParams({
+      filter,
+      search,
+    });
+    const res = await fetch(`/api/monitoring?${query.toString()}`);
+    if (res.ok) {
+      const json = await res.json();
+      setLoans(json.data || []);
+      if (json.counts) setCounts(json.counts);
+      setNowMs(Date.now());
+    }
+  }, [filter, search]);
+
   const fetchMonitoring = useCallback(async () => {
     setLoading(true);
     try {
-      const query = new URLSearchParams({
-        filter,
-        search,
-      });
-      const res = await fetch(`/api/monitoring?${query.toString()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setLoans(json.data || []);
-        if (json.counts) setCounts(json.counts);
-        setNowMs(Date.now());
-      }
+      await loadMonitoringData();
     } catch {
       showToast('Gagal memuat data monitoring.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [filter, search, showToast]);
+  }, [loadMonitoringData, showToast]);
 
   useEffect(() => {
-    fetchMonitoring();
-  }, [fetchMonitoring]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      if (!active) return;
+      setLoading(true);
+      try {
+        await loadMonitoringData();
+      } catch {
+        if (active) showToast('Gagal memuat data monitoring.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [loadMonitoringData, showToast]);
 
   // Pembaruan waktu berjalan otomatis setiap 30 detik tanpa perlu refresh manual
   useEffect(() => {
-    setNowMs(Date.now());
+    const initTimer = window.setTimeout(() => {
+      setNowMs(Date.now());
+    }, 0);
     const timer = setInterval(() => {
       setNowMs(Date.now());
     }, 30000);
-    return () => clearInterval(timer);
+    return () => {
+      window.clearTimeout(initTimer);
+      clearInterval(timer);
+    };
   }, []);
 
   return (
     <AppShell>
-      <div className="space-y-4 pb-20">
+      <div className="space-y-4 pb-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
@@ -160,7 +199,7 @@ export default function MonitoringPage() {
                 setFilter(e.target.value as 'ALL' | 'OVERDUE' | 'DUE_SOON');
                 setPage(1);
               }}
-              className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+              className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
             >
               <option value="ALL">Semua Transaksi Aktif ({counts.total})</option>
               <option value="OVERDUE">Melewati Tenggat ({counts.overdue})</option>
@@ -320,7 +359,7 @@ export default function MonitoringPage() {
 
         {/* Navigasi Paging Panah Kiri / Kanan */}
         {loans.length > pageSize && (
-          <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 pt-1">
             <span>
               Halaman <strong className="text-slate-900">{page}</strong> dari <strong className="text-slate-900">{Math.ceil(loans.length / pageSize) || 1}</strong> ({loans.length} item)
             </span>

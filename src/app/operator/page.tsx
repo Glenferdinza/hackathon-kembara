@@ -226,7 +226,7 @@ export default function OperatorDashboardPage() {
               Pantau perkakas di tangan Anda, terima barang siap ambil, serta konfirmasi serah terima antar shift.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RefreshButton onRefresh={fetchSummary} loading={loading} />
             <Link
               href="/operator/request"
@@ -238,24 +238,24 @@ export default function OperatorDashboardPage() {
         </div>
 
         {/* Ringkasan KPI Strip Flat */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 border border-slate-200 rounded py-3 bg-white">
-          <div className="px-4 py-1">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase">Barang di Tangan Saya</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 border border-slate-200 rounded bg-white overflow-hidden">
+          <div className="px-3.5 sm:px-4 py-2.5 min-w-0 border-b border-r lg:border-b-0 border-slate-200">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Barang di Tangan Saya</div>
             <div className="text-xl font-bold text-slate-900 tabular-nums mt-0.5">{heldItems.length}</div>
             <div className="text-[10px] text-slate-400">Item pinjaman aktif</div>
           </div>
-          <div className="px-4 py-1">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase">Siap Diambil (Loket)</div>
+          <div className="px-3.5 sm:px-4 py-2.5 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Siap Diambil (Loket)</div>
             <div className="text-xl font-bold text-[#1E40AF] tabular-nums mt-0.5">{readyRequests.length}</div>
             <div className="text-[10px] text-slate-400">Menunggu tombol Terima</div>
           </div>
-          <div className="px-4 py-1">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase">Waiting List Shift</div>
+          <div className="px-3.5 sm:px-4 py-2.5 min-w-0 border-r border-slate-200">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Waiting List Shift</div>
             <div className="text-xl font-bold text-slate-900 tabular-nums mt-0.5">{incomingHandovers.length}</div>
             <div className="text-[10px] text-slate-400">Serah terima masuk</div>
           </div>
-          <div className="px-4 py-1">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase">Umur Pakai Kritis</div>
+          <div className="px-3.5 sm:px-4 py-2.5 min-w-0">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Umur Pakai Kritis</div>
             <div className={`text-xl font-bold tabular-nums mt-0.5 ${criticalLifeCount > 0 ? 'text-red-800' : 'text-slate-900'}`}>
               {criticalLifeCount}
             </div>
@@ -266,8 +266,8 @@ export default function OperatorDashboardPage() {
         {/* Bagian 1: Barang Sudah Disiapkan Admin Tool Room (Menunggu Terima/Tolak Operator) */}
         {readyRequests.length > 0 && (
           <div className="bg-white border border-slate-200 rounded overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <div>
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="min-w-0">
                 <h2 className="text-xs font-bold font-heading text-slate-900 uppercase tracking-wider">
                   Barang Siap Diambil dari Tool Room ({readyRequests.length})
                 </h2>
@@ -275,16 +275,16 @@ export default function OperatorDashboardPage() {
                   Admin sudah memindai kode barcode unit tool. Periksa fisik barang lalu klik Terima Barang.
                 </p>
               </div>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#1E40AF] border border-blue-200">
+              <span className="self-start sm:self-auto shrink-0 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#1E40AF] border border-blue-200">
                 SIAP SERAH TERIMA
               </span>
             </div>
 
             <div className="divide-y divide-slate-200">
               {readyRequests.map((req) => (
-                <div key={req.id} className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-xs">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
+                <div key={req.id} className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 text-xs">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <span className="font-mono font-bold text-slate-900">{req.requestNumber}</span>
                       <span className="text-slate-400">|</span>
                       <span className="text-slate-600">Disiapkan oleh {req.admin?.name || 'Admin'}</span>
@@ -297,7 +297,7 @@ export default function OperatorDashboardPage() {
                           </span>{' '}
                           ({it.requestedQty} unit)
                           {it.assignedUnits && it.assignedUnits.length > 0 && (
-                            <span className="ml-2 font-mono text-[11px] text-[#1E40AF] font-semibold">
+                            <span className="block sm:inline sm:ml-2 font-mono text-[11px] text-[#1E40AF] font-semibold break-words">
                               Barcode: {it.assignedUnits.map((u) => `${u.unitCode} (${u.remainingLifeMinutes} mnt)`).join(', ')}
                             </span>
                           )}
@@ -306,7 +306,7 @@ export default function OperatorDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
                       type="button"
                       disabled={processingId === req.id}
@@ -333,8 +333,8 @@ export default function OperatorDashboardPage() {
         {/* Bagian 2: Waiting List Pengalihan Hak Pinjam Shift Masuk */}
         {incomingHandovers.length > 0 && (
           <div className="bg-white border border-slate-200 rounded overflow-hidden">
-            <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
-              <div>
+            <div className="px-4 py-3 bg-amber-50 border-b border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="min-w-0">
                 <h2 className="text-xs font-bold font-heading text-amber-900 uppercase tracking-wider">
                   Waiting List Pengalihan Hak Pinjam Shift ({incomingHandovers.length})
                 </h2>
@@ -342,7 +342,7 @@ export default function OperatorDashboardPage() {
                   Periksa fisik barang dan sisa umur pakai sebelum menerima tanggung jawab pinjaman dari shift sebelumnya.
                 </p>
               </div>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white text-amber-900 border border-amber-300">
+              <span className="self-start sm:self-auto shrink-0 px-2 py-0.5 rounded text-[11px] font-semibold bg-white text-amber-900 border border-amber-300">
                 MENUNGGU PERSETUJUAN
               </span>
             </div>
@@ -355,8 +355,8 @@ export default function OperatorDashboardPage() {
                 const isCritical = hov.toolUnit && pct <= (hov.loanItem.tool?.lifeAlertPercent || 15);
 
                 return (
-                  <div key={hov.id} className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-xs">
-                    <div className="space-y-1.5 flex-1">
+                  <div key={hov.id} className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 text-xs">
+                    <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold text-slate-900">{hov.handoverNumber}</span>
                         <span className="text-slate-400">|</span>
@@ -394,7 +394,7 @@ export default function OperatorDashboardPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
                       {hov.proofImageData && (
                         <button
                           type="button"

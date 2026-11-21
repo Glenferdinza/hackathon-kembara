@@ -42,32 +42,51 @@ export default function UsersAccessPage() {
   const [showFormPassword, setShowFormPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const loadUsersData = useCallback(async () => {
+    const query = new URLSearchParams();
+    if (search) query.set('search', search);
+    if (roleFilter) query.set('role', roleFilter);
+    if (statusFilter) query.set('status', statusFilter);
+
+    const res = await fetch(`/api/users?${query.toString()}`);
+    if (res.ok) {
+      const json = await res.json();
+      setUsers(json.data || []);
+    } else {
+      const json = await res.json().catch(() => ({}));
+      showToast(json.error || 'Gagal memuat daftar akun pengguna.', 'error');
+    }
+  }, [search, roleFilter, statusFilter, showToast]);
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const query = new URLSearchParams();
-      if (search) query.set('search', search);
-      if (roleFilter) query.set('role', roleFilter);
-      if (statusFilter) query.set('status', statusFilter);
-
-      const res = await fetch(`/api/users?${query.toString()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setUsers(json.data || []);
-      } else {
-        const json = await res.json().catch(() => ({}));
-        showToast(json.error || 'Gagal memuat daftar akun pengguna.', 'error');
-      }
+      await loadUsersData();
     } catch {
       showToast('Terjadi kesalahan koneksi saat memuat daftar akun.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, statusFilter, showToast]);
+  }, [loadUsersData, showToast]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      if (!active) return;
+      setLoading(true);
+      try {
+        await loadUsersData();
+      } catch {
+        if (active) showToast('Terjadi kesalahan koneksi saat memuat daftar akun.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [loadUsersData, showToast]);
 
   const getRoleLabel = (role: string) => {
     if (role === 'SUPER_ADMIN') return 'Super Admin';
@@ -194,7 +213,7 @@ export default function UsersAccessPage() {
 
   return (
     <AppShell>
-      <div className="space-y-4 pb-16">
+      <div className="space-y-4 pb-4">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
@@ -229,12 +248,12 @@ export default function UsersAccessPage() {
               className="flex-1 bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF]"
             />
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
                 aria-label="Filter Role Akses"
-                className="bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
               >
                 <option value="">Semua Level Akses</option>
                 <option value="SUPER_ADMIN">Super Admin</option>
@@ -245,7 +264,7 @@ export default function UsersAccessPage() {
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 aria-label="Filter Status Akun"
-                className="bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
               >
                 <option value="">Semua Status</option>
                 <option value="AKTIF">Status Aktif</option>
@@ -371,16 +390,16 @@ export default function UsersAccessPage() {
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="bg-white rounded border border-slate-200 shadow-lg max-w-md w-full overflow-hidden"
+            className="bg-white rounded border border-slate-200 shadow-lg max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 bg-slate-50">
+            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 shrink-0">
               <h2 className="text-xs font-bold font-heading text-slate-900 uppercase">
                 {editingUser ? `Edit Hak Akses (${editingUser.name})` : 'Tambah Akun Pengguna Baru'}
               </h2>
             </div>
 
-            <form onSubmit={handleSubmitForm} className="p-5 space-y-3.5 text-xs">
+            <form onSubmit={handleSubmitForm} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Nama Lengkap Petugas *

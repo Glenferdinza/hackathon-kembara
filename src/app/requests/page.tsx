@@ -604,16 +604,16 @@ export default function AdminRequestsQueuePage() {
               </span>
             </div>
 
-            <div className="p-5 space-y-4 overflow-y-auto text-xs">
+            <div className="p-3.5 sm:p-5 space-y-4 overflow-y-auto text-xs">
               {preparingReq.items.map((item) => {
                 const pool = item.toolId ? availableUnitsByTool[item.toolId] || [] : [];
                 const pickedIds = selectedUnitIdsByItem[item.id] || [];
                 const remainingPool = pool.filter((u) => !pickedIds.includes(u.id));
 
                 return (
-                  <div key={item.id} className="p-3.5 border border-slate-200 rounded space-y-2.5 bg-slate-50/50">
-                    <div className="flex items-center justify-between">
-                      <div>
+                  <div key={item.id} className="p-3 sm:p-3.5 border border-slate-200 rounded space-y-2.5 bg-slate-50/50">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
                         <div className="font-bold text-slate-900">
                           {item.tool?.name || item.inventory?.name}
                         </div>
@@ -623,7 +623,7 @@ export default function AdminRequestsQueuePage() {
                       </div>
                       {item.itemType === 'TOOL' ? (
                         <span
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border tabular-nums ${
+                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border tabular-nums shrink-0 ${
                             pickedIds.length === item.requestedQty
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-amber-50 text-amber-800 border-amber-200'
@@ -632,7 +632,7 @@ export default function AdminRequestsQueuePage() {
                           {pickedIds.length} / {item.requestedQty} Unit Barcode
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                           Inventaris Siap ({item.requestedQty})
                         </span>
                       )}
@@ -642,7 +642,7 @@ export default function AdminRequestsQueuePage() {
                       <>
                         {/* Input Scan USB / Pilih Unit / Kamera */}
                         <div className="flex flex-col sm:flex-row gap-2">
-                          <div className="flex-1 flex gap-1.5">
+                          <div className="flex-1 min-w-0 flex gap-1.5">
                             <input
                               type="text"
                               value={quickCodeInput[item.id] || ''}
@@ -656,12 +656,12 @@ export default function AdminRequestsQueuePage() {
                                 }
                               }}
                               placeholder="Scan barcode / ketik kode unit (contoh TOL-001-U01)..."
-                              className="flex-1 bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs font-bold focus:outline-none focus:border-[#1E40AF]"
+                              className="flex-1 min-w-0 bg-white border border-slate-300 rounded px-2.5 py-1.5 font-mono text-xs font-bold focus:outline-none focus:border-[#1E40AF]"
                             />
                             <button
                               type="button"
                               onClick={() => assignUnitCodeToItem(item, quickCodeInput[item.id] || '')}
-                              className="px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded cursor-pointer"
+                              className="px-2.5 py-1.5 text-xs font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded cursor-pointer shrink-0"
                             >
                               Tambah
                             </button>

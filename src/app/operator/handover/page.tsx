@@ -339,7 +339,7 @@ export default function OperatorHandoverPage() {
         </div>
 
         {/* Formulir Pengalihan Shift */}
-        <div className="bg-white border border-slate-200 rounded p-5 space-y-4">
+        <div className="bg-white border border-slate-200 rounded p-3.5 sm:p-5 space-y-4">
           <h2 className="text-xs font-bold font-heading text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-200">
             Formulir Serah Terima Shift
           </h2>
@@ -354,7 +354,7 @@ export default function OperatorHandoverPage() {
           ) : (
             <form onSubmit={handleSubmitHandover} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <label className="block font-semibold text-slate-700">
                     Pilih Barang / Unit Barcode yang Dialihkan *
                   </label>
@@ -362,7 +362,7 @@ export default function OperatorHandoverPage() {
                     required
                     value={selectedItemId}
                     onChange={(e) => setSelectedItemId(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF]"
+                    className="w-full max-w-full bg-white border border-slate-300 rounded px-3 py-2 font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF]"
                   >
                     <option value="">Pilih perkakas aktif Anda...</option>
                     {heldItems.map((hi) => (
@@ -374,7 +374,7 @@ export default function OperatorHandoverPage() {
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <label className="block font-semibold text-slate-700">
                     Operator Penerima (Shift Berikutnya) *
                   </label>
@@ -382,7 +382,7 @@ export default function OperatorHandoverPage() {
                     required
                     value={toEmployeeId}
                     onChange={(e) => setToEmployeeId(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF]"
+                    className="w-full max-w-full bg-white border border-slate-300 rounded px-3 py-2 font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF]"
                   >
                     <option value="">Pilih operator penerima pengalihan...</option>
                     {employees.map((emp) => (
@@ -464,7 +464,7 @@ export default function OperatorHandoverPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 font-bold font-heading text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors disabled:opacity-50 cursor-pointer uppercase tracking-wider"
+                  className="w-full sm:w-auto px-5 py-2 font-bold font-heading text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors disabled:opacity-50 cursor-pointer uppercase tracking-wider"
                 >
                   {submitting ? 'Mengirim ke Waiting List...' : 'Kirim Pengalihan ke Waiting List'}
                 </button>

@@ -80,9 +80,65 @@ const INITIAL_DASHBOARD_DATA = {
   allStockItems: [],
 };
 
+interface DashboardActionItem {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  link: string;
+}
+
+interface DashboardStockItem {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  category: string;
+  location: string;
+  totalStock: number;
+  availableStock: number;
+  borrowedStock: number;
+  repairStock: number;
+  minStock: number;
+  unit: string;
+  isLowStock: boolean;
+}
+
+interface DashboardUpcomingLoan {
+  id: string;
+  transactionNumber: string;
+  borrowerName: string;
+  borrowerNik: string;
+  borrowerDept: string;
+  borrowerPhone?: string | null;
+  itemsSummary: string;
+  loanDate: string;
+  expectedReturnDate: string;
+  statusLabel: string;
+}
+
+interface DashboardNotification {
+  id: string;
+  createdAt: string;
+  type: string;
+  title: string;
+  message: string;
+  link?: string | null;
+}
+
+interface DashboardData {
+  kpi: typeof INITIAL_DASHBOARD_DATA.kpi;
+  barChartData: typeof INITIAL_DASHBOARD_DATA.barChartData;
+  donutChartData: typeof INITIAL_DASHBOARD_DATA.donutChartData;
+  actionItems: DashboardActionItem[];
+  upcomingLoans: DashboardUpcomingLoan[];
+  notifications: DashboardNotification[];
+  allStockItems: DashboardStockItem[];
+}
+
 export default function DashboardPage() {
   const { showToast } = useToast();
-  const [data, setData] = useState<any>(INITIAL_DASHBOARD_DATA);
+  const [data, setData] = useState<DashboardData>(INITIAL_DASHBOARD_DATA);
   const [loading, setLoading] = useState(true);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -101,29 +157,48 @@ export default function DashboardPage() {
   const [notifPageSize, setNotifPageSize] = useState(10);
 
   // Perpanjang tenggat modal
-  const [extendingLoan, setExtendingLoan] = useState<any | null>(null);
+  const [extendingLoan, setExtendingLoan] = useState<DashboardUpcomingLoan | null>(null);
   const [newDueDate, setNewDueDate] = useState('');
   const [extendReason, setExtendReason] = useState('');
   const [isSubmittingExtend, setIsSubmittingExtend] = useState(false);
 
+  const loadDashboardData = useCallback(async () => {
+    const res = await fetch('/api/dashboard');
+    if (res.ok) {
+      const json = (await res.json()) as DashboardData;
+      setData(json);
+    }
+  }, []);
+
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/dashboard');
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      }
+      await loadDashboardData();
     } catch (err) {
       console.error('Gagal memuat dashboard:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadDashboardData]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      if (!active) return;
+      setLoading(true);
+      try {
+        await loadDashboardData();
+      } catch (err) {
+        console.error('Gagal memuat dashboard:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [loadDashboardData]);
 
   const kpi = data?.kpi || INITIAL_DASHBOARD_DATA.kpi;
   const allStockItems = data?.allStockItems || [];
@@ -131,7 +206,7 @@ export default function DashboardPage() {
   const notifications = data?.notifications || [];
   const actionItems = data?.actionItems || [];
 
-  const filteredStock = allStockItems.filter((item: any) => {
+  const filteredStock = allStockItems.filter((item) => {
     const matchSearch =
       item.code?.toLowerCase().includes(stockSearch.toLowerCase()) ||
       item.name?.toLowerCase().includes(stockSearch.toLowerCase()) ||
@@ -163,7 +238,7 @@ export default function DashboardPage() {
     notifPage * notifPageSize
   );
 
-  const handleOpenExtend = (loan: any) => {
+  const handleOpenExtend = (loan: DashboardUpcomingLoan) => {
     setExtendingLoan(loan);
     const d = new Date(new Date(loan.expectedReturnDate).getTime() + 24 * 60 * 60 * 1000);
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -203,7 +278,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5 pb-20">
+      <div className="space-y-5 pb-4">
         {/* Top Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
@@ -249,10 +324,10 @@ export default function DashboardPage() {
 
         {/* 3. Visualisasi Grafik Komposisi & Stok */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div className="lg:col-span-7 bg-white border border-slate-200 rounded p-4">
+          <div className="lg:col-span-7 min-w-0 bg-white border border-slate-200 rounded p-3.5 sm:p-4">
             <BarChartSection data={data?.barChartData || INITIAL_DASHBOARD_DATA.barChartData} />
           </div>
-          <div className="lg:col-span-5 bg-white border border-slate-200 rounded p-4">
+          <div className="lg:col-span-5 min-w-0 bg-white border border-slate-200 rounded p-3.5 sm:p-4">
             <DonutChartSection data={data?.donutChartData || INITIAL_DASHBOARD_DATA.donutChartData} />
           </div>
         </div>
@@ -260,7 +335,7 @@ export default function DashboardPage() {
         {/* 4. Antrean Tindakan Prioritas Admin */}
         {actionItems.length > 0 && (
           <div className="border-t border-slate-200 pt-4 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Menunggu Tindakan Prioritas Petugas ({actionItems.length})
               </span>
@@ -280,7 +355,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {actionItems.map((act: any) => {
+                  {actionItems.map((act) => {
                     const priorityLabel =
                       act.type === 'DANGER'
                         ? 'MENDESAK'
@@ -394,7 +469,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                   <label className="text-xs text-slate-500 font-medium whitespace-nowrap">
                     Filter Katalog
                   </label>
@@ -446,7 +521,7 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {paginatedStock.map((item: any) => (
+                      {paginatedStock.map((item) => (
                         <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
                             {item.code}
@@ -536,7 +611,7 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {paginatedLoans.map((loan: any) => (
+                      {paginatedLoans.map((loan) => (
                         <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
                             {loan.transactionNumber}
@@ -657,7 +732,7 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {paginatedNotifs.map((notif: any) => (
+                      {paginatedNotifs.map((notif) => (
                         <tr key={notif.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-2 px-3 text-slate-500 whitespace-nowrap tabular-nums">
                             {new Date(notif.createdAt).toLocaleDateString('id-ID', {

@@ -19,53 +19,58 @@ interface DonutChartSectionProps {
   data: DonutItem[];
 }
 
+function formatDonutPct(value: number, totalUnits: number) {
+  if (!totalUnits || totalUnits <= 0 || value <= 0) return '0%';
+  const pct = (value / totalUnits) * 100;
+  if (pct > 0 && pct < 0.1) return '<0,1%';
+  if (pct > 99.9 && pct < 100) return '99,9%';
+  return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1).replace('.', ',')}%`;
+}
+
+interface DonutTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: DonutItem }>;
+  total: number;
+}
+
+function DonutCustomTooltip({ active, payload, total }: DonutTooltipProps) {
+  if (active && payload && payload.length) {
+    const item = payload[0].payload;
+    const percent = formatDonutPct(item.value, total);
+    return (
+      <div className="bg-white px-3 py-2 border border-slate-300 rounded shadow-md text-xs pointer-events-none z-50">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="w-2.5 h-2.5 rounded-xs inline-block shrink-0"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="font-bold text-slate-900">{item.name}</span>
+        </div>
+        <div className="text-slate-600 font-medium mt-1 tabular-nums">
+          <span className="font-bold text-[#1E40AF]">{item.value.toLocaleString('id-ID')}</span> Unit
+          <span className="text-slate-500 text-[11px] ml-1">({percent})</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function DonutChartSection({ data }: DonutChartSectionProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const total = data.reduce((acc, cur) => acc + cur.value, 0);
 
-  const formatPct = (value: number, totalUnits: number) => {
-    if (!totalUnits || totalUnits <= 0 || value <= 0) return '0%';
-    const pct = (value / totalUnits) * 100;
-    if (pct > 0 && pct < 0.1) return '<0,1%';
-    if (pct > 99.9 && pct < 100) return '99,9%';
-    return Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1).replace('.', ',')}%`;
-  };
-
   const availableItem = data.find((d) => d.name === 'Stok Tersedia');
-  const availablePercent = formatPct(availableItem?.value || 0, total);
-
-  // Custom Opaque Tooltip that floats cleanly without ghost text underneath
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const item = payload[0].payload;
-      const percent = formatPct(item.value, total);
-      return (
-        <div className="bg-white px-3 py-2 border border-slate-300 rounded shadow-md text-xs pointer-events-none z-50">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="w-2.5 h-2.5 rounded-xs inline-block shrink-0"
-              style={{ backgroundColor: item.color }}
-            />
-            <span className="font-bold text-slate-900">{item.name}</span>
-          </div>
-          <div className="text-slate-600 font-medium mt-1 tabular-nums">
-            <span className="font-bold text-[#1E40AF]">{item.value.toLocaleString('id-ID')}</span> Unit
-            <span className="text-slate-500 text-[11px] ml-1">({percent})</span>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
+  const availablePercent = formatDonutPct(availableItem?.value || 0, total);
 
   return (
     <div className="w-full flex flex-col justify-between">
       <div className="pb-2.5 border-b border-slate-200">
-        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider whitespace-nowrap">
+        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
           Komposisi Fisik Barang
         </h2>
-        <p className="text-[11px] text-slate-500 whitespace-nowrap">
+        <p className="text-[11px] text-slate-500">
           Status aktual seluruh aset perkakas &amp; inventaris
         </p>
       </div>
@@ -98,7 +103,7 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
                 ))}
               </Pie>
               <Tooltip
-                content={<CustomTooltip />}
+                content={<DonutCustomTooltip total={total} />}
                 wrapperStyle={{ zIndex: 50 }}
               />
             </PieChart>
@@ -122,7 +127,7 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
         {/* Legend list with full width and clear unclipped text */}
         <div className="w-full mt-2 pt-2 border-t border-slate-100 space-y-1">
           {data.map((item, index) => {
-            const itemPct = formatPct(item.value, total);
+            const itemPct = formatDonutPct(item.value, total);
             return (
               <div
                 key={item.name}

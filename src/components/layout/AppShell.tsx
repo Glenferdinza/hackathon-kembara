@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { BottomNavbar } from './BottomNavbar';
 
 export interface ActiveUser {
   id: string;
@@ -24,49 +25,60 @@ const isOperatorAllowedRoute = (path: string) =>
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
   const [overdueCount, setOverdueCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [operatorPendingCount, setOperatorPendingCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<ActiveUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      setSidebarOpen(false);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false);
     }
+  }
 
-    // 1. Cek cache session client untuk loading instan (0ms)
-    let hasLocalSession = false;
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('ypti_erp_active_user');
-        if (cached) {
-          const parsed = JSON.parse(cached) as ActiveUser;
-          if (parsed?.id) {
-            if (parsed.role === 'OPERATOR' && !isOperatorAllowedRoute(pathname)) {
-              router.replace('/operator');
-              return;
-            }
-            if (pathname === '/users' && parsed.role !== 'SUPER_ADMIN') {
-              router.replace(parsed.role === 'OPERATOR' ? '/operator' : '/');
-              return;
-            }
-            setCurrentUser(parsed);
-            setAuthChecked(true);
-            hasLocalSession = true;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
+  useEffect(() => {
+    let active = true;
 
     const verifyAuthAndStats = async () => {
+      // 1. Cek cache session client untuk loading instan
+      let hasLocalSession = false;
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = sessionStorage.getItem('ypti_erp_active_user');
+          if (cached) {
+            const parsed = JSON.parse(cached) as ActiveUser;
+            if (parsed?.id) {
+              if (parsed.role === 'OPERATOR' && !isOperatorAllowedRoute(pathname)) {
+                router.replace('/operator');
+                return;
+              }
+              if (pathname === '/users' && parsed.role !== 'SUPER_ADMIN') {
+                router.replace(parsed.role === 'OPERATOR' ? '/operator' : '/');
+                return;
+              }
+              if (active) {
+                setCurrentUser(parsed);
+                setAuthChecked(true);
+              }
+              hasLocalSession = true;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       try {
         const authRes = await fetch('/api/auth');
+        if (!active) return;
         if (authRes.ok) {
           const authJson = await authRes.json();
+          if (!active) return;
           if (!authJson.user) {
             if (typeof window !== 'undefined') {
               sessionStorage.removeItem('ypti_erp_active_user');
@@ -99,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             fetch('/api/operator/summary?countOnly=true')
               .then((res) => (res.ok ? res.json() : null))
               .then((json) => {
-                if (typeof json?.pendingActionCount === 'number') {
+                if (active && typeof json?.pendingActionCount === 'number') {
                   setOperatorPendingCount(json.pendingActionCount);
                 }
               })
@@ -109,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             fetch('/api/dashboard')
               .then((res) => (res.ok ? res.json() : null))
               .then((json) => {
-                if (json?.kpi && typeof json.kpi.overdueLoansCount === 'number') {
+                if (active && json?.kpi && typeof json.kpi.overdueLoansCount === 'number') {
                   setOverdueCount(json.kpi.overdueLoansCount);
                 }
               })
@@ -118,7 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             fetch('/api/loan-requests?countOnly=true')
               .then((res) => (res.ok ? res.json() : null))
               .then((json) => {
-                if (typeof json?.waitingAdminCount === 'number') {
+                if (active && typeof json?.waitingAdminCount === 'number') {
                   setPendingRequestsCount(json.waitingAdminCount);
                 }
               })
@@ -131,11 +143,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        setAuthChecked(true);
+        if (active) setAuthChecked(true);
       }
     };
 
-    verifyAuthAndStats();
+    const timer = window.setTimeout(() => {
+      if (active) void verifyAuthAndStats();
+    }, 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [pathname, router]);
 
   if (!authChecked) {
@@ -170,10 +189,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col overflow-x-clip">
       <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        isOpen={desktopSidebarOpen}
+        isMobileOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
         overdueCount={overdueCount}
         pendingRequestsCount={pendingRequestsCount}
         operatorPendingCount={operatorPendingCount}
@@ -182,21 +202,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ease-in-out ${
-          sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
+          desktopSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
         }`}
         style={{
           transition: 'padding-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <Header
-          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          onToggleSidebar={() => setDesktopSidebarOpen((prev) => !prev)}
           userName={currentUser?.name}
           userRole={currentUser?.role}
         />
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl w-full mx-auto">
+        <main className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-8 max-w-7xl w-full mx-auto">
           {children}
         </main>
       </div>
+
+      <BottomNavbar
+        userRole={currentUser?.role || 'SUPER_ADMIN'}
+        pendingRequestsCount={pendingRequestsCount}
+        operatorPendingCount={operatorPendingCount}
+        isMenuOpen={mobileMenuOpen}
+        onToggleMenu={() => setMobileMenuOpen((prev) => !prev)}
+      />
     </div>
   );
 }

@@ -260,7 +260,7 @@ function ReturnsContent() {
   );
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
@@ -474,14 +474,14 @@ function ReturnsContent() {
       {/* Return Process Modal (Clean Industrial Inspection) */}
       {selectedLoan && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setSelectedLoan(null)}
         >
           <div
-            className="bg-white rounded border border-slate-200 shadow-xl max-w-xl w-full overflow-hidden"
+            className="bg-white rounded border border-slate-200 shadow-xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50">
+            <div className="px-4 sm:px-5 py-3.5 border-b border-slate-200 bg-slate-50 shrink-0">
               <h2 className="text-sm font-bold font-heading text-slate-900">
                 Verifikasi Pengembalian Fisik
               </h2>
@@ -490,7 +490,7 @@ function ReturnsContent() {
               </p>
             </div>
 
-            <div className="p-5 space-y-4 text-xs">
+            <div className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto">
               {/* Borrower Info */}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded">
                 <span className="font-semibold text-slate-900 block font-heading">
@@ -518,11 +518,11 @@ function ReturnsContent() {
 
                     return (
                       <div key={item.id} className="p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-900">
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          <span className="font-semibold text-slate-900 min-w-0">
                             <span className="font-mono tabular-nums font-bold text-[#1E40AF]">{code}</span> | {name}
                           </span>
-                          <span className="text-slate-500 text-[11px] tabular-nums">
+                          <span className="text-slate-500 text-[11px] tabular-nums shrink-0">
                             {item.toolUnit
                               ? `Sisa Umur: ${item.toolUnit.remainingLifeMinutes} mnt`
                               : `Tersisa ${remaining} unit`}
@@ -574,8 +574,8 @@ function ReturnsContent() {
                           )}
 
                           {/* Condition Selector (Single-Color Dropdown) */}
-                          <div className="flex items-center gap-1.5 sm:justify-end">
-                            <label className="text-[11px] text-slate-600 font-medium whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 sm:justify-end min-w-0">
+                            <label className="text-[11px] text-slate-600 font-medium whitespace-nowrap shrink-0">
                               Kondisi
                             </label>
                             <select
@@ -586,7 +586,7 @@ function ReturnsContent() {
                                   [item.id]: { ...currentVal, condition: e.target.value },
                                 })
                               }
-                              className="bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                              className="flex-1 sm:flex-initial min-w-0 w-full sm:w-auto bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
                             >
                               <option value="BAIK">Baik (Siap Pakai)</option>
                               <option value="PERLU_ASAH">Perlu Asah / Mendekati Habis</option>
