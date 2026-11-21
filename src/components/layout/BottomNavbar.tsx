@@ -9,7 +9,6 @@ import {
   FilePlus2,
   Home,
   LayoutDashboard,
-  Menu,
   RotateCcw,
   ScanBarcode,
   type LucideIcon,
@@ -19,21 +18,17 @@ interface BottomNavbarProps {
   userRole: string;
   pendingRequestsCount?: number;
   operatorPendingCount?: number;
-  isMenuOpen: boolean;
-  onToggleMenu: () => void;
 }
 
 interface NavTabItem {
   key: string;
   label: string;
-  href?: string;
+  href: string;
   count?: number;
   icon: LucideIcon;
-  isMenu?: boolean;
 }
 
-function isRouteMatch(pathname: string, href?: string): boolean {
-  if (!href) return false;
+function isRouteMatch(pathname: string, href: string): boolean {
   if (href === '/') return pathname === '/';
   if (href === '/operator') return pathname === '/operator';
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -43,8 +38,6 @@ export function BottomNavbar({
   userRole,
   pendingRequestsCount = 0,
   operatorPendingCount = 0,
-  isMenuOpen,
-  onToggleMenu,
 }: BottomNavbarProps) {
   const pathname = usePathname();
   const isOperator = userRole === 'OPERATOR';
@@ -69,12 +62,6 @@ export function BottomNavbar({
           label: 'Oper Shift',
           href: '/operator/handover',
           icon: ArrowLeftRight,
-        },
-        {
-          key: 'menu',
-          label: 'Menu',
-          icon: Menu,
-          isMenu: true,
         },
       ]
     : [
@@ -103,17 +90,7 @@ export function BottomNavbar({
           href: '/returns',
           icon: RotateCcw,
         },
-        {
-          key: 'menu',
-          label: 'Menu',
-          icon: Menu,
-          isMenu: true,
-        },
       ];
-
-  const hasMatchedRouteTab = tabs.some(
-    (tab) => !tab.isMenu && isRouteMatch(pathname, tab.href)
-  );
 
   return (
     <nav
@@ -121,12 +98,10 @@ export function BottomNavbar({
       className="fixed bottom-0 left-0 right-0 z-30 lg:hidden print:hidden bg-white border-t border-[#E2E8F0] shadow-[0_-2px_10px_rgba(11,19,43,0.04)]"
       style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
     >
-      <div className="max-w-[680px] md:max-w-[760px] mx-auto w-full flex items-stretch min-h-[54px] md:min-h-[60px] px-0 sm:px-1">
+      <div className="max-w-[680px] md:max-w-[760px] mx-auto w-full flex items-stretch min-h-[54px] md:min-h-[60px] px-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = tab.isMenu
-            ? isMenuOpen || !hasMatchedRouteTab
-            : !isMenuOpen && isRouteMatch(pathname, tab.href);
+          const isActive = isRouteMatch(pathname, tab.href);
 
           const countSuffix =
             typeof tab.count === 'number' && tab.count > 0
@@ -138,11 +113,14 @@ export function BottomNavbar({
               ? `${tab.label}, ${tab.count} menunggu`
               : tab.label;
 
-          const tabClassName =
-            'relative flex-1 min-w-0 flex flex-col items-center justify-center pt-2 pb-1 gap-0.5 transition-opacity active:opacity-70 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1E40AF]';
-
-          const content = (
-            <>
+          return (
+            <Link
+              key={tab.key}
+              href={tab.href}
+              aria-label={accessibleLabel}
+              aria-current={isActive ? 'page' : undefined}
+              className="relative flex-1 min-w-0 flex flex-col items-center justify-center pt-2 pb-1 gap-0.5 transition-opacity active:opacity-70 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1E40AF]"
+            >
               {isActive && (
                 <span
                   aria-hidden="true"
@@ -157,7 +135,7 @@ export function BottomNavbar({
                 }`}
               />
               <span
-                className={`text-[11px] md:text-xs leading-[14px] tracking-[-0.02em] sm:tracking-[0.01em] whitespace-nowrap truncate max-w-full text-center tabular-nums ${
+                className={`text-[11px] md:text-xs leading-[14px] tracking-[0.01em] whitespace-nowrap truncate max-w-full text-center tabular-nums ${
                   isActive
                     ? 'text-[#1E40AF] font-semibold'
                     : 'text-slate-500 font-medium'
@@ -166,34 +144,6 @@ export function BottomNavbar({
                 {tab.label}
                 {countSuffix}
               </span>
-            </>
-          );
-
-          if (tab.isMenu) {
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={onToggleMenu}
-                aria-label={accessibleLabel}
-                aria-expanded={isMenuOpen}
-                aria-controls="mobile-navigation-drawer"
-                className={tabClassName}
-              >
-                {content}
-              </button>
-            );
-          }
-
-          return (
-            <Link
-              key={tab.key}
-              href={tab.href || '/'}
-              aria-label={accessibleLabel}
-              aria-current={isActive ? 'page' : undefined}
-              className={tabClassName}
-            >
-              {content}
             </Link>
           );
         })}

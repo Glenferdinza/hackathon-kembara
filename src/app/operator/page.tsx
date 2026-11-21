@@ -239,24 +239,24 @@ export default function OperatorDashboardPage() {
 
         {/* Ringkasan KPI Strip Flat */}
         <div className="grid grid-cols-2 lg:grid-cols-4 border border-slate-200 rounded bg-white overflow-hidden">
-          <div className="px-3.5 sm:px-4 py-2.5 min-w-0 border-b border-r lg:border-b-0 border-slate-200">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Barang di Tangan Saya</div>
-            <div className="text-xl font-bold text-slate-900 tabular-nums mt-0.5">{heldItems.length}</div>
+          <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0 border-b border-r lg:border-b-0 border-slate-200">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Barang di Tangan Saya</div>
+            <div className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums mt-0.5">{heldItems.length}</div>
             <div className="text-[10px] text-slate-400">Item pinjaman aktif</div>
           </div>
-          <div className="px-3.5 sm:px-4 py-2.5 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Siap Diambil (Loket)</div>
-            <div className="text-xl font-bold text-[#1E40AF] tabular-nums mt-0.5">{readyRequests.length}</div>
+          <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Siap Diambil (Loket)</div>
+            <div className="text-lg sm:text-xl font-bold text-[#1E40AF] tabular-nums mt-0.5">{readyRequests.length}</div>
             <div className="text-[10px] text-slate-400">Menunggu tombol Terima</div>
           </div>
-          <div className="px-3.5 sm:px-4 py-2.5 min-w-0 border-r border-slate-200">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Waiting List Shift</div>
-            <div className="text-xl font-bold text-slate-900 tabular-nums mt-0.5">{incomingHandovers.length}</div>
+          <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0 border-r border-slate-200">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Waiting List Shift</div>
+            <div className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums mt-0.5">{incomingHandovers.length}</div>
             <div className="text-[10px] text-slate-400">Serah terima masuk</div>
           </div>
-          <div className="px-3.5 sm:px-4 py-2.5 min-w-0">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase truncate">Umur Pakai Kritis</div>
-            <div className={`text-xl font-bold tabular-nums mt-0.5 ${criticalLifeCount > 0 ? 'text-red-800' : 'text-slate-900'}`}>
+          <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0">
+            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Umur Pakai Kritis</div>
+            <div className={`text-lg sm:text-xl font-bold tabular-nums mt-0.5 ${criticalLifeCount > 0 ? 'text-red-800' : 'text-slate-900'}`}>
               {criticalLifeCount}
             </div>
             <div className="text-[10px] text-slate-400">Perlu segera kembali ke rak</div>

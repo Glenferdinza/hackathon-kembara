@@ -210,6 +210,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <Header
           onToggleSidebar={() => setDesktopSidebarOpen((prev) => !prev)}
+          onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
           userName={currentUser?.name}
           userRole={currentUser?.role}
         />
@@ -222,8 +223,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         userRole={currentUser?.role || 'SUPER_ADMIN'}
         pendingRequestsCount={pendingRequestsCount}
         operatorPendingCount={operatorPendingCount}
-        isMenuOpen={mobileMenuOpen}
-        onToggleMenu={() => setMobileMenuOpen((prev) => !prev)}
       />
     </div>
   );

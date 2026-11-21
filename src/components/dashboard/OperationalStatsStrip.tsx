@@ -45,7 +45,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
           TOTAL FISIK
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">
+          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
             {kpi.totalPhysicalUnits.toLocaleString('id-ID')}
           </span>
           <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
@@ -63,7 +63,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
           STOK TERSEDIA
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-xl font-bold text-[#1E40AF] tabular-nums leading-none">
+          <span className="text-lg sm:text-xl font-bold text-[#1E40AF] tabular-nums leading-none">
             {kpi.totalAvailable.toLocaleString('id-ID')}
           </span>
           <span className="text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
@@ -81,7 +81,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
           SEDANG DIPINJAM
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">
+          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
             {kpi.totalBorrowed.toLocaleString('id-ID')}
           </span>
           <span className="text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
@@ -99,7 +99,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
           JATUH TEMPO
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">
+          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
             {kpi.dueSoonCount}
           </span>
           {kpi.dueSoonCount > 0 && (
@@ -119,7 +119,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
           TERLAMBAT
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">
+          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
             {kpi.overdueLoansCount}
           </span>
           {kpi.overdueLoansCount > 0 && (
@@ -139,7 +139,7 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
           STOK MENIPIS
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-xl font-bold text-slate-900 tabular-nums leading-none">
+          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
             {kpi.lowStockCount}
           </span>
           {kpi.lowStockCount > 0 && (

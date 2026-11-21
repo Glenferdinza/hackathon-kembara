@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
+  onToggleMobileMenu?: () => void;
   userName?: string;
   userRole?: string;
 }
@@ -200,7 +201,7 @@ const MENU_SUGGESTIONS = [
   },
 ];
 
-export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
+export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -580,27 +581,22 @@ export function Header({ onToggleSidebar, userName, userRole }: HeaderProps) {
       <div className="flex items-center gap-2.5 shrink-0">
         <button
           id="sidebar-toggle-btn"
-          onClick={onToggleSidebar}
-          className="hidden lg:flex p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 items-center justify-center shrink-0 cursor-pointer"
-          aria-label="Toggle navigasi sidebar"
-          title="Buka / Tutup Sidebar"
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.innerWidth < 1024 && onToggleMobileMenu) {
+              onToggleMobileMenu();
+            } else {
+              onToggleSidebar();
+            }
+          }}
+          className="flex p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-slate-200 items-center justify-center shrink-0 cursor-pointer"
+          aria-label="Toggle navigasi menu"
+          title="Buka / Tutup Menu"
         >
           <svg className="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-
-        <Link
-          href={effectiveRole === 'OPERATOR' ? '/operator' : '/'}
-          className="lg:hidden flex items-center shrink-0"
-          aria-label="PT YPTI Beranda"
-        >
-          <img
-            src="/logo.png"
-            alt="PT YPTI"
-            className="h-7 w-7 object-contain"
-          />
-        </Link>
 
         <div className="hidden sm:block text-sm lg:text-base font-heading font-semibold text-slate-900 tracking-tight leading-tight whitespace-nowrap">
           {breadcrumbs.current}
