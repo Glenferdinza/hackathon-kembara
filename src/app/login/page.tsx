@@ -2,11 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { Download } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [userId, setUserId] = useState('10001');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,16 +48,20 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
       <div className="max-w-sm w-full bg-white rounded border border-slate-200 p-6 sm:p-7 space-y-5">
         <div className="text-center space-y-2 pb-2 border-b border-slate-100">
-          <img
+          <Image
             src="/ypti-logo.png"
             alt="Logo PT YPTI"
+            width={176}
+            height={44}
+            priority
             className="h-11 w-auto mx-auto object-contain"
           />
           <h1 className="text-sm font-bold font-heading text-slate-900 tracking-tight uppercase">
             Tool Room &amp; Inventory ERP
           </h1>
-          <p className="text-[11px] text-slate-500">
-            Silakan masuk menggunakan Nomor ID Pengguna resmi PT YPTI
+          <p className="text-xs text-slate-600 text-balance">
+            Silakan masuk menggunakan ID Pengguna resmi{' '}
+            <span className="whitespace-nowrap font-semibold text-slate-700">PT YPTI</span>
           </p>
         </div>
 
@@ -77,8 +83,8 @@ export default function LoginPage() {
               autoComplete="username"
               value={userId}
               onChange={(e) => setUserId(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase())}
-              placeholder="Contoh 10001 atau EMP-0101"
-              className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs font-mono font-bold tabular-nums text-slate-900 focus:outline-none focus:border-[#1E40AF] transition-colors"
+              placeholder="Masukkan ID pengguna atau NIK"
+              className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs font-mono font-bold tabular-nums placeholder:font-sans placeholder:font-normal placeholder:text-slate-500 text-slate-900 focus:outline-none focus:border-[#1E40AF] transition-colors"
             />
           </div>
 
@@ -90,7 +96,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="text-[11px] font-medium text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                className="text-xs font-medium text-slate-600 hover:text-slate-900 underline cursor-pointer"
               >
                 {showPassword ? 'Sembunyikan' : 'Tampilkan'}
               </button>
@@ -119,9 +125,10 @@ export default function LoginPage() {
         <div className="pt-3 border-t border-slate-100 text-center">
           <Link
             href="/download"
-            className="text-[11px] font-medium text-slate-600 hover:text-[#1E40AF] underline transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-[#1E40AF] transition-colors"
           >
-            Unduh Aplikasi Desktop (.exe) atau Pasang di Perangkat
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span className="underline">Unduh Aplikasi</span>
           </Link>
         </div>
       </div>

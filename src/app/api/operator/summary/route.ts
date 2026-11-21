@@ -18,6 +18,7 @@ export async function GET(request: Request) {
         waitingAdminRequests: [],
         heldItems: [],
         criticalLifeCount: 0,
+        recentNotifications: [],
       });
     }
 
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ pendingActionCount: handoverCnt + readyCnt });
     }
 
-    const [incomingHandovers, readyRequestsRaw, waitingAdminRequests, heldItems] = await Promise.all([
+    const [incomingHandovers, readyRequestsRaw, waitingAdminRequests, heldItems, recentNotifications] = await Promise.all([
       prisma.shiftHandover.findMany({
         where: { toEmployeeId: empId, status: 'PENDING' },
         include: {
@@ -126,6 +127,14 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      prisma.notification.findMany({
+        where: {
+          employeeId: empId,
+          targetRole: { in: ['OPERATOR', 'ALL'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+      }),
     ]);
 
     // Resolve unit details for readyRequestsRaw
@@ -183,6 +192,7 @@ export async function GET(request: Request) {
       waitingAdminRequests,
       heldItems,
       criticalLifeCount,
+      recentNotifications,
     });
   } catch (err) {
     return NextResponse.json(

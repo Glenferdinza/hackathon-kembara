@@ -7,7 +7,6 @@ interface StatCardProps {
   value: string | number;
   subtext: string;
   badge?: string;
-  badgeColor?: string;
 }
 
 export function StatCard({
@@ -15,7 +14,6 @@ export function StatCard({
   value,
   subtext,
   badge,
-  badgeColor,
 }: StatCardProps) {
   return (
     <div className="py-2 px-3 border-r border-slate-200 last:border-r-0">

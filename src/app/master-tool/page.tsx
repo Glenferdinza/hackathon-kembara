@@ -9,6 +9,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { ExpandableMetaLine } from '@/components/ui/ExpandableMetaLine';
 import { ImportExcelModal } from '@/components/modals/ImportExcelModal';
 import { BarcodeStickerModal, PrintableToolUnit } from '@/components/qr/QrStickerModal';
 
@@ -418,8 +419,8 @@ export default function MasterToolPage() {
       <div className="space-y-4">
         {/* Header Bar matching ERP Titian Pic 3/4/5 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
               Data Tool &amp; Perkakas Mesin
             </h1>
             <span className="text-xs font-medium text-slate-500 tabular-nums">
@@ -427,28 +428,33 @@ export default function MasterToolPage() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <RefreshButton onRefresh={fetchTools} loading={loading} />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto shrink-0">
             <button
-              onClick={() => setIsImportOpen(true)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors"
-            >
-              Impor Excel
-            </button>
-
-            <button
-              onClick={() => window.open('/api/excel/export?type=tools', '_blank')}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors"
-            >
-              Ekspor Excel
-            </button>
-
-            <button
+              type="button"
               onClick={handleOpenAdd}
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
+              className="w-full sm:w-auto min-h-[42px] sm:min-h-0 px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors inline-flex items-center justify-center sm:order-last whitespace-nowrap cursor-pointer"
             >
               + Tambah Tool
             </button>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <RefreshButton onRefresh={fetchTools} loading={loading} />
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(true)}
+                className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Impor Excel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.open('/api/excel/export?type=tools', '_blank')}
+                className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Ekspor Excel
+              </button>
+            </div>
           </div>
         </div>
 
@@ -463,7 +469,7 @@ export default function MasterToolPage() {
               className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors"
             />
             {isFetching && (
-              <span className="absolute right-2.5 top-2 text-[10px] text-slate-400 font-semibold animate-pulse">
+              <span className="absolute right-2.5 top-2 text-[11px] text-slate-600 font-semibold">
                 Memuat...
               </span>
             )}
@@ -476,7 +482,7 @@ export default function MasterToolPage() {
                 setCategoryFilter(e.target.value);
                 setPage(1);
               }}
-              className="bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
+              className="w-full sm:w-auto max-w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-2 sm:py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
             >
               <option value="">Semua Kategori</option>
               {categories.map((c) => (
@@ -502,155 +508,212 @@ export default function MasterToolPage() {
             className="border-t border-slate-200 mt-2"
           />
         ) : (
-          <div className={`overflow-x-auto border-t border-slate-200 mt-2 transition-opacity duration-150 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
-            <table className="min-w-[1000px] w-full text-left text-xs">
-              <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">KODE</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">NAMA PERALATAN</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">KATEGORI</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">SPESIFIKASI TEKNIS</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">SATUAN</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">HARGA (RP)</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">UMUR PAKAI</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">TOTAL</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">TERSEDIA</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">DIPINJAM</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">LOKASI RAK</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">KONDISI</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tools.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
-                      {t.code}
-                    </td>
-                    <td className="py-2.5 px-3 font-medium text-slate-900">
-                      {t.name}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                      {t.category?.name || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500 max-w-[220px] truncate" title={t.specifications || ''}>
-                      {t.specifications || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center text-slate-600 whitespace-nowrap">
-                      {t.unit}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-slate-700 whitespace-nowrap tabular-nums">
-                      {t.price && t.price > 0 ? t.price.toLocaleString('id-ID') : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-slate-700 whitespace-nowrap tabular-nums">
-                      {(t.maxLifeMinutes || 1200).toLocaleString('id-ID')} mnt
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                      {t.totalStock}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold text-[#1E40AF] whitespace-nowrap tabular-nums">
-                      {t.availableStock}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-600 whitespace-nowrap tabular-nums">
-                      {t.borrowedStock}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
-                      {t.location}
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap font-medium text-[11px]">
-                      {t.condition === 'BAIK' ? (
-                        <span className="text-slate-700">{t.condition}</span>
-                      ) : t.condition === 'PERAWATAN' ? (
-                        <span className="text-[#1E40AF] font-semibold">{t.condition}</span>
-                      ) : (
-                        <span className="text-slate-900 font-bold">{t.condition}</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap font-semibold text-xs">
-                      {t.status === 'AKTIF' ? (
-                        <span className="text-[#1E40AF]">{t.status}</span>
-                      ) : (
-                        <span className="text-slate-500">{t.status}</span>
-                      )}
-                    </td>
-                    {/* Action icon buttons with hover tooltips */}
-                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenUnitsModal(t)}
-                          aria-label="Kelola Unit & Stiker Barcode"
-                          title="Kelola Unit & Stiker Barcode"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-[#1E40AF] hover:bg-blue-50 hover:border-[#1E40AF] flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <Barcode className="w-3.5 h-3.5" />
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Unit &amp; Stiker Barcode
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(t.id)}
-                          aria-label="Detail Perkakas"
-                          title="Detail Perkakas"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
-                            />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Detail Perkakas
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(t)}
-                          aria-label="Edit Data Perkakas"
-                          title="Edit Data Perkakas"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-                            />
-                          </svg>
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Edit Perkakas
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTool(t.id, t.code)}
-                          disabled={isDeleting === t.id}
-                          aria-label="Hapus Perkakas"
-                          title="Hapus Perkakas"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                            />
-                          </svg>
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Hapus Perkakas
-                          </span>
-                        </button>
+          <div className={`border-t border-slate-200 mt-2 transition-opacity duration-150 ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
+            {/* Mobile Card View (< 768px) */}
+            <div className="md:hidden divide-y divide-slate-200 bg-white border-x border-b border-slate-200 rounded-b">
+              {tools.map((t) => (
+                <div key={t.id} className="p-3.5 space-y-2.5 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-mono font-bold text-slate-900">{t.code}</div>
+                        <div className="text-[13px] font-bold text-slate-900 leading-snug mt-0.5">{t.name}</div>
                       </div>
-                    </td>
+                      <span className={`shrink-0 text-xs font-bold ${t.status === 'AKTIF' ? 'text-[#1E40AF]' : 'text-slate-600'}`}>
+                        {t.status}
+                      </span>
+                    </div>
+                    <ExpandableMetaLine text={`${t.category?.name || '-'} · Rak ${t.location}`} />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center tabular-nums">
+                    <div>
+                      <div className="text-[11px] text-slate-600">Total</div>
+                      <div className="font-bold text-slate-900">{t.totalStock} {t.unit}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-slate-600">Siap</div>
+                      <div className="font-bold text-[#1E40AF]">{t.availableStock}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-slate-600">Umur Std</div>
+                      <div className="font-bold text-slate-800">{(t.maxLifeMinutes || 1200).toLocaleString('id-ID')} m</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenUnitsModal(t)}
+                      className="min-h-[42px] px-2 py-1.5 rounded border border-slate-300 bg-white text-[#1E40AF] font-semibold text-xs hover:bg-blue-50 cursor-pointer"
+                    >
+                      Unit QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDetail(t.id)}
+                      className="min-h-[42px] px-2 py-1.5 rounded border border-slate-300 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
+                    >
+                      Detail
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(t)}
+                      className="min-h-[42px] px-2 py-1.5 rounded border border-slate-300 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTool(t.id, t.code)}
+                      disabled={isDeleting === t.id}
+                      className="min-h-[42px] px-2 py-1.5 rounded border border-slate-300 bg-white text-[#991B1B] font-semibold text-xs hover:bg-red-50 cursor-pointer disabled:opacity-40"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-[1000px] w-full text-left text-xs">
+                <thead className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">KODE</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">NAMA PERALATAN</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">KATEGORI</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">SPESIFIKASI TEKNIS</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">SATUAN</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">HARGA (RP)</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">UMUR PAKAI</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">TOTAL</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">TERSEDIA</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">DIPINJAM</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">LOKASI RAK</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">KONDISI</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {tools.map((t) => (
+                    <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
+                        {t.code}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-900">
+                        {t.name}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                        {t.category?.name || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 max-w-[220px] truncate" title={t.specifications || ''}>
+                        {t.specifications || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-slate-600 whitespace-nowrap">
+                        {t.unit}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-slate-700 whitespace-nowrap tabular-nums">
+                        {t.price && t.price > 0 ? t.price.toLocaleString('id-ID') : '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-slate-700 whitespace-nowrap tabular-nums">
+                        {(t.maxLifeMinutes || 1200).toLocaleString('id-ID')} mnt
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                        {t.totalStock}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-[#1E40AF] whitespace-nowrap tabular-nums">
+                        {t.availableStock}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-slate-600 whitespace-nowrap tabular-nums">
+                        {t.borrowedStock}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {t.location}
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap font-medium text-[11px]">
+                        {t.condition === 'BAIK' ? (
+                          <span className="text-slate-700">{t.condition}</span>
+                        ) : t.condition === 'PERAWATAN' ? (
+                          <span className="text-[#1E40AF] font-semibold">{t.condition}</span>
+                        ) : (
+                          <span className="text-slate-900 font-bold">{t.condition}</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap font-semibold text-xs">
+                        {t.status === 'AKTIF' ? (
+                          <span className="text-[#1E40AF]">{t.status}</span>
+                        ) : (
+                          <span className="text-slate-600">{t.status}</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenUnitsModal(t)}
+                            aria-label="Kelola Unit & Stiker Barcode"
+                            title="Kelola Unit & Stiker Barcode"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-[#1E40AF] hover:bg-blue-50 hover:border-[#1E40AF] flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <Barcode className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDetail(t.id)}
+                            aria-label="Detail Perkakas"
+                            title="Detail Perkakas"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+                              />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(t)}
+                            aria-label="Edit Data Perkakas"
+                            title="Edit Data Perkakas"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTool(t.id, t.code)}
+                            disabled={isDeleting === t.id}
+                            aria-label="Hapus Perkakas"
+                            title="Hapus Perkakas"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-[#991B1B] hover:bg-red-50 hover:border-[#991B1B] flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -1063,14 +1126,14 @@ export default function MasterToolPage() {
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">
                               <span
-                                className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                                className={`text-[11px] font-semibold ${
                                   u.status === 'TERSEDIA'
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    ? 'text-emerald-800'
                                     : u.status === 'PERLU_ASAH'
-                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    ? 'text-[#92400E]'
                                     : u.status === 'RUSAK' || u.status === 'HILANG'
-                                    ? 'bg-red-50 text-red-800 border-red-200'
-                                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                                    ? 'text-[#991B1B]'
+                                    : 'text-slate-700'
                                 }`}
                               >
                                 {u.status}

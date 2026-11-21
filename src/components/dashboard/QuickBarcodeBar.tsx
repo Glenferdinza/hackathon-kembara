@@ -22,8 +22,29 @@ interface ScannedCatalogData {
   category?: { name?: string } | string | null;
 }
 
+interface ScannedUnitData {
+  id: string;
+  unitCode: string;
+  supplierCode?: string | null;
+  status: string;
+  remainingLifeMinutes: number;
+  maxLifeMinutes: number;
+  tool: {
+    id: string;
+    code: string;
+    name: string;
+    location: string;
+    unit: string;
+  };
+  loanItems?: Array<{
+    currentHolder?: { name: string; nik: string } | null;
+    loanTransaction?: { transactionNumber: string; employee?: { name: string; nik: string } | null } | null;
+  }>;
+}
+
 type ScannedEntity =
   | { type: 'EMPLOYEE'; data: ScannedEmployeeData; rawCode: string }
+  | { type: 'UNIT'; data: ScannedUnitData; rawCode: string }
   | { type: 'TOOL' | 'INVENTORY'; data: ScannedCatalogData; rawCode: string }
   | { type: 'NOT_FOUND'; data: null; rawCode: string };
 
@@ -53,7 +74,22 @@ export function QuickBarcodeBar() {
         }
       }
 
-      // 2. Cek Master Tool
+      // 2. Cek Unit Fisik Barcode 1D / QR
+      const unitRes = await fetch(`/api/tool-units?code=${encodeURIComponent(code)}`);
+      if (unitRes.ok) {
+        const unitJson = await unitRes.json();
+        if (unitJson.data) {
+          setResult({ type: 'UNIT', data: unitJson.data, rawCode: code });
+          showToast(
+            `Unit ${unitJson.data.unitCode} (${unitJson.data.tool?.name}) terdeteksi.`,
+            'info'
+          );
+          setIsScanning(false);
+          return;
+        }
+      }
+
+      // 3. Cek Master Tool
       const toolRes = await fetch(`/api/tools?search=${encodeURIComponent(code)}`);
       if (toolRes.ok) {
         const toolJson = await toolRes.json();
@@ -121,8 +157,8 @@ export function QuickBarcodeBar() {
                 handleScan();
               }
             }}
-            placeholder="Ketik NIK karyawan (contoh EMP-0101) atau kode barang (contoh 01M10) lalu tekan Enter..."
-            className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors tabular-nums font-medium"
+            placeholder="Ketik NIK karyawan (contoh EMP-0101), barcode unit (TOL-001-U01), atau kode barang..."
+            className="w-full bg-slate-50 border border-slate-200 rounded px-3 py-2 sm:py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors tabular-nums font-medium"
           />
         </div>
 
@@ -130,7 +166,7 @@ export function QuickBarcodeBar() {
           <button
             onClick={() => handleScan()}
             disabled={isScanning || !query.trim()}
-            className="flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+            className="flex-1 sm:flex-initial min-h-[42px] sm:min-h-0 px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
           >
             {isScanning ? 'Mencari...' : 'Cari Data'}
           </button>
@@ -138,7 +174,7 @@ export function QuickBarcodeBar() {
           {result && (
             <button
               onClick={handleClear}
-              className="px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded transition-colors cursor-pointer"
+              className="min-h-[42px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded transition-colors cursor-pointer"
             >
               Reset
             </button>
@@ -149,6 +185,67 @@ export function QuickBarcodeBar() {
       {/* Scanned Result Banner */}
       {result && (
         <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded text-xs animate-in fade-in duration-150">
+          {result.type === 'UNIT' && (
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="font-mono font-bold text-[#1E40AF] tabular-nums">
+                    {result.data.unitCode}
+                  </span>
+                  <span className="font-heading font-bold text-slate-900">
+                    {result.data.tool?.name}
+                  </span>
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      result.data.status === 'TERSEDIA'
+                        ? 'text-[#1E40AF]'
+                        : result.data.status === 'RUSAK' || result.data.status === 'HILANG'
+                        ? 'text-[#991B1B]'
+                        : 'text-slate-700'
+                    }`}
+                  >
+                    {result.data.status}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-600 mt-0.5 tabular-nums">
+                  Lokasi <span className="font-semibold text-slate-800">{result.data.tool?.location}</span> |{' '}
+                  Sisa Umur{' '}
+                  <span className="font-semibold text-slate-900">
+                    {result.data.remainingLifeMinutes.toLocaleString('id-ID')} /{' '}
+                    {result.data.maxLifeMinutes.toLocaleString('id-ID')} menit
+                  </span>
+                  {result.data.loanItems?.[0] && (
+                    <span>
+                      {' '}
+                      | Pemegang{' '}
+                      <strong className="text-slate-900">
+                        {result.data.loanItems[0].currentHolder?.name ||
+                          result.data.loanItems[0].loanTransaction?.employee?.name ||
+                          '-'}
+                      </strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {result.data.status === 'TERSEDIA' && (
+                  <Link
+                    href={`/loans?item=${encodeURIComponent(result.data.tool?.code || '')}&unitId=${encodeURIComponent(result.data.id)}`}
+                    className="min-h-[40px] sm:min-h-0 inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
+                  >
+                    + Pinjam Unit Ini
+                  </Link>
+                )}
+                <Link
+                  href={`/scan-tool?code=${encodeURIComponent(result.data.unitCode)}`}
+                  className="min-h-[40px] sm:min-h-0 inline-flex items-center px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded transition-colors"
+                >
+                  Detail Umur Unit
+                </Link>
+              </div>
+            </div>
+          )}
           {result.type === 'EMPLOYEE' && (
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex items-center gap-3">

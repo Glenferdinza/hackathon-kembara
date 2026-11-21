@@ -35,6 +35,12 @@ export async function PATCH(
           { status: 400 }
         );
       }
+      if (unit.status === 'HILANG') {
+        return NextResponse.json(
+          { error: 'Unit berstatus HILANG/afkir tidak dapat direset asah.' },
+          { status: 400 }
+        );
+      }
 
       const nextMaxLife =
         maxLifeMinutes !== undefined && parseInt(maxLifeMinutes, 10) >= 10

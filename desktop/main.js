@@ -2,14 +2,58 @@ const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
+function normalizeHttpUrl(candidate) {
+  if (!candidate || typeof candidate !== 'string') return '';
+  const trimmed = candidate.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return trimmed;
+    }
+  } catch {
+    // abaikan format tidak valid
+  }
+  return '';
+}
+
 function loadTargetUrl() {
+  // 1. Argumen CLI (--url=https://...) atau env YPTI_SERVER_URL
+  const urlArg = process.argv.find((arg) => arg.startsWith('--url='));
+  const argUrl = normalizeHttpUrl(urlArg ? urlArg.slice('--url='.length) : '');
+  if (argUrl) return argUrl;
+
+  const envUrl = normalizeHttpUrl(process.env.YPTI_SERVER_URL);
+  if (envUrl) return envUrl;
+
+  // 2. Berkas override runtime opsional (server-url.txt) di userData atau direktori exe
+  const overrideCandidates = [];
+  try {
+    overrideCandidates.push(path.join(app.getPath('userData'), 'server-url.txt'));
+  } catch {
+    // abaikan jika userData belum tersedia
+  }
+  if (app.isPackaged) {
+    overrideCandidates.push(path.join(path.dirname(process.execPath), 'server-url.txt'));
+  }
+
+  for (const filePath of overrideCandidates) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const valid = normalizeHttpUrl(content);
+      if (valid) return valid;
+    } catch {
+      // file opsional belum ada
+    }
+  }
+
+  // 3. Konfigurasi bawaan hasil build (app-config.json)
   const configPath = path.join(__dirname, 'app-config.json');
   try {
     const raw = fs.readFileSync(configPath, 'utf8');
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.targetUrl === 'string' && parsed.targetUrl.trim()) {
-      return parsed.targetUrl.trim();
-    }
+    const valid = normalizeHttpUrl(parsed?.targetUrl);
+    if (valid) return valid;
   } catch {
     // Gunakan fallback lokal hanya jika konfigurasi belum dibangkitkan saat pengembangan
   }
@@ -24,6 +68,15 @@ const TARGET_ORIGIN = (() => {
     return '';
   }
 })();
+
+function isSameTargetOrigin(candidateUrl) {
+  if (!TARGET_ORIGIN || !candidateUrl) return false;
+  try {
+    return new URL(candidateUrl).origin === TARGET_ORIGIN;
+  } catch {
+    return false;
+  }
+}
 
 let mainWindow = null;
 
@@ -58,7 +111,7 @@ function createWindow() {
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://') || url.startsWith('http://')) {
-      if (TARGET_ORIGIN && url.startsWith(TARGET_ORIGIN)) {
+      if (isSameTargetOrigin(url)) {
         return { action: 'allow' };
       }
       shell.openExternal(url);
@@ -68,7 +121,7 @@ function createWindow() {
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url.startsWith('file://')) return;
-    if (TARGET_ORIGIN && !url.startsWith(TARGET_ORIGIN)) {
+    if (TARGET_ORIGIN && !isSameTargetOrigin(url)) {
       event.preventDefault();
       shell.openExternal(url);
     }

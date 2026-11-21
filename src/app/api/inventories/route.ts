@@ -18,12 +18,12 @@ export async function GET(request: Request) {
 
     if (search) {
       where.OR = [
-        { code: { contains: search } },
-        { name: { contains: search } },
-        { brand: { contains: search } },
-        { model: { contains: search } },
-        { serialNumber: { contains: search } },
-        { location: { contains: search } },
+        { code: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { brand: { contains: search, mode: 'insensitive' } },
+        { model: { contains: search, mode: 'insensitive' } },
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -75,6 +75,9 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session || !session.id) {
       return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(session.role)) {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya Admin Tool Room yang berhak menambah inventaris.' }, { status: 403 });
     }
     const body = await request.json();
 

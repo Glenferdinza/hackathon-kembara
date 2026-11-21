@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { WhatsAppIcon, EmailIcon } from '@/components/ui/ContactIcons';
 
 function computeLiveTiming(expectedReturnDate: string, nowMs: number, fallbackDurationText?: string) {
   if (!nowMs) {
@@ -84,7 +85,12 @@ export default function MonitoringPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [nowMs, setNowMs] = useState<number>(0);
+  const [expandedLoanIds, setExpandedLoanIds] = useState<Record<string, boolean>>({});
   const pageSize = 10;
+
+  const toggleExpandLoan = (id: string) => {
+    setExpandedLoanIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const loadMonitoringData = useCallback(async () => {
     const query = new URLSearchParams({
@@ -150,8 +156,8 @@ export default function MonitoringPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
                 Monitoring Keterlambatan &amp; Jatuh Tempo
               </h1>
               {counts.overdue > 0 && (
@@ -165,12 +171,13 @@ export default function MonitoringPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <RefreshButton onRefresh={fetchMonitoring} loading={loading} />
 
             <button
+              type="button"
               onClick={() => window.open('/api/excel/export?type=overdue', '_blank')}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
+              className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
             >
               Ekspor Data
             </button>
@@ -183,14 +190,17 @@ export default function MonitoringPage() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Cari peminjam, NIK, atau no transaksi..."
-              className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#1E40AF]"
+              className="w-full bg-white border border-slate-300 rounded px-3 py-2 sm:py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-[#1E40AF]"
             />
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <label className="text-xs text-slate-500 font-medium whitespace-nowrap">
+            <label className="text-xs text-slate-600 font-medium whitespace-nowrap">
               Filter Status
             </label>
             <select
@@ -199,7 +209,7 @@ export default function MonitoringPage() {
                 setFilter(e.target.value as 'ALL' | 'OVERDUE' | 'DUE_SOON');
                 setPage(1);
               }}
-              className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+              className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 rounded px-2.5 py-2 sm:py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
             >
               <option value="ALL">Semua Transaksi Aktif ({counts.total})</option>
               <option value="OVERDUE">Melewati Tenggat ({counts.overdue})</option>
@@ -208,8 +218,8 @@ export default function MonitoringPage() {
           </div>
         </div>
 
-        {/* Monitoring Table - Calm 2-Tone Monochrome View */}
-        <div className="overflow-x-auto border border-slate-200 rounded bg-white">
+        {/* Monitoring List (Mobile Cards + Desktop Table) */}
+        <div className="border border-slate-200 rounded bg-white overflow-hidden">
           {loading ? (
             <SkeletonTable rows={5} cols={7} className="p-2" />
           ) : loans.length === 0 ? (
@@ -224,136 +234,235 @@ export default function MonitoringPage() {
               onAction={search ? () => setSearch('') : undefined}
             />
           ) : (
-            <table className="w-full text-left text-xs min-w-[1000px]">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading uppercase tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">IDENTITAS PEMINJAM</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">BARANG BELUM KEMBALI</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">WAKTU JATUH TEMPO</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">STATUS &amp; DURASI BERJALAN</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">PENGINGAT RESMI</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+            <>
+              {/* Mobile Card View (< 768px) */}
+              <div className="md:hidden divide-y divide-slate-200">
                 {loans.slice((page - 1) * pageSize, page * pageSize).map((loan) => {
                   const live = computeLiveTiming(loan.expectedReturnDate, nowMs, loan.durationText);
+                  const isExpanded = Boolean(expandedLoanIds[loan.id]);
+                  const hasLongItems = (loan.itemsList?.length || 0) > 70;
 
                   return (
-                    <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                        {loan.transactionNumber}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <div className="font-semibold text-slate-900">{loan.employee?.name}</div>
-                        <div className="text-[10px] text-slate-500 tabular-nums">
-                          {loan.employee?.nik} | {loan.employee?.department}
+                    <div key={loan.id} className="p-4 space-y-3 text-xs">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-900 leading-snug">
+                            {loan.employee?.name}
+                          </div>
+                          <div className="text-[11px] text-slate-600 tabular-nums mt-0.5 leading-snug break-words">
+                            {loan.transactionNumber} &middot; {loan.employee?.nik} &middot; {loan.employee?.department}
+                          </div>
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3 max-w-[260px] truncate font-medium text-slate-800" title={loan.itemsList}>
-                        {loan.itemsList}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
-                        {new Date(loan.expectedReturnDate).toLocaleString('id-ID', {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
-                          <span
-                            className={`text-xs ${
+                        <div className="text-right shrink-0">
+                          <div
+                            className={`text-xs font-bold ${
                               live.isOverdue
-                                ? 'font-bold text-slate-900'
+                                ? 'text-[#991B1B]'
                                 : live.isDueSoon
-                                ? 'font-semibold text-[#1E40AF]'
-                                : 'font-medium text-slate-600'
+                                ? 'text-[#92400E]'
+                                : 'text-slate-700'
                             }`}
                           >
                             {live.statusLabel}
-                          </span>
-                          <span className="text-[11px] text-slate-500 tabular-nums">
+                          </div>
+                          <div className="text-[11px] text-slate-600 tabular-nums mt-0.5">
                             {live.detailText}
-                          </span>
+                          </div>
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center justify-center gap-1.5">
-                          {loan.waLink ? (
-                            <a
-                              href={loan.waLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label="Kirim Pengingat WhatsApp"
-                              title="Kirim Pengingat WhatsApp"
-                              className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                                />
-                              </svg>
-                              <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                                Kirim Pengingat WhatsApp
-                              </span>
-                            </a>
-                          ) : (
-                            <span
-                              title="Nomor WhatsApp belum terdaftar"
-                              className="group relative w-7 h-7 rounded border border-slate-200 bg-slate-50 text-slate-300 flex items-center justify-center cursor-not-allowed"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                                />
-                              </svg>
-                              <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                                Nomor WhatsApp Kosong
-                              </span>
-                            </span>
-                          )}
+                      </div>
 
-                          {loan.emailLink && (
-                            <a
-                              href={loan.emailLink}
-                              aria-label="Kirim Pengingat Email"
-                              title="Kirim Pengingat Email"
-                              className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors"
+                      <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
+                        <div>
+                          <div
+                            className={`text-xs text-slate-700 leading-relaxed ${
+                              isExpanded ? '' : 'line-clamp-2'
+                            }`}
+                          >
+                            <span className="font-semibold text-slate-900">Barang: </span>
+                            {loan.itemsList}
+                          </div>
+                          {hasLongItems && (
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandLoan(loan.id)}
+                              className="mt-1 text-[11px] font-semibold text-[#1E40AF] hover:underline cursor-pointer"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                                />
-                              </svg>
-                              <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                                Kirim Pengingat Email
-                              </span>
-                            </a>
+                              {isExpanded ? 'Ringkas daftar barang' : 'Lihat semua barang'}
+                            </button>
                           )}
                         </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div className="text-[11px] text-slate-600 tabular-nums">
+                          Jatuh tempo{' '}
+                          <strong className="text-slate-900">
+                            {new Date(loan.expectedReturnDate).toLocaleString('id-ID', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-0.5">
+                        {loan.waLink && (
+                          <a
+                            href={loan.waLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Kirim Pengingat WhatsApp"
+                            title="Kirim Pengingat WhatsApp"
+                            className="min-h-[42px] px-3 py-2 rounded border border-slate-300 bg-white text-slate-800 font-semibold inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 shrink-0"
+                          >
+                            <WhatsAppIcon className="w-4 h-4 text-[#15803D] shrink-0" />
+                            <span>WA</span>
+                          </a>
+                        )}
+                        {loan.emailLink && (
+                          <a
+                            href={loan.emailLink}
+                            aria-label="Kirim Pengingat Email"
+                            title="Kirim Pengingat Email"
+                            className="min-h-[42px] px-3 py-2 rounded border border-slate-300 bg-white text-slate-800 font-semibold inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 shrink-0"
+                          >
+                            <EmailIcon className="w-4 h-4 text-slate-600 shrink-0" />
+                            <span>Email</span>
+                          </a>
+                        )}
                         <Link
                           href={`/returns?tx=${loan.transactionNumber}`}
-                          className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
+                          className="flex-1 min-h-[42px] px-3 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded inline-flex items-center justify-center transition-colors"
                         >
                           Kembalikan
                         </Link>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Desktop / Tablet Full Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[1000px]">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading uppercase tracking-wider">
+                    <tr>
+                      <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">IDENTITAS PEMINJAM</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">BARANG BELUM KEMBALI</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">WAKTU JATUH TEMPO</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">STATUS &amp; DURASI BERJALAN</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">PENGINGAT RESMI</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {loans.slice((page - 1) * pageSize, page * pageSize).map((loan) => {
+                      const live = computeLiveTiming(loan.expectedReturnDate, nowMs, loan.durationText);
+                      const isExpanded = Boolean(expandedLoanIds[loan.id]);
+                      const hasLongItems = (loan.itemsList?.length || 0) > 42;
+
+                      return (
+                        <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                            {loan.transactionNumber}
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div className="font-semibold text-slate-900">{loan.employee?.name}</div>
+                            <div className="text-[11px] text-slate-600 tabular-nums">
+                              {loan.employee?.nik} | {loan.employee?.department}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 max-w-[280px] font-medium text-slate-800" title={loan.itemsList}>
+                            <div className={isExpanded ? 'whitespace-normal leading-relaxed' : 'truncate'}>
+                              {loan.itemsList}
+                            </div>
+                            {hasLongItems && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandLoan(loan.id)}
+                                className="text-[11px] font-semibold text-[#1E40AF] hover:underline cursor-pointer mt-0.5"
+                              >
+                                {isExpanded ? 'Ringkas' : 'Lihat semua'}
+                              </button>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
+                            {new Date(loan.expectedReturnDate).toLocaleString('id-ID', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <div className="flex flex-col gap-0.5">
+                              <span
+                                className={`text-xs ${
+                                  live.isOverdue
+                                    ? 'font-bold text-[#991B1B]'
+                                    : live.isDueSoon
+                                    ? 'font-semibold text-[#92400E]'
+                                    : 'font-medium text-slate-700'
+                                }`}
+                              >
+                                {live.statusLabel}
+                              </span>
+                              <span className="text-[11px] text-slate-600 tabular-nums">
+                                {live.detailText}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <div className="inline-flex items-center justify-center gap-1.5">
+                              {loan.waLink ? (
+                                <a
+                                  href={loan.waLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label="Kirim Pengingat WhatsApp"
+                                  title="Kirim Pengingat WhatsApp"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-semibold text-[11px] transition-colors"
+                                >
+                                  <WhatsAppIcon className="w-3.5 h-3.5 text-[#15803D] shrink-0" />
+                                  <span>WA</span>
+                                </a>
+                              ) : (
+                                <span
+                                  title="Nomor WhatsApp belum terdaftar"
+                                  className="px-2.5 py-1 rounded border border-slate-200 bg-slate-50 text-slate-500 text-[11px] cursor-not-allowed"
+                                >
+                                  WA Kosong
+                                </span>
+                              )}
+
+                              {loan.emailLink && (
+                                <a
+                                  href={loan.emailLink}
+                                  aria-label="Kirim Pengingat Email"
+                                  title="Kirim Pengingat Email"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-semibold text-[11px] transition-colors"
+                                >
+                                  <EmailIcon className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                                  <span>Email</span>
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <Link
+                              href={`/returns?tx=${loan.transactionNumber}`}
+                              className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
+                            >
+                              Kembalikan
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
@@ -368,7 +477,7 @@ export default function MonitoringPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="min-w-[28px] h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
+                className="min-w-[40px] h-10 sm:min-w-[28px] sm:h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
                 title="Halaman Sebelumnya"
                 aria-label="Halaman Sebelumnya"
               >
@@ -378,7 +487,7 @@ export default function MonitoringPage() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(Math.ceil(loans.length / pageSize) || 1, p + 1))}
                 disabled={page >= (Math.ceil(loans.length / pageSize) || 1)}
-                className="min-w-[28px] h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
+                className="min-w-[40px] h-10 sm:min-w-[28px] sm:h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
                 title="Halaman Selanjutnya"
                 aria-label="Halaman Selanjutnya"
               >

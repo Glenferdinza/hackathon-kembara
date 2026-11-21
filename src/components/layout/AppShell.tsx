@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNavbar } from './BottomNavbar';
+import { fetchHeaderSummary } from '@/lib/dashboard-client';
 
 export interface ActiveUser {
   id: string;
@@ -117,9 +118,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })
               .catch(() => {});
           } else {
-            // Ambil notifikasi keterlambatan & antrean request secara non-blocking di latar belakang
-            fetch('/api/dashboard')
-              .then((res) => (res.ok ? res.json() : null))
+            // Ambil notifikasi keterlambatan secara non-blocking dengan payload ringkas
+            fetchHeaderSummary()
               .then((json) => {
                 if (active && json?.kpi && typeof json.kpi.overdueLoansCount === 'number') {
                   setOverdueCount(json.kpi.overdueLoansCount);
@@ -213,6 +213,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
           userName={currentUser?.name}
           userRole={currentUser?.role}
+          userIdCode={currentUser?.email}
+          userDepartment={currentUser?.department}
+          employeeNik={currentUser?.employeeNik}
+          onUserUpdated={(nextUser) => {
+            setCurrentUser(nextUser);
+            try {
+              sessionStorage.setItem('ypti_erp_active_user', JSON.stringify(nextUser));
+            } catch {
+              // ignore storage errors
+            }
+          }}
         />
         <main className="flex-1 min-w-0 px-3 sm:px-6 lg:px-8 pt-4 sm:pt-5 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-8 max-w-7xl w-full mx-auto">
           {children}

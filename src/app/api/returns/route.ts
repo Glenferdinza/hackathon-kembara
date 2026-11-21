@@ -23,9 +23,15 @@ export async function POST(request: Request) {
     }
 
     const datePrefix = new Date().toISOString().slice(0, 7).replace('-', '');
-    const count = await prisma.returnTransaction.count();
-    const seq = String(count + 1).padStart(4, '0');
-    const returnNumber = `RET-${datePrefix}-${seq}`;
+    const latestRet = await prisma.returnTransaction.findFirst({
+      where: { returnNumber: { startsWith: `RET-${datePrefix}-` } },
+      orderBy: { returnNumber: 'desc' },
+      select: { returnNumber: true },
+    });
+    const lastSeq = latestRet
+      ? parseInt(latestRet.returnNumber.split('-').pop() || '0', 10) || 0
+      : 0;
+    const returnNumber = `RET-${datePrefix}-${String(lastSeq + 1).padStart(4, '0')}`;
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Fetch loan transaction with items
@@ -46,9 +52,16 @@ export async function POST(request: Request) {
       }
 
       let totalReturnedQty = 0;
+      const seenLoanItemIds = new Set<string>();
+      const returnedConditions: string[] = [];
 
       // 2. Process each returned item
       for (const ret of returnItems) {
+        if (!ret.loanItemId || seenLoanItemIds.has(ret.loanItemId)) {
+          throw new Error('Duplikasi atau ID item pengembalian tidak valid.');
+        }
+        seenLoanItemIds.add(ret.loanItemId);
+
         const loanItem = loan.items.find((i) => i.id === ret.loanItemId);
         if (!loanItem) {
           throw new Error(`Item peminjaman dengan ID ${ret.loanItemId} tidak ditemukan pada transaksi ini.`);
@@ -68,6 +81,7 @@ export async function POST(request: Request) {
         }
 
         const itemCondition = ret.condition || condition || 'BAIK';
+        returnedConditions.push(itemCondition);
         const usedMinutes = Math.max(0, parseInt(String(ret.usedMinutes ?? '0'), 10) || 0);
         const isRepairCondition =
           itemCondition === 'PERLU_ASAH' ||
@@ -227,6 +241,14 @@ export async function POST(request: Request) {
         totalReturnedQty += qtyToReturn;
       }
 
+      const resolvedTxCondition = returnedConditions.includes('HILANG')
+        ? 'HILANG'
+        : returnedConditions.includes('RUSAK')
+        ? 'RUSAK'
+        : returnedConditions.includes('PERLU_ASAH') || returnedConditions.includes('AUS')
+        ? 'PERLU_ASAH'
+        : returnedConditions[0] || condition || 'BAIK';
+
       // 3. Create ReturnTransaction
       const returnTx = await tx.returnTransaction.create({
         data: {
@@ -234,7 +256,7 @@ export async function POST(request: Request) {
           loanTransactionId: loan.id,
           adminId: admin.id,
           returnDate: new Date(),
-          condition,
+          condition: resolvedTxCondition,
           quantity: totalReturnedQty,
           notes: notes?.trim() || null,
         },
@@ -263,7 +285,7 @@ export async function POST(request: Request) {
           action: 'KEMBALI_TOOL',
           adminId: admin.id,
           adminName: admin.name,
-          details: `Verifikasi pengembalian ${returnNumber} untuk transaksi ${loan.transactionNumber} (${totalReturnedQty} unit, kondisi: ${condition}). Status transaksi: ${allDone ? 'SELESAI' : 'PENGEMBALIAN_PARSIAL'}`,
+          details: `Verifikasi pengembalian ${returnNumber} untuk transaksi ${loan.transactionNumber} (${totalReturnedQty} unit, kondisi: ${resolvedTxCondition}). Status transaksi: ${allDone ? 'SELESAI' : 'PENGEMBALIAN_PARSIAL'}`,
         },
       });
 

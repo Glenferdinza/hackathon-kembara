@@ -62,10 +62,10 @@ export async function GET(request: NextRequest) {
         where: {
           status: 'AKTIF',
           OR: [
-            { code: { contains: q } },
-            { name: { contains: q } },
-            { location: { contains: q } },
-            { specifications: { contains: q } },
+            { code: { contains: q, mode: 'insensitive' } },
+            { name: { contains: q, mode: 'insensitive' } },
+            { location: { contains: q, mode: 'insensitive' } },
+            { specifications: { contains: q, mode: 'insensitive' } },
           ],
         },
         select: {
@@ -82,12 +82,12 @@ export async function GET(request: NextRequest) {
         where: {
           status: 'AKTIF',
           OR: [
-            { code: { contains: q } },
-            { name: { contains: q } },
-            { brand: { contains: q } },
-            { model: { contains: q } },
-            { serialNumber: { contains: q } },
-            { location: { contains: q } },
+            { code: { contains: q, mode: 'insensitive' } },
+            { name: { contains: q, mode: 'insensitive' } },
+            { brand: { contains: q, mode: 'insensitive' } },
+            { model: { contains: q, mode: 'insensitive' } },
+            { serialNumber: { contains: q, mode: 'insensitive' } },
+            { location: { contains: q, mode: 'insensitive' } },
           ],
         },
         select: {
@@ -105,9 +105,9 @@ export async function GET(request: NextRequest) {
         where: {
           status: 'AKTIF',
           OR: [
-            { nik: { contains: q } },
-            { name: { contains: q } },
-            { department: { contains: q } },
+            { nik: { contains: q, mode: 'insensitive' } },
+            { name: { contains: q, mode: 'insensitive' } },
+            { department: { contains: q, mode: 'insensitive' } },
           ],
         },
         select: {
@@ -123,9 +123,9 @@ export async function GET(request: NextRequest) {
         where: {
           status: { not: 'SELESAI' },
           OR: [
-            { transactionNumber: { contains: q } },
-            { employee: { name: { contains: q } } },
-            { employee: { nik: { contains: q } } },
+            { transactionNumber: { contains: q, mode: 'insensitive' } },
+            { employee: { name: { contains: q, mode: 'insensitive' } } },
+            { employee: { nik: { contains: q, mode: 'insensitive' } } },
           ],
         },
         select: {

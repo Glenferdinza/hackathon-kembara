@@ -88,6 +88,36 @@ export async function PATCH(
 
       const nextStatus = action === 'CANCEL' ? 'CANCELLED' : 'REJECTED';
       const updated = await prisma.$transaction(async (tx) => {
+        if (handover.toolUnitId && handover.toolUnit && handover.usedMinutes > 0) {
+          const restoredRemaining = Math.min(
+            handover.toolUnit.maxLifeMinutes,
+            handover.toolUnit.remainingLifeMinutes + handover.usedMinutes
+          );
+          const restoredUsed = Math.max(0, handover.toolUnit.usedLifeMinutes - handover.usedMinutes);
+
+          await tx.toolUnit.update({
+            where: { id: handover.toolUnitId },
+            data: {
+              remainingLifeMinutes: restoredRemaining,
+              usedLifeMinutes: restoredUsed,
+            },
+          });
+
+          const matchingLog = await tx.toolUsageLog.findFirst({
+            where: {
+              toolUnitId: handover.toolUnitId,
+              loanTransactionId: handover.loanTransactionId,
+              employeeId: handover.fromEmployeeId,
+              usedMinutes: handover.usedMinutes,
+              actionType: 'HANDOVER',
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (matchingLog) {
+            await tx.toolUsageLog.delete({ where: { id: matchingLog.id } });
+          }
+        }
+
         const res = await tx.shiftHandover.update({
           where: { id },
           data: {

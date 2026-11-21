@@ -76,8 +76,10 @@ export function ImportExcelModal({ isOpen, onClose, onSuccess }: ImportExcelModa
       if (!res.ok) {
         showToast(json.error || 'Gagal mengimpor data ke database.', 'error');
       } else {
+        const createdCount = json.summary?.createdCount ?? json.importedCount ?? 0;
+        const updatedCount = json.summary?.updatedCount ?? 0;
         showToast(
-          `Impor berhasil. Ditambahkan ${json.summary.createdCount}, Diperbarui ${json.summary.updatedCount}`,
+          `Impor berhasil. Ditambahkan ${createdCount}, Diperbarui ${updatedCount}`,
           'success'
         );
         if (onSuccess) onSuccess();

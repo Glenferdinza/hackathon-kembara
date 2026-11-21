@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ScanBarcode, RotateCcw } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
@@ -48,7 +49,9 @@ interface ScannedUnitDetail {
   }>;
 }
 
-export default function ScanToolPage() {
+function ScanToolContent() {
+  const searchParams = useSearchParams();
+  const initialCodeParam = searchParams.get('code')?.trim().toUpperCase() || '';
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [queryCode, setQueryCode] = useState('');
@@ -57,6 +60,7 @@ export default function ScanToolPage() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const queryInputRef = useRef<HTMLInputElement | null>(null);
   const lookupSeqRef = useRef(0);
+  const lastAutoCodeRef = useRef('');
 
   const lookupUnit = useCallback(
     async (codeToFind?: string) => {
@@ -103,6 +107,20 @@ export default function ScanToolPage() {
     },
   });
 
+  const lookupUnitRef = useRef(lookupUnit);
+  useEffect(() => {
+    lookupUnitRef.current = lookupUnit;
+  }, [lookupUnit]);
+
+  useEffect(() => {
+    if (!initialCodeParam || lastAutoCodeRef.current === initialCodeParam) return;
+    lastAutoCodeRef.current = initialCodeParam;
+    const timer = window.setTimeout(() => {
+      void lookupUnitRef.current(initialCodeParam);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [initialCodeParam]);
+
   const handleResharpen = async () => {
     if (!unitDetail) return;
     const ok = await confirm({
@@ -148,11 +166,11 @@ export default function ScanToolPage() {
               <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
                 Cek Barcode &amp; Umur Tool
               </h1>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-xs font-semibold text-[#1E40AF]">
                 Scanner USB Otomatis Aktif
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-600 mt-0.5">
               Tembakkan scanner barcode USB langsung ke stiker wadah tool untuk mengecek sisa umur pakai (menit), harga, dan pemegang aktif.
             </p>
           </div>
@@ -209,12 +227,14 @@ export default function ScanToolPage() {
                       {unitDetail.unitCode}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                      className={`text-xs font-bold uppercase ${
                         unitDetail.status === 'TERSEDIA'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          ? 'text-[#1E40AF]'
                           : unitDetail.status === 'PERLU_ASAH'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                          ? 'text-[#92400E]'
+                          : unitDetail.status === 'RUSAK' || unitDetail.status === 'HILANG'
+                          ? 'text-[#991B1B]'
+                          : 'text-slate-700'
                       }`}
                     >
                       {unitDetail.status}
@@ -352,5 +372,13 @@ export default function ScanToolPage() {
         title="Pindai Barcode Wadah Tool"
       />
     </AppShell>
+  );
+}
+
+export default function ScanToolPage() {
+  return (
+    <Suspense fallback={null}>
+      <ScanToolContent />
+    </Suspense>
   );
 }

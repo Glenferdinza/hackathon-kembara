@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     const statusFilter = searchParams.get('status') || '';
 
     const users = await prisma.user.findMany({
+      where: { role: { in: ['SUPER_ADMIN', 'ADMIN'] } },
       orderBy: { createdAt: 'asc' },
       include: {
         _count: {

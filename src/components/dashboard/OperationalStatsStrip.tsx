@@ -22,9 +22,10 @@ interface OperationalKpiData {
 
 interface OperationalStatsStripProps {
   kpi: OperationalKpiData;
+  loading?: boolean;
 }
 
-export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
+export function OperationalStatsStrip({ kpi, loading = false }: OperationalStatsStripProps) {
   const total = kpi.totalPhysicalUnits || 1;
   const formatPercentage = (value: number, totalUnits: number) => {
     if (!totalUnits || totalUnits <= 0 || value <= 0) return '0%';
@@ -41,114 +42,114 @@ export function OperationalStatsStrip({ kpi }: OperationalStatsStripProps) {
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 border border-slate-200 rounded bg-white overflow-hidden">
       {/* 1. TOTAL FISIK */}
       <div className="px-3.5 py-2.5 min-w-0 border-b border-r lg:border-b-0 border-slate-200">
-        <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
+        <div className="text-[11px] font-heading font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate">
           TOTAL FISIK
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
           <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
-            {kpi.totalPhysicalUnits.toLocaleString('id-ID')}
+            {loading ? '—' : kpi.totalPhysicalUnits.toLocaleString('id-ID')}
           </span>
-          <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
+          <span className="text-[11px] font-medium text-slate-600 whitespace-nowrap">
             Unit
           </span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 whitespace-nowrap truncate">
+        <div className="text-[11px] text-slate-600 mt-1 whitespace-nowrap truncate">
           Tool &amp; Inventaris
         </div>
       </div>
 
       {/* 2. STOK TERSEDIA */}
       <div className="px-3.5 py-2.5 min-w-0 border-b md:border-r lg:border-b-0 border-slate-200">
-        <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
+        <div className="text-[11px] font-heading font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate">
           STOK TERSEDIA
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
           <span className="text-lg sm:text-xl font-bold text-[#1E40AF] tabular-nums leading-none">
-            {kpi.totalAvailable.toLocaleString('id-ID')}
+            {loading ? '—' : kpi.totalAvailable.toLocaleString('id-ID')}
           </span>
-          <span className="text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
-            {availablePct}
+          <span className="text-[11px] font-semibold text-slate-700 tabular-nums whitespace-nowrap">
+            {loading ? '...' : availablePct}
           </span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 whitespace-nowrap truncate">
+        <div className="text-[11px] text-slate-600 mt-1 whitespace-nowrap truncate">
           Siap dipinjam di rak
         </div>
       </div>
 
       {/* 3. SEDANG DIPINJAM */}
       <div className="px-3.5 py-2.5 min-w-0 border-b border-r md:border-r-0 lg:border-b-0 lg:border-r border-slate-200">
-        <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
+        <div className="text-[11px] font-heading font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate">
           SEDANG DIPINJAM
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
           <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
-            {kpi.totalBorrowed.toLocaleString('id-ID')}
+            {loading ? '—' : kpi.totalBorrowed.toLocaleString('id-ID')}
           </span>
-          <span className="text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
-            {borrowedPct}
+          <span className="text-[11px] font-semibold text-slate-700 tabular-nums whitespace-nowrap">
+            {loading ? '...' : borrowedPct}
           </span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 whitespace-nowrap truncate">
+        <div className="text-[11px] text-slate-600 mt-1 whitespace-nowrap truncate">
           Di lantai produksi
         </div>
       </div>
 
       {/* 4. JATUH TEMPO */}
       <div className="px-3.5 py-2.5 min-w-0 border-b md:border-b-0 md:border-r border-slate-200">
-        <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
+        <div className="text-[11px] font-heading font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate">
           JATUH TEMPO
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
-            {kpi.dueSoonCount}
+          <span className={`text-lg sm:text-xl font-bold tabular-nums leading-none ${!loading && kpi.dueSoonCount > 0 ? 'text-[#92400E]' : 'text-slate-900'}`}>
+            {loading ? '—' : kpi.dueSoonCount}
           </span>
-          {kpi.dueSoonCount > 0 && (
-            <span className="text-[10px] font-semibold text-slate-600 whitespace-nowrap">
+          {!loading && kpi.dueSoonCount > 0 && (
+            <span className="text-[11px] font-semibold text-[#92400E] whitespace-nowrap">
               Hari Ini
             </span>
           )}
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 whitespace-nowrap truncate">
+        <div className="text-[11px] text-slate-600 mt-1 whitespace-nowrap truncate">
           Batas akhir shift
         </div>
       </div>
 
       {/* 5. TERLAMBAT */}
       <div className="px-3.5 py-2.5 min-w-0 border-r border-slate-200">
-        <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
+        <div className="text-[11px] font-heading font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate">
           TERLAMBAT
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
-            {kpi.overdueLoansCount}
+          <span className={`text-lg sm:text-xl font-bold tabular-nums leading-none ${!loading && kpi.overdueLoansCount > 0 ? 'text-[#991B1B]' : 'text-slate-900'}`}>
+            {loading ? '—' : kpi.overdueLoansCount}
           </span>
-          {kpi.overdueLoansCount > 0 && (
-            <span className="text-[10px] font-semibold text-slate-700 whitespace-nowrap">
+          {!loading && kpi.overdueLoansCount > 0 && (
+            <span className="text-[11px] font-semibold text-[#991B1B] whitespace-nowrap">
               Overdue
             </span>
           )}
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 whitespace-nowrap truncate">
+        <div className="text-[11px] text-slate-600 mt-1 whitespace-nowrap truncate">
           Melewati batas waktu
         </div>
       </div>
 
       {/* 6. STOK MENIPIS */}
       <div className="px-3.5 py-2.5 min-w-0">
-        <div className="text-[10px] font-heading font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap truncate">
+        <div className="text-[11px] font-heading font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate">
           STOK MENIPIS
         </div>
         <div className="flex items-baseline justify-between gap-2 mt-1.5">
-          <span className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums leading-none">
-            {kpi.lowStockCount}
+          <span className={`text-lg sm:text-xl font-bold tabular-nums leading-none ${!loading && kpi.lowStockCount > 0 ? 'text-[#92400E]' : 'text-slate-900'}`}>
+            {loading ? '—' : kpi.lowStockCount}
           </span>
-          {kpi.lowStockCount > 0 && (
-            <span className="text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
+          {!loading && kpi.lowStockCount > 0 && (
+            <span className="text-[11px] font-semibold text-[#92400E] tabular-nums whitespace-nowrap">
               &le; Min
             </span>
           )}
         </div>
-        <div className="text-[10px] text-slate-400 mt-1 whitespace-nowrap truncate">
+        <div className="text-[11px] text-slate-600 mt-1 whitespace-nowrap truncate">
           Perlu pengadaan baru
         </div>
       </div>

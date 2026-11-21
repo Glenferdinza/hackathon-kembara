@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verifySessionToken } from '@/lib/session-token';
 
 const SESSION_COOKIE = 'ypti_erp_session';
 
@@ -15,7 +16,14 @@ const OPERATOR_ALLOWED_API_PREFIXES = [
   '/api/tool-units',
 ];
 
-export function proxy(request: NextRequest) {
+const OPERATOR_READONLY_API_PREFIXES = [
+  '/api/tools',
+  '/api/inventories',
+  '/api/employees',
+  '/api/categories',
+];
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
 
@@ -43,11 +51,9 @@ export function proxy(request: NextRequest) {
 
   let parsedRole: string | null = null;
   if (sessionCookie) {
-    try {
-      const parsed = JSON.parse(sessionCookie);
-      parsedRole = parsed?.role || null;
-    } catch {
-      parsedRole = null;
+    const parsed = await verifySessionToken<{ id?: string; role?: string; status?: string }>(sessionCookie);
+    if (parsed?.id && parsed?.role && parsed.status !== 'NONAKTIF') {
+      parsedRole = parsed.role;
     }
   }
 
@@ -77,7 +83,10 @@ export function proxy(request: NextRequest) {
       const allowed = OPERATOR_ALLOWED_API_PREFIXES.some((prefix) =>
         pathname.startsWith(prefix)
       );
-      if (!allowed) {
+      const isReadonlyPrefix = OPERATOR_READONLY_API_PREFIXES.some((prefix) =>
+        pathname.startsWith(prefix)
+      );
+      if (!allowed || (isReadonlyPrefix && request.method !== 'GET')) {
         return NextResponse.json(
           { error: 'Akses ditolak. Endpoint ini khusus petugas Admin Tool Room.' },
           { status: 403 }

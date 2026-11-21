@@ -158,6 +158,62 @@ export default function HelpPage() {
         },
       ],
     },
+    {
+      id: 'sop-operator',
+      number: 'SOP 06',
+      title: 'Portal Operator, Request Two-Way & Shift Handover',
+      desc: 'Alur pengajuan pinjaman mandiri operator, verifikasi fisik, serta serah terima antar shift',
+      actionLink: '/operator',
+      actionLabel: 'Buka Portal Operator',
+      steps: [
+        {
+          num: '01',
+          title: 'Pengajuan Request Pinjam Mandiri dari Area Mesin',
+          text: 'Operator login menggunakan ID akun Operator lalu membuka Request Pinjam, memilih Tool atau Inventaris sesuai stok tersedia, dan mengisi nama mesin / Job Order.',
+          note: 'Status Awal: Request masuk antrean Menunggu Admin dan dapat dibatalkan sebelum disiapkan.',
+        },
+        {
+          num: '02',
+          title: 'Penyiapan Barcode oleh Admin & Konfirmasi Terima Fisik Operator',
+          text: 'Admin memindai unit barcode di loket hingga status berubah Siap Diambil. Operator memeriksa fisik dan kode unit lalu menekan Terima agar transaksi pinjaman resmi aktif.',
+          note: 'Tolak Penyiapan: Jika fisik perkakas tidak sesuai, klik Tolak agar unit kembali tersedia di rak.',
+        },
+        {
+          num: '03',
+          title: 'Pengalihan Shift (Shift Handover) dengan Input Menit Pakai',
+          text: 'Saat pergantian shift kerja tanpa mengembalikan barang ke loket, Operator Shift 1 membuka menu Pengalihan Shift, mengisi menit pemakaian aktual, dan mengirim ke Operator Shift 2. Setelah Shift 2 menekan Terima Hak Pinjam, penanggung jawab serta pengingat WhatsApp beralih ke pemegang terakhir.',
+          note: 'Pembatalan Handover: Jika pengalihan dibatalkan atau ditolak saat masih Pending, menit umur pakai yang sempat terpotong otomatis dikembalikan.',
+        },
+      ],
+    },
+    {
+      id: 'sop-barcode-1d',
+      number: 'SOP 07',
+      title: 'Barcode 1D, USB Auto-Scanner & Reset Umur Pakai (Asah)',
+      desc: 'Penggunaan scanner barcode USB atau kamera HP serta pemantauan masa pakai alat potong',
+      actionLink: '/scan-tool',
+      actionLabel: 'Buka Cek Barcode & Umur Tool',
+      steps: [
+        {
+          num: '01',
+          title: 'Pencetakan Stiker Barcode 1D Code 128 per Unit',
+          text: 'Pada Data Master Tool, klik Unit & Stiker Barcode untuk melihat unit individual (misal TOL-001-U01) maupun tautan kode supplier dan mencetak lembar stiker.',
+          note: 'Tempel Wadah: Tempel stiker pada kotak penyimpanan atau tag wadah agar scanner mudah membaca.',
+        },
+        {
+          num: '02',
+          title: 'Pemindaian Cepat via USB Barcode Gun maupun Kamera HP',
+          text: 'Pada halaman Cek Barcode & Umur Tool, Antrean Request, atau Pencarian Cepat Beranda, arahkan USB scanner langsung tanpa perlu klik kotak input atau pilih mode Kamera Barcode saat menggunakan ponsel.',
+          note: 'Perlindungan Enter USB: Dialog konfirmasi krusial tidak akan langsung menyetujui aksi saat scanner mengirim Enter.',
+        },
+        {
+          num: '03',
+          title: 'Pemantauan Sisa Umur Pakai & Penyelesaian Asah',
+          text: 'Jika sisa umur pakai tool mencapai batas peringatan kritis (<= 15%) atau pengembalian berstatus Perlu Asah, selesaikan proses pengasahan lalu klik Selesai Asah & Reset Umur agar unit kembali siap pinjam.',
+          note: 'Keamanan Stok: Barang Perlu Asah atau Rusak tidak masuk ke stok tersedia sampai proses servis diselesaikan.',
+        },
+      ],
+    },
   ];
 
   return (

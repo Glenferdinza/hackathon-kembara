@@ -66,9 +66,24 @@ interface MaintenanceItem {
   scrapStock: number;
 }
 
+function isLowStockItem(item: { totalStock: number; availableStock: number; minStock: number }): boolean {
+  if (item.totalStock <= 0) return false;
+  return item.minStock > 0
+    ? item.availableStock <= item.minStock && item.availableStock < item.totalStock
+    : item.availableStock === 0;
+}
+
 export default function HistoryPage() {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState<ReportTab>('riwayat');
+  const [activeTab, setActiveTab] = useState<ReportTab>(() => {
+    if (typeof window !== 'undefined') {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      if (t === 'pemakaian' || t === 'keterlambatan' || t === 'umur_pakai' || t === 'riwayat') {
+        return t;
+      }
+    }
+    return 'riwayat';
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -288,6 +303,8 @@ export default function HistoryPage() {
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setPage(1);
+                  setTab2Page(1);
+                  setTab3Page(1);
                 }}
                 placeholder={
                   activeTab === 'riwayat'
@@ -301,7 +318,12 @@ export default function HistoryPage() {
             </div>
             {search && (
               <button
-                onClick={() => { setSearch(''); setPage(1); }}
+                onClick={() => {
+                  setSearch('');
+                  setPage(1);
+                  setTab2Page(1);
+                  setTab3Page(1);
+                }}
                 className="text-xs text-slate-500 hover:text-slate-800 underline px-1"
               >
                 Reset
@@ -326,71 +348,112 @@ export default function HistoryPage() {
                 className="border-t border-slate-200 mt-2"
               />
             ) : (
-              <div className="overflow-x-auto border-t border-slate-200 mt-2">
-                <table className="w-full text-left text-xs min-w-[950px]">
-                  <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
-                    <tr>
-                      <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
-                      <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM (NIK)</th>
-                      <th className="py-2.5 px-3 whitespace-nowrap">DAFTAR BARANG</th>
-                      <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
-                      <th className="py-2.5 px-3 whitespace-nowrap">BATAS KEMBALI</th>
-                      <th className="py-2.5 px-3 whitespace-nowrap">TGL REALISASI</th>
-                      <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
-                      <th className="py-2.5 px-3 whitespace-nowrap">ADMIN</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                          {tx.transactionNumber}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <p className="font-semibold text-slate-900">{tx.employee?.name || '-'}</p>
-                          <p className="text-[10px] tabular-nums text-slate-500">{tx.employee?.nik} | {tx.employee?.department}</p>
-                        </td>
-                        <td className="py-2.5 px-3 max-w-xs">
-                          <div className="space-y-0.5">
-                            {tx.items?.map((item: HistoryTxItem) => (
-                              <p key={item.id} className="truncate text-slate-800">
-                                - {item.tool?.name || item.inventory?.name} ({item.quantity}x)
-                              </p>
-                            ))}
+              <>
+                {/* Mobile Card View (< 768px) */}
+                <div className="md:hidden divide-y divide-slate-200 border-t border-slate-200 mt-2 bg-white">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="p-3.5 space-y-2 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-mono font-bold text-slate-900 tabular-nums">{tx.transactionNumber}</div>
+                          <div className="text-[13px] font-bold text-slate-900 mt-0.5">{tx.employee?.name || '-'}</div>
+                          <div className="text-xs text-slate-600 tabular-nums">
+                            {tx.employee?.nik} | {tx.employee?.department}
                           </div>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
-                          {new Date(tx.loanDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
-                          {new Date(tx.expectedReturnDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
-                          {tx.actualReturnDate
-                            ? new Date(tx.actualReturnDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-                            : '-'}
-                        </td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                          <span
-                            className={`text-xs font-semibold ${
-                              tx.status === 'SELESAI'
-                                ? 'text-slate-600'
-                                : tx.status === 'TERLAMBAT'
-                                ? 'text-slate-900 font-bold'
-                                : 'text-[#1E40AF]'
-                            }`}
-                          >
-                            {tx.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600 text-[11px] whitespace-nowrap">
-                          {tx.admin?.name || 'Admin YPTI'}
-                        </td>
+                        </div>
+                        <span
+                          className={`shrink-0 text-xs font-semibold ${
+                            tx.status === 'SELESAI'
+                              ? 'text-slate-600'
+                              : tx.status === 'TERLAMBAT'
+                              ? 'text-[#991B1B] font-bold'
+                              : 'text-[#1E40AF]'
+                          }`}
+                        >
+                          {tx.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-800 space-y-0.5">
+                        {tx.items?.map((item: HistoryTxItem) => (
+                          <div key={item.id}>
+                            - {item.tool?.name || item.inventory?.name} ({item.quantity}x)
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[11px] text-slate-600 tabular-nums pt-1 border-t border-slate-100">
+                        Pinjam {new Date(tx.loanDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} | Tenggat {new Date(tx.expectedReturnDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table (>= 768px) */}
+                <div className="hidden md:block overflow-x-auto border-t border-slate-200 mt-2">
+                  <table className="w-full text-left text-xs min-w-[950px]">
+                    <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
+                      <tr>
+                        <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM (NIK)</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DAFTAR BARANG</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">BATAS KEMBALI</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">TGL REALISASI</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">ADMIN</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {transactions.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                            {tx.transactionNumber}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <p className="font-semibold text-slate-900">{tx.employee?.name || '-'}</p>
+                            <p className="text-[11px] tabular-nums text-slate-600">{tx.employee?.nik} | {tx.employee?.department}</p>
+                          </td>
+                          <td className="py-2.5 px-3 max-w-xs">
+                            <div className="space-y-0.5">
+                              {tx.items?.map((item: HistoryTxItem) => (
+                                <p key={item.id} className="truncate text-slate-800">
+                                  - {item.tool?.name || item.inventory?.name} ({item.quantity}x)
+                                </p>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
+                            {new Date(tx.loanDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
+                            {new Date(tx.expectedReturnDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap tabular-nums">
+                            {tx.actualReturnDate
+                              ? new Date(tx.actualReturnDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <span
+                              className={`text-xs font-semibold ${
+                                tx.status === 'SELESAI'
+                                  ? 'text-slate-600'
+                                  : tx.status === 'TERLAMBAT'
+                                  ? 'text-[#991B1B] font-bold'
+                                  : 'text-[#1E40AF]'
+                              }`}
+                            >
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 text-xs whitespace-nowrap">
+                            {tx.admin?.name || 'Admin YPTI'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
 
             {/* Reusable Enterprise Pagination */}
@@ -425,7 +488,46 @@ export default function HistoryPage() {
               />
             ) : (
               <>
-                <div className="overflow-x-auto border-t border-slate-200 mt-2">
+                {/* Mobile Card View (< 768px) */}
+                <div className="md:hidden divide-y divide-slate-200 border-t border-slate-200 mt-2 bg-white">
+                  {usageList
+                    .slice((tab2Page - 1) * tab2PageSize, tab2Page * tab2PageSize)
+                    .map((item, idx) => {
+                      const isLowStock = isLowStockItem(item);
+                      const overallRank = (tab2Page - 1) * tab2PageSize + idx + 1;
+                      return (
+                        <div key={item.code} className="p-3.5 space-y-1.5 text-xs">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-mono font-bold text-slate-900 tabular-nums">#{overallRank} | {item.code}</div>
+                              <div className="text-[13px] font-bold text-slate-900 mt-0.5">{item.name}</div>
+                              <div className="text-xs text-slate-600">{item.type} | {item.brand}</div>
+                            </div>
+                            <span className={`shrink-0 text-xs font-semibold ${isLowStock ? 'text-[#92400E]' : 'text-slate-600'}`}>
+                              {isLowStock ? 'Stok Menipis' : 'Aman'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 text-center tabular-nums">
+                            <div>
+                              <div className="text-[11px] text-slate-600">Frekuensi</div>
+                              <div className="font-bold text-[#1E40AF]">{item.timesBorrowed}x</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-600">Qty Pinjam</div>
+                              <div className="font-bold text-slate-900">{item.totalQtyBorrowed}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-600">Siap / Total</div>
+                              <div className="font-bold text-slate-800">{item.availableStock} / {item.totalStock}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* Desktop Table (>= 768px) */}
+                <div className="hidden md:block overflow-x-auto border-t border-slate-200 mt-2">
                   <table className="w-full text-left text-xs min-w-[950px]">
                     <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold uppercase tracking-wider bg-slate-50/50">
                       <tr>
@@ -443,7 +545,7 @@ export default function HistoryPage() {
                       {usageList
                         .slice((tab2Page - 1) * tab2PageSize, tab2Page * tab2PageSize)
                         .map((item, idx) => {
-                          const isLowStock = item.availableStock <= item.minStock;
+                          const isLowStock = isLowStockItem(item);
                           const overallRank = (tab2Page - 1) * tab2PageSize + idx + 1;
                           return (
                             <tr key={item.code} className="hover:bg-slate-50/80 transition-colors">
@@ -466,14 +568,14 @@ export default function HistoryPage() {
                                 {item.totalQtyBorrowed} unit
                               </td>
                               <td className="py-2.5 px-3 text-right whitespace-nowrap tabular-nums">
-                                <span className={isLowStock ? 'text-slate-900 font-bold' : 'text-slate-700'}>
+                                <span className={isLowStock ? 'text-[#92400E] font-bold' : 'text-slate-700'}>
                                   {item.availableStock} / {item.totalStock}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-3 text-center whitespace-nowrap text-[11px] font-semibold">
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap text-xs font-semibold">
                                 {isLowStock ? (
-                                  <span className="text-slate-900 font-bold">
-                                    PERLU PENGADAAN (Stok Menipis)
+                                  <span className="text-[#92400E] font-bold">
+                                    Perlu Pengadaan
                                   </span>
                                 ) : (
                                   <span className="text-slate-600">
@@ -489,7 +591,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Tab 2 Pagination */}
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-2 border-t border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
                   <span>
                     Menampilkan {(tab2Page - 1) * tab2PageSize + 1} -{' '}
                     {Math.min(tab2Page * tab2PageSize, usageList.length)} dari {usageList.length} perkakas
@@ -499,18 +601,18 @@ export default function HistoryPage() {
                       type="button"
                       disabled={tab2Page <= 1}
                       onClick={() => setTab2Page((p) => Math.max(1, p - 1))}
-                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                      className="min-w-[40px] h-10 sm:min-w-[30px] sm:h-7 px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium cursor-pointer"
                     >
                       &lt;
                     </button>
-                    <span className="px-2 font-semibold text-slate-700">
+                    <span className="px-2 font-semibold text-slate-700 tabular-nums">
                       {tab2Page} / {Math.ceil(usageList.length / tab2PageSize) || 1}
                     </span>
                     <button
                       type="button"
                       disabled={tab2Page >= Math.ceil(usageList.length / tab2PageSize)}
                       onClick={() => setTab2Page((p) => p + 1)}
-                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                      className="min-w-[40px] h-10 sm:min-w-[30px] sm:h-7 px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium cursor-pointer"
                     >
                       &gt;
                     </button>
@@ -536,7 +638,40 @@ export default function HistoryPage() {
               />
             ) : (
               <>
-                <div className="overflow-x-auto border-t border-slate-200 mt-2">
+                {/* Mobile Card View (< 768px) */}
+                <div className="md:hidden divide-y divide-slate-200 border-t border-slate-200 mt-2 bg-white">
+                  {delinquents
+                    .slice((tab3Page - 1) * tab3PageSize, tab3Page * tab3PageSize)
+                    .map((worker) => (
+                      <div key={worker.id} className="p-3.5 space-y-1.5 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-mono font-bold text-slate-900 tabular-nums">{worker.nik}</div>
+                            <div className="text-[13px] font-bold text-slate-900 mt-0.5">{worker.name}</div>
+                            <div className="text-xs text-slate-600">{worker.department} | {worker.shift}</div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className={`font-bold tabular-nums ${worker.currentOverdueCount > 0 ? 'text-[#991B1B]' : 'text-slate-600'}`}>
+                              {worker.currentOverdueCount > 0 ? `${worker.currentOverdueCount} Aktif Telat` : 'Tidak Telat'}
+                            </div>
+                            <div className="text-[11px] text-slate-600 tabular-nums">Total {worker.totalLateCount}x</div>
+                          </div>
+                        </div>
+                        {worker.overdueDetails.length > 0 && (
+                          <div className="pt-1.5 border-t border-slate-100 space-y-0.5 text-[11px] text-slate-700">
+                            {worker.overdueDetails.map((det, dIdx) => (
+                              <div key={dIdx}>
+                                <strong className="tabular-nums">{det.loanNumber}</strong> ({det.items})
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+
+                {/* Desktop Table (>= 768px) */}
+                <div className="hidden md:block overflow-x-auto border-t border-slate-200 mt-2">
                   <table className="w-full text-left text-xs min-w-[950px]">
                     <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
                       <tr>
@@ -569,11 +704,11 @@ export default function HistoryPage() {
                             </td>
                             <td className="py-2.5 px-3 text-center whitespace-nowrap">
                               {worker.currentOverdueCount > 0 ? (
-                                <span className="font-bold text-slate-900 tabular-nums">
+                                <span className="font-bold text-[#991B1B] tabular-nums">
                                   {worker.currentOverdueCount} Peminjaman
                                 </span>
                               ) : (
-                                <span className="text-slate-400">-</span>
+                                <span className="text-slate-600">-</span>
                               )}
                             </td>
                             <td className="py-2.5 px-3 text-center font-bold text-slate-800 whitespace-nowrap tabular-nums">
@@ -589,10 +724,10 @@ export default function HistoryPage() {
                                   ))}
                                 </div>
                               ) : (
-                                <span className="text-slate-400 text-[11px]">Tidak ada pinjaman tertunda aktif</span>
+                                <span className="text-slate-600 text-[11px]">Tidak ada pinjaman tertunda aktif</span>
                               )}
                             </td>
-                            <td className="py-2.5 px-3 text-center whitespace-nowrap font-medium text-[11px]">
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap font-medium text-xs">
                               {worker.status === 'AKTIF' ? (
                                 <span className="text-slate-700">{worker.status}</span>
                               ) : (
@@ -606,7 +741,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Tab 3 Pagination */}
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 pt-2 border-t border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
                   <span>
                     Menampilkan {(tab3Page - 1) * tab3PageSize + 1} -{' '}
                     {Math.min(tab3Page * tab3PageSize, delinquents.length)} dari {delinquents.length} pekerja
@@ -616,18 +751,18 @@ export default function HistoryPage() {
                       type="button"
                       disabled={tab3Page <= 1}
                       onClick={() => setTab3Page((p) => Math.max(1, p - 1))}
-                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                      className="min-w-[40px] h-10 sm:min-w-[30px] sm:h-7 px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium cursor-pointer"
                     >
                       &lt;
                     </button>
-                    <span className="px-2 font-semibold text-slate-700">
+                    <span className="px-2 font-semibold text-slate-700 tabular-nums">
                       {tab3Page} / {Math.ceil(delinquents.length / tab3PageSize) || 1}
                     </span>
                     <button
                       type="button"
                       disabled={tab3Page >= Math.ceil(delinquents.length / tab3PageSize)}
                       onClick={() => setTab3Page((p) => p + 1)}
-                      className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium"
+                      className="min-w-[40px] h-10 sm:min-w-[30px] sm:h-7 px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed font-medium cursor-pointer"
                     >
                       &gt;
                     </button>
@@ -686,7 +821,7 @@ export default function HistoryPage() {
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-xs min-w-[950px]">
                   <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
                     <tr>
@@ -703,7 +838,7 @@ export default function HistoryPage() {
                   <tbody className="divide-y divide-slate-100">
                     {!lifespanData?.maintenanceItems || lifespanData.maintenanceItems.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-400">
+                        <td colSpan={8} className="py-8 text-center text-slate-600">
                           Tidak ada tool yang sedang dalam antrean perawatan regrind atau afkir saat ini.
                         </td>
                       </tr>
@@ -737,12 +872,12 @@ export default function HistoryPage() {
                                 type="button"
                                 disabled={repairingId === tool.id}
                                 onClick={() => handleCompleteRepair(tool)}
-                                className="px-2.5 py-1 text-[11px] font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 disabled:bg-slate-300 rounded transition-colors cursor-pointer"
+                                className="px-2.5 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 disabled:bg-slate-300 rounded transition-colors cursor-pointer"
                               >
                                 {repairingId === tool.id ? 'Memproses...' : 'Selesai Servis'}
                               </button>
                             ) : (
-                              <span className="text-[11px] font-medium text-slate-500">
+                              <span className="text-xs font-medium text-slate-600">
                                 Afkir Permanen
                               </span>
                             )}
@@ -752,6 +887,54 @@ export default function HistoryPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View (< 768px) */}
+              <div className="md:hidden divide-y divide-slate-200 border border-slate-200 rounded bg-white mt-2">
+                {!lifespanData?.maintenanceItems || lifespanData.maintenanceItems.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-600">
+                    Tidak ada tool yang sedang dalam antrean perawatan regrind atau afkir saat ini.
+                  </div>
+                ) : (
+                  lifespanData.maintenanceItems.map((tool: MaintenanceItem) => (
+                    <div key={tool.code} className="p-3.5 space-y-2 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-mono font-bold text-slate-900 tabular-nums">{tool.code}</div>
+                          <div className="text-[13px] font-bold text-slate-900 mt-0.5">{tool.name}</div>
+                          <div className="text-xs text-slate-600">{tool.type}</div>
+                        </div>
+                        <span className="shrink-0 font-bold text-[#92400E] tabular-nums">
+                          Servis {tool.repairStock}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-slate-100 text-center tabular-nums">
+                        <div>
+                          <div className="text-[11px] text-slate-600">Siap</div>
+                          <div className="font-bold text-[#1E40AF]">{tool.availableStock}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-slate-600">Regrind</div>
+                          <div className="font-bold text-slate-900">{tool.repairStock}</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] text-slate-600">Afkir</div>
+                          <div className="font-bold text-[#991B1B]">{tool.scrapStock}</div>
+                        </div>
+                      </div>
+                      {tool.repairStock > 0 && (
+                        <button
+                          type="button"
+                          disabled={repairingId === tool.id}
+                          onClick={() => handleCompleteRepair(tool)}
+                          className="w-full min-h-[42px] px-3 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 disabled:bg-slate-300 rounded cursor-pointer"
+                        >
+                          {repairingId === tool.id ? 'Memproses...' : 'Selesai Servis'}
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

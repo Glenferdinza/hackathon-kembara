@@ -14,95 +14,31 @@ import { Pagination } from '@/components/ui/Pagination';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { WhatsAppIcon } from '@/components/ui/ContactIcons';
+import { ExpandableMetaLine } from '@/components/ui/ExpandableMetaLine';
+import {
+  fetchDashboardSummary,
+  invalidateDashboardSummaryCache,
+  type DashboardSummaryResponse,
+} from '@/lib/dashboard-client';
 
-const INITIAL_DASHBOARD_DATA = {
-  kpi: {
-    totalPhysicalUnits: 1699,
-    totalAvailable: 1695,
-    totalBorrowed: 4,
-    totalToolTypes: 1419,
-    totalToolUnits: 1551,
-    availableTools: 1548,
-    borrowedTools: 3,
-    totalInventoryTypes: 210,
-    totalInventoryUnits: 148,
-    availableInventories: 147,
-    borrowedInventories: 1,
-    activeLoansCount: 3,
-    overdueLoansCount: 1,
-    dueSoonCount: 1,
-    lowStockCount: 1486,
-  },
-  barChartData: [
-    { name: 'Arbor & Toolholder Assembly', total: 545, available: 545, borrowed: 0 },
-    { name: 'Cutting Insert Holders & Bars', total: 353, available: 352, borrowed: 1 },
-    { name: 'Pull Studs & Retention Knobs', total: 277, available: 275, borrowed: 2 },
-    { name: 'Precision Collet System', total: 151, available: 151, borrowed: 0 },
-    { name: 'Clamping Fixtures, Vise & Jigs', total: 118, available: 118, borrowed: 0 },
-    { name: 'Machine Fastener Keys & Wrenches', total: 100, available: 100, borrowed: 0 },
-    { name: 'Precision Measuring & QC', total: 62, available: 62, borrowed: 0 },
-    { name: 'Industrial Hand Tools', total: 49, available: 48, borrowed: 1 },
-    { name: 'Power & Pneumatic Tools', total: 35, available: 35, borrowed: 0 },
-    { name: 'Carbide Inserts & Cutting Tips', total: 7, available: 7, borrowed: 0 },
-    { name: 'Workshop Storage & Facilities', total: 2, available: 2, borrowed: 0 },
-  ],
-  donutChartData: [
-    { name: 'Stok Tersedia', value: 1695, color: '#1E40AF' },
-    { name: 'Sedang Dipinjam', value: 4, color: '#64748B' },
-    { name: 'Dalam Perbaikan', value: 0, color: '#D97706' },
-    { name: 'Rusak / Afkir', value: 0, color: '#991B1B' },
-  ],
-  actionItems: [
-    {
-      id: 'act-overdue',
-      type: 'DANGER',
-      title: 'Tindak Lanjut Keterlambatan',
-      description: '2 transaksi telah melewati tenggat waktu pengembalian. Segera hubungi peminjam via WhatsApp.',
-      link: '/monitoring',
-    },
-    {
-      id: 'act-low-stock',
-      type: 'WARNING',
-      title: 'Peringatan Stok Menipis',
-      description: '8 barang memiliki stok siap pakai di bawah batas minimum. Perlu pengadaan stok baru.',
-      link: '/master-tool',
-    },
-    {
-      id: 'act-repair',
-      type: 'INFO',
-      title: 'Verifikasi Barang Rusak / Servis',
-      description: '1 unit barang berada di status perbaikan atau memerlukan kalibrasi ulang.',
-      link: '/master-inventory',
-    },
-  ],
-  upcomingLoans: [],
-  notifications: [],
-  allStockItems: [],
+const EMPTY_DASHBOARD_KPI: DashboardSummaryResponse['kpi'] = {
+  totalPhysicalUnits: 0,
+  totalAvailable: 0,
+  totalBorrowed: 0,
+  totalToolTypes: 0,
+  totalToolUnits: 0,
+  availableTools: 0,
+  borrowedTools: 0,
+  totalInventoryTypes: 0,
+  totalInventoryUnits: 0,
+  availableInventories: 0,
+  borrowedInventories: 0,
+  activeLoansCount: 0,
+  overdueLoansCount: 0,
+  dueSoonCount: 0,
+  lowStockCount: 0,
 };
-
-interface DashboardActionItem {
-  id: string;
-  type: string;
-  title: string;
-  description: string;
-  link: string;
-}
-
-interface DashboardStockItem {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-  category: string;
-  location: string;
-  totalStock: number;
-  availableStock: number;
-  borrowedStock: number;
-  repairStock: number;
-  minStock: number;
-  unit: string;
-  isLowStock: boolean;
-}
 
 interface DashboardUpcomingLoan {
   id: string;
@@ -117,28 +53,16 @@ interface DashboardUpcomingLoan {
   statusLabel: string;
 }
 
-interface DashboardNotification {
-  id: string;
-  createdAt: string;
-  type: string;
-  title: string;
-  message: string;
-  link?: string | null;
-}
+type DashboardData = DashboardSummaryResponse;
 
-interface DashboardData {
-  kpi: typeof INITIAL_DASHBOARD_DATA.kpi;
-  barChartData: typeof INITIAL_DASHBOARD_DATA.barChartData;
-  donutChartData: typeof INITIAL_DASHBOARD_DATA.donutChartData;
-  actionItems: DashboardActionItem[];
-  upcomingLoans: DashboardUpcomingLoan[];
-  notifications: DashboardNotification[];
-  allStockItems: DashboardStockItem[];
+function formatWaNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits.startsWith('0') ? `62${digits.slice(1)}` : digits;
 }
 
 export default function DashboardPage() {
   const { showToast } = useToast();
-  const [data, setData] = useState<DashboardData>(INITIAL_DASHBOARD_DATA);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -155,6 +79,11 @@ export default function DashboardPage() {
   const [loanPageSize, setLoanPageSize] = useState(10);
   const [notifPage, setNotifPage] = useState(1);
   const [notifPageSize, setNotifPageSize] = useState(10);
+  const [expandedLoanIds, setExpandedLoanIds] = useState<Record<string, boolean>>({});
+
+  const toggleExpandLoan = (id: string) => {
+    setExpandedLoanIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Perpanjang tenggat modal
   const [extendingLoan, setExtendingLoan] = useState<DashboardUpcomingLoan | null>(null);
@@ -162,18 +91,18 @@ export default function DashboardPage() {
   const [extendReason, setExtendReason] = useState('');
   const [isSubmittingExtend, setIsSubmittingExtend] = useState(false);
 
-  const loadDashboardData = useCallback(async () => {
-    const res = await fetch('/api/dashboard');
-    if (res.ok) {
-      const json = (await res.json()) as DashboardData;
+  const loadDashboardData = useCallback(async (forceRefresh = false) => {
+    const json = await fetchDashboardSummary(forceRefresh);
+    if (json) {
       setData(json);
     }
   }, []);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
+    invalidateDashboardSummaryCache();
     try {
-      await loadDashboardData();
+      await loadDashboardData(true);
     } catch (err) {
       console.error('Gagal memuat dashboard:', err);
     } finally {
@@ -187,7 +116,10 @@ export default function DashboardPage() {
       if (!active) return;
       setLoading(true);
       try {
-        await loadDashboardData();
+        const json = await fetchDashboardSummary();
+        if (active && json) {
+          setData(json);
+        }
       } catch (err) {
         console.error('Gagal memuat dashboard:', err);
       } finally {
@@ -198,9 +130,11 @@ export default function DashboardPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [loadDashboardData]);
+  }, []);
 
-  const kpi = data?.kpi || INITIAL_DASHBOARD_DATA.kpi;
+  const kpi = data?.kpi || EMPTY_DASHBOARD_KPI;
+  const barChartData = data?.barChartData || [];
+  const donutChartData = data?.donutChartData || [];
   const allStockItems = data?.allStockItems || [];
   const upcomingLoans = data?.upcomingLoans || [];
   const notifications = data?.notifications || [];
@@ -290,29 +224,33 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <RefreshButton onRefresh={fetchDashboardData} loading={loading} />
-
-            <button
-              onClick={() => setIsImportOpen(true)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              Impor XLSX
-            </button>
-
-            <button
-              onClick={() => setIsExportOpen(true)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              Ekspor XLSX
-            </button>
-
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto shrink-0">
             <Link
               href="/loans"
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
+              className="w-full sm:w-auto min-h-[42px] sm:min-h-0 px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors inline-flex items-center justify-center sm:order-last whitespace-nowrap"
             >
               + Peminjaman Baru
             </Link>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <RefreshButton onRefresh={fetchDashboardData} loading={loading} />
+
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(true)}
+                className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Impor XLSX
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsExportOpen(true)}
+                className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Ekspor XLSX
+              </button>
+            </div>
           </div>
         </div>
 
@@ -320,15 +258,23 @@ export default function DashboardPage() {
         <QuickBarcodeBar />
 
         {/* 2. Bilah Metrik KPI Operasional Dinamis */}
-        <OperationalStatsStrip kpi={kpi} />
+        <OperationalStatsStrip kpi={kpi} loading={loading && !data} />
 
         {/* 3. Visualisasi Grafik Komposisi & Stok */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-7 min-w-0 bg-white border border-slate-200 rounded p-3.5 sm:p-4">
-            <BarChartSection data={data?.barChartData || INITIAL_DASHBOARD_DATA.barChartData} />
+            {loading && !data ? (
+              <div className="py-12 text-center text-xs text-slate-600">Memuat grafik stok kategori...</div>
+            ) : (
+              <BarChartSection data={barChartData} />
+            )}
           </div>
           <div className="lg:col-span-5 min-w-0 bg-white border border-slate-200 rounded p-3.5 sm:p-4">
-            <DonutChartSection data={data?.donutChartData || INITIAL_DASHBOARD_DATA.donutChartData} />
+            {loading && !data ? (
+              <div className="py-12 text-center text-xs text-slate-600">Memuat grafik komposisi fisik...</div>
+            ) : (
+              <DonutChartSection data={donutChartData} />
+            )}
           </div>
         </div>
 
@@ -339,12 +285,51 @@ export default function DashboardPage() {
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Menunggu Tindakan Prioritas Petugas ({actionItems.length})
               </span>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-xs text-slate-600">
                 Antrean tugas mendesak yang memerlukan penanganan di Tool Room
               </span>
             </div>
 
-            <div className="overflow-x-auto border border-slate-200 rounded bg-white">
+            {/* Mobile Card View (< 768px) */}
+            <div className="md:hidden space-y-2">
+              {actionItems.map((act) => {
+                const priorityLabel =
+                  act.urgent || act.type === 'DANGER'
+                    ? 'WAJIB'
+                    : act.type === 'WARNING'
+                    ? 'PERHATIAN'
+                    : 'INFO';
+                return (
+                  <div key={act.id} className="bg-white border border-slate-200 rounded p-3.5 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`text-[11px] font-bold uppercase ${
+                          act.urgent || act.type === 'DANGER'
+                            ? 'text-[#991B1B]'
+                            : act.type === 'WARNING'
+                            ? 'text-[#92400E]'
+                            : 'text-[#1E40AF]'
+                        }`}
+                      >
+                        {priorityLabel}
+                      </span>
+                      <Link
+                        href={act.link}
+                        className="min-h-[38px] inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#1E40AF] border border-[#1E40AF]/40 rounded hover:bg-[#1E40AF] hover:text-white transition-colors"
+                      >
+                        <span>Tindak Lanjuti</span>
+                        <span aria-hidden="true">&rarr;</span>
+                      </Link>
+                    </div>
+                    <div className="text-[13px] font-bold text-slate-900">{act.title}</div>
+                    <div className="text-xs text-slate-600 leading-relaxed">{act.description}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto border border-slate-200 rounded bg-white">
               <table className="w-full text-left text-xs min-w-[760px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
@@ -357,8 +342,8 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-slate-100">
                   {actionItems.map((act) => {
                     const priorityLabel =
-                      act.type === 'DANGER'
-                        ? 'MENDESAK'
+                      act.urgent || act.type === 'DANGER'
+                        ? 'WAJIB'
                         : act.type === 'WARNING'
                         ? 'PERHATIAN'
                         : 'INFO';
@@ -368,11 +353,11 @@ export default function DashboardPage() {
                         <td className="py-2.5 px-3 whitespace-nowrap">
                           <span
                             className={`text-xs ${
-                              act.type === 'DANGER'
-                                ? 'font-bold text-slate-900'
+                              act.urgent || act.type === 'DANGER'
+                                ? 'font-bold text-[#991B1B]'
                                 : act.type === 'WARNING'
-                                ? 'font-semibold text-[#1E40AF]'
-                                : 'font-medium text-slate-600'
+                                ? 'font-semibold text-[#92400E]'
+                                : 'font-medium text-[#1E40AF]'
                             }`}
                           >
                             {priorityLabel}
@@ -387,9 +372,10 @@ export default function DashboardPage() {
                         <td className="py-2.5 px-3 text-right whitespace-nowrap">
                           <Link
                             href={act.link}
-                            className="inline-block px-2.5 py-1 text-xs font-semibold text-[#1E40AF] hover:text-white hover:bg-[#1E40AF] border border-[#1E40AF]/30 rounded transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#1E40AF] hover:text-white hover:bg-[#1E40AF] border border-[#1E40AF]/30 rounded transition-colors"
                           >
-                            Tindak Lanjuti
+                            <span>Tindak Lanjuti</span>
+                            <span aria-hidden="true">&rarr;</span>
                           </Link>
                         </td>
                       </tr>
@@ -479,7 +465,7 @@ export default function DashboardPage() {
                       setStockFilterType(e.target.value);
                       setStockPage(1);
                     }}
-                    className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                    className="flex-1 sm:flex-initial min-w-0 max-w-full bg-white border border-slate-300 rounded px-2.5 py-2 sm:py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
                   >
                     <option value="ALL">Semua Barang ({allStockItems.length})</option>
                     <option value="Tool">Tool Mesin Saja</option>
@@ -489,8 +475,8 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Table Container */}
-              <div className="overflow-x-auto border border-slate-200 rounded bg-white">
+              {/* Container Stok: Mobile Cards (<768px) + Desktop Table (>=768px) */}
+              <div className="border border-slate-200 rounded bg-white overflow-hidden">
                 {loading ? (
                   <SkeletonTable rows={6} cols={11} className="p-2" />
                 ) : paginatedStock.length === 0 ? (
@@ -504,70 +490,121 @@ export default function DashboardPage() {
                     }}
                   />
                 ) : (
-                  <table className="w-full text-left text-xs min-w-[1100px]">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading sticky top-0 z-10">
-                        <th className="py-2 px-3 whitespace-nowrap">KODE</th>
-                        <th className="py-2 px-3 whitespace-nowrap">NAMA BARANG</th>
-                        <th className="py-2 px-3 whitespace-nowrap">TIPE</th>
-                        <th className="py-2 px-3 whitespace-nowrap">KATEGORI</th>
-                        <th className="py-2 px-3 whitespace-nowrap">LOKASI RAK</th>
-                        <th className="py-2 px-3 text-center whitespace-nowrap">TOTAL</th>
-                        <th className="py-2 px-3 text-center whitespace-nowrap text-[#1E40AF]">TERSEDIA</th>
-                        <th className="py-2 px-3 text-center whitespace-nowrap">DIPINJAM</th>
-                        <th className="py-2 px-3 text-center whitespace-nowrap text-slate-700">PERAWATAN</th>
-                        <th className="py-2 px-3 text-center whitespace-nowrap">MIN. STOK</th>
-                        <th className="py-2 px-3 whitespace-nowrap">STATUS PERSEDIAAN</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
+                  <>
+                    {/* Mobile Cards (< 768px) */}
+                    <div className="md:hidden divide-y divide-slate-200">
                       {paginatedStock.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                            {item.code}
-                          </td>
-                          <td className="py-2 px-3 font-medium text-slate-800 whitespace-nowrap">
-                            {item.name}
-                          </td>
-                          <td className="py-2 px-3 text-slate-500 whitespace-nowrap">
-                            {item.type}
-                          </td>
-                          <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
-                            {item.category}
-                          </td>
-                          <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
-                            {item.location}
-                          </td>
-                          <td className="py-2 px-3 text-center font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                            {item.totalStock} {item.unit}
-                          </td>
-                          <td className="py-2 px-3 text-center font-bold text-[#1E40AF] tabular-nums whitespace-nowrap">
-                            {item.availableStock}
-                          </td>
-                          <td className="py-2 px-3 text-center font-bold text-slate-600 tabular-nums whitespace-nowrap">
-                            {item.borrowedStock}
-                          </td>
-                          <td className="py-2 px-3 text-center font-bold text-slate-700 tabular-nums whitespace-nowrap">
-                            {item.repairStock}
-                          </td>
-                          <td className="py-2 px-3 text-center text-slate-500 tabular-nums whitespace-nowrap">
-                            {item.minStock} {item.unit}
-                          </td>
-                          <td className="py-2 px-3 whitespace-nowrap">
-                            {item.isLowStock ? (
-                              <span className="text-xs font-bold text-slate-900 whitespace-nowrap">
-                                Stok Menipis (&le; {item.minStock})
+                        <div key={item.id} className="p-3.5 space-y-2 text-xs">
+                          <div className="space-y-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="font-mono font-bold text-slate-900 tabular-nums">
+                                  {item.code} <span className="font-sans font-normal text-slate-600">| {item.type}</span>
+                                </div>
+                                <div className="text-[13px] font-bold text-slate-900 mt-0.5 leading-snug">
+                                  {item.name}
+                                </div>
+                              </div>
+                              <span
+                                className={`shrink-0 text-xs font-semibold ${
+                                  item.isLowStock ? 'text-[#92400E]' : 'text-slate-700'
+                                }`}
+                              >
+                                {item.isLowStock ? 'Stok Menipis' : 'Stok Aman'}
                               </span>
-                            ) : (
-                              <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
-                                Stok Aman
-                              </span>
-                            )}
-                          </td>
-                        </tr>
+                            </div>
+                            <ExpandableMetaLine text={`${item.category} · Rak ${item.location}`} />
+                          </div>
+                          <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-center tabular-nums">
+                            <div>
+                              <div className="text-[11px] text-slate-600">Total</div>
+                              <div className="font-bold text-slate-900">{item.totalStock}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-600">Siap</div>
+                              <div className="font-bold text-[#1E40AF]">{item.availableStock}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-600">Pinjam</div>
+                              <div className="font-bold text-slate-700">{item.borrowedStock}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] text-slate-600">Servis</div>
+                              <div className="font-bold text-slate-700">{item.repairStock}</div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+
+                    {/* Desktop Table (>= 768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[1100px]">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading sticky top-0 z-10">
+                            <th className="py-2 px-3 whitespace-nowrap">KODE</th>
+                            <th className="py-2 px-3 whitespace-nowrap">NAMA BARANG</th>
+                            <th className="py-2 px-3 whitespace-nowrap">TIPE</th>
+                            <th className="py-2 px-3 whitespace-nowrap">KATEGORI</th>
+                            <th className="py-2 px-3 whitespace-nowrap">LOKASI RAK</th>
+                            <th className="py-2 px-3 text-center whitespace-nowrap">TOTAL</th>
+                            <th className="py-2 px-3 text-center whitespace-nowrap text-[#1E40AF]">TERSEDIA</th>
+                            <th className="py-2 px-3 text-center whitespace-nowrap">DIPINJAM</th>
+                            <th className="py-2 px-3 text-center whitespace-nowrap text-slate-700">PERAWATAN</th>
+                            <th className="py-2 px-3 text-center whitespace-nowrap">MIN. STOK</th>
+                            <th className="py-2 px-3 whitespace-nowrap">STATUS PERSEDIAAN</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {paginatedStock.map((item) => (
+                            <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                {item.code}
+                              </td>
+                              <td className="py-2 px-3 font-medium text-slate-800 whitespace-nowrap">
+                                {item.name}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                                {item.type}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                                {item.category}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                                {item.location}
+                              </td>
+                              <td className="py-2 px-3 text-center font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                                {item.totalStock} {item.unit}
+                              </td>
+                              <td className="py-2 px-3 text-center font-bold text-[#1E40AF] tabular-nums whitespace-nowrap">
+                                {item.availableStock}
+                              </td>
+                              <td className="py-2 px-3 text-center font-bold text-slate-700 tabular-nums whitespace-nowrap">
+                                {item.borrowedStock}
+                              </td>
+                              <td className="py-2 px-3 text-center font-bold text-slate-700 tabular-nums whitespace-nowrap">
+                                {item.repairStock}
+                              </td>
+                              <td className="py-2 px-3 text-center text-slate-600 tabular-nums whitespace-nowrap">
+                                {item.minStock} {item.unit}
+                              </td>
+                              <td className="py-2 px-3 whitespace-nowrap">
+                                {item.isLowStock ? (
+                                  <span className="text-xs font-bold text-[#92400E] whitespace-nowrap">
+                                    Stok Menipis (&le; {item.minStock})
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
+                                    Stok Aman
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -591,106 +628,192 @@ export default function DashboardPage() {
           {/* TAB 2: SEDANG DIPINJAM & PERPANJANG */}
           {activeTab === 'LOANS' && (
             <div className="space-y-3">
-              <div className="overflow-x-auto border border-slate-200 rounded bg-white">
+              <div className="border border-slate-200 rounded bg-white overflow-hidden">
                 {upcomingLoans.length === 0 ? (
                   <EmptyState
                     title="Tidak Ada Pinjaman Berjalan"
                     description="Seluruh perkakas dan inventaris sedang berada di rak penyimpanan Tool Room."
                   />
                 ) : (
-                  <table className="w-full text-left text-xs min-w-[950px]">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
-                        <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">BARANG DIPINJAM</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">JATUH TEMPO</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap text-center">STATUS</th>
-                        <th className="py-2.5 px-3 text-right whitespace-nowrap">TINDAKAN</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedLoans.map((loan) => (
-                        <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                            {loan.transactionNumber}
-                          </td>
-                          <td className="py-2 px-3 whitespace-nowrap">
-                            <span className="font-semibold text-slate-900">{loan.borrowerName}</span>
-                            <span className="text-[11px] text-slate-500 block tabular-nums">
-                              {loan.borrowerNik} | {loan.borrowerDept}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-slate-800">
-                            {loan.itemsSummary}
-                          </td>
-                          <td className="py-2 px-3 text-slate-500 tabular-nums whitespace-nowrap">
-                            {new Date(loan.loanDate).toLocaleDateString('id-ID', {
-                              day: '2-digit',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </td>
-                          <td className="py-2 px-3 font-medium text-slate-800 tabular-nums whitespace-nowrap">
-                            {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
-                              day: '2-digit',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </td>
-                          <td className="py-2 px-3 text-center whitespace-nowrap">
-                            <span
-                              className={`text-xs ${
-                                loan.statusLabel === 'Terlambat'
-                                  ? 'text-slate-900 font-bold'
-                                  : loan.statusLabel === 'Hari Ini'
-                                  ? 'text-[#1E40AF] font-semibold'
-                                  : 'text-slate-600 font-medium'
-                              }`}
-                            >
-                              {loan.statusLabel}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2 text-xs">
-                              <button
-                                onClick={() => handleOpenExtend(loan)}
-                                className="text-[#1E40AF] hover:underline font-semibold text-[11px] cursor-pointer"
+                  <>
+                    {/* Mobile Cards (< 768px) */}
+                    <div className="md:hidden divide-y divide-slate-200">
+                      {paginatedLoans.map((loan) => {
+                        const isExpanded = Boolean(expandedLoanIds[loan.id]);
+                        const hasLongItems = (loan.itemsSummary?.length || 0) > 70;
+                        return (
+                          <div key={loan.id} className="p-4 space-y-3 text-xs">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-slate-900 leading-snug">
+                                  {loan.borrowerName}
+                                </div>
+                                <div className="text-[11px] text-slate-600 tabular-nums mt-0.5 leading-snug break-words">
+                                  {loan.transactionNumber} &middot; {loan.borrowerNik} &middot; {loan.borrowerDept}
+                                </div>
+                              </div>
+                              <span
+                                className={`shrink-0 text-xs font-bold ${
+                                  loan.statusLabel === 'Terlambat'
+                                    ? 'text-[#991B1B]'
+                                    : loan.statusLabel === 'Hari Ini'
+                                    ? 'text-[#92400E]'
+                                    : 'text-slate-600'
+                                }`}
                               >
-                                Perpanjang
+                                {loan.statusLabel}
+                              </span>
+                            </div>
+                            <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
+                              <div>
+                                <div
+                                  className={`text-xs text-slate-700 leading-relaxed ${
+                                    isExpanded ? '' : 'line-clamp-2'
+                                  }`}
+                                >
+                                  <span className="font-semibold text-slate-900">Barang: </span>
+                                  {loan.itemsSummary}
+                                </div>
+                                {hasLongItems && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExpandLoan(loan.id)}
+                                    className="mt-1 text-[11px] font-semibold text-[#1E40AF] hover:underline cursor-pointer"
+                                  >
+                                    {isExpanded ? 'Ringkas daftar barang' : 'Lihat semua barang'}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-600 tabular-nums">
+                                Jatuh tempo{' '}
+                                <strong className="text-slate-900">
+                                  {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </strong>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenExtend(loan)}
+                                className="flex-1 min-h-[42px] px-3 py-2 text-xs font-semibold text-[#1E40AF] bg-white border border-slate-300 hover:bg-slate-50 rounded cursor-pointer"
+                              >
+                                Perpanjang Tenggat
                               </button>
                               {loan.borrowerPhone && (
                                 <a
-                                  href={`https://wa.me/${loan.borrowerPhone}?text=${encodeURIComponent(
+                                  href={`https://wa.me/${formatWaNumber(loan.borrowerPhone)}?text=${encodeURIComponent(
                                     `Yth. Bpk/Ibu ${loan.borrowerName}, Petugas Tool Room PT YPTI menginformasikan pengingat pengembalian perkakas untuk transaksi ${loan.transactionNumber} (${loan.itemsSummary}) dengan batas tenggat ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}. Terima kasih.`
                                   )}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   aria-label="Kirim Pengingat WhatsApp"
                                   title="Kirim Pengingat WhatsApp"
-                                  className="group relative w-6 h-6 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center transition-colors"
+                                  className="min-h-[42px] px-3.5 py-2 text-xs font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded inline-flex items-center justify-center gap-1.5 shrink-0"
                                 >
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                                    />
-                                  </svg>
-                                  <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                                    Kirim Pengingat WhatsApp
-                                  </span>
+                                  <WhatsAppIcon className="w-4 h-4 text-[#15803D] shrink-0" />
+                                  <span>WA</span>
                                 </a>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Desktop Table (>= 768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[950px]">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
+                            <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">BARANG DIPINJAM</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">JATUH TEMPO</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap text-center">STATUS</th>
+                            <th className="py-2.5 px-3 text-right whitespace-nowrap">TINDAKAN</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {paginatedLoans.map((loan) => (
+                            <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                {loan.transactionNumber}
+                              </td>
+                              <td className="py-2 px-3 whitespace-nowrap">
+                                <span className="font-semibold text-slate-900">{loan.borrowerName}</span>
+                                <span className="text-[11px] text-slate-600 block tabular-nums">
+                                  {loan.borrowerNik} | {loan.borrowerDept}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-slate-800">
+                                {loan.itemsSummary}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600 tabular-nums whitespace-nowrap">
+                                {new Date(loan.loanDate).toLocaleDateString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </td>
+                              <td className="py-2 px-3 font-medium text-slate-800 tabular-nums whitespace-nowrap">
+                                {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </td>
+                              <td className="py-2 px-3 text-center whitespace-nowrap">
+                                <span
+                                  className={`text-xs ${
+                                    loan.statusLabel === 'Terlambat'
+                                      ? 'text-[#991B1B] font-bold'
+                                      : loan.statusLabel === 'Hari Ini'
+                                      ? 'text-[#92400E] font-semibold'
+                                      : 'text-slate-600 font-medium'
+                                  }`}
+                                >
+                                  {loan.statusLabel}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-2 text-xs">
+                                  <button
+                                    onClick={() => handleOpenExtend(loan)}
+                                    className="text-[#1E40AF] hover:underline font-semibold text-xs cursor-pointer"
+                                  >
+                                    Perpanjang
+                                  </button>
+                                  {loan.borrowerPhone && (
+                                    <a
+                                      href={`https://wa.me/${formatWaNumber(loan.borrowerPhone)}?text=${encodeURIComponent(
+                                        `Yth. Bpk/Ibu ${loan.borrowerName}, Petugas Tool Room PT YPTI menginformasikan pengingat pengembalian perkakas untuk transaksi ${loan.transactionNumber} (${loan.itemsSummary}) dengan batas tenggat ${new Date(loan.expectedReturnDate).toLocaleString('id-ID')}. Terima kasih.`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      aria-label="Kirim Pengingat WhatsApp"
+                                      title="Kirim Pengingat WhatsApp"
+                                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-semibold text-[11px] transition-colors"
+                                    >
+                                      <WhatsAppIcon className="w-3.5 h-3.5 text-[#15803D] shrink-0" />
+                                      <span>WA</span>
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -714,67 +837,113 @@ export default function DashboardPage() {
           {/* TAB 3: LOG NOTIFIKASI SISTEM */}
           {activeTab === 'NOTIF' && (
             <div className="space-y-3">
-              <div className="overflow-x-auto border border-slate-200 rounded bg-white">
+              <div className="border border-slate-200 rounded bg-white overflow-hidden">
                 {notifications.length === 0 ? (
                   <EmptyState
                     title="Tidak Ada Catatan Notifikasi"
                     description="Belum ada catatan aktivitas scheduler atau peringatan otomatis dari server."
                   />
                 ) : (
-                  <table className="w-full text-left text-xs min-w-[850px]">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
-                        <th className="py-2.5 px-3 whitespace-nowrap">WAKTU SISTEM</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">JENIS PERINGATAN</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">JUDUL NOTIFIKASI</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">PESAN RINCIAN</th>
-                        <th className="py-2.5 px-3 text-right whitespace-nowrap">TAUTAN</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
+                  <>
+                    {/* Mobile Cards (< 768px) */}
+                    <div className="md:hidden divide-y divide-slate-200">
                       {paginatedNotifs.map((notif) => (
-                        <tr key={notif.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-2 px-3 text-slate-500 whitespace-nowrap tabular-nums">
-                            {new Date(notif.createdAt).toLocaleDateString('id-ID', {
-                              day: '2-digit',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </td>
-                          <td className="py-2 px-3 whitespace-nowrap">
+                        <div key={notif.id} className="p-3.5 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between gap-2">
                             <span
-                              className={`text-xs ${
-                                notif.type === 'OVERDUE'
-                                  ? 'text-slate-900 font-bold'
+                              className={`text-[11px] font-bold uppercase ${
+                                notif.type === 'OVERDUE' || notif.type === 'DANGER'
+                                  ? 'text-[#991B1B]'
                                   : notif.type === 'WARNING'
-                                  ? 'text-[#1E40AF] font-semibold'
-                                  : 'text-slate-600 font-medium'
+                                  ? 'text-[#92400E]'
+                                  : 'text-[#1E40AF]'
                               }`}
                             >
                               {notif.type}
                             </span>
-                          </td>
-                          <td className="py-2 px-3 font-semibold text-slate-900">
-                            {notif.title}
-                          </td>
-                          <td className="py-2 px-3 text-slate-600">
-                            {notif.message}
-                          </td>
-                          <td className="py-2 px-3 text-right whitespace-nowrap">
-                            {notif.link && (
+                            <span className="text-[11px] text-slate-600 tabular-nums">
+                              {new Date(notif.createdAt).toLocaleDateString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          <div className="text-[13px] font-bold text-slate-900">{notif.title}</div>
+                          <div className="text-xs text-slate-600">{notif.message}</div>
+                          {notif.link && (
+                            <div className="pt-1">
                               <Link
                                 href={notif.link}
-                                className="text-[11px] font-semibold text-[#1E40AF] hover:underline"
+                                className="inline-flex items-center min-h-[38px] px-3 py-1.5 text-xs font-semibold text-[#1E40AF] border border-slate-300 rounded hover:bg-slate-50"
                               >
                                 Buka Menu &rarr;
                               </Link>
-                            )}
-                          </td>
-                        </tr>
+                            </div>
+                          )}
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+
+                    {/* Desktop Table (>= 768px) */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[850px]">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
+                            <th className="py-2.5 px-3 whitespace-nowrap">WAKTU SISTEM</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">JENIS PERINGATAN</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">JUDUL NOTIFIKASI</th>
+                            <th className="py-2.5 px-3 whitespace-nowrap">PESAN RINCIAN</th>
+                            <th className="py-2.5 px-3 text-right whitespace-nowrap">TAUTAN</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {paginatedNotifs.map((notif) => (
+                            <tr key={notif.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-2 px-3 text-slate-600 whitespace-nowrap tabular-nums">
+                                {new Date(notif.createdAt).toLocaleDateString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </td>
+                              <td className="py-2 px-3 whitespace-nowrap">
+                                <span
+                                  className={`text-xs ${
+                                    notif.type === 'OVERDUE' || notif.type === 'DANGER'
+                                      ? 'text-[#991B1B] font-bold'
+                                      : notif.type === 'WARNING'
+                                      ? 'text-[#92400E] font-semibold'
+                                      : 'text-slate-600 font-medium'
+                                  }`}
+                                >
+                                  {notif.type}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 font-semibold text-slate-900">
+                                {notif.title}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600">
+                                {notif.message}
+                              </td>
+                              <td className="py-2 px-3 text-right whitespace-nowrap">
+                                {notif.link && (
+                                  <Link
+                                    href={notif.link}
+                                    className="text-xs font-semibold text-[#1E40AF] hover:underline"
+                                  >
+                                    Buka Menu &rarr;
+                                  </Link>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
 

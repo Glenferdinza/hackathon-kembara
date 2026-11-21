@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -430,9 +431,12 @@ export default function OperatorHandoverPage() {
                   />
                   {proofImageData && (
                     <div className="flex items-center gap-3 pt-1">
-                      <img
+                      <NextImage
                         src={proofImageData}
                         alt="Pratinjau bukti"
+                        width={128}
+                        height={96}
+                        unoptimized
                         className="h-12 w-16 object-cover rounded border border-slate-300"
                       />
                       <button
@@ -487,71 +491,121 @@ export default function OperatorHandoverPage() {
               description="Pengalihan hak pinjam yang Anda kirim atau terima akan tercatat rapi di sini."
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[760px]">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
-                  <tr>
-                    <th className="py-2.5 px-3">NO. SERAH TERIMA</th>
-                    <th className="py-2.5 px-3">BARANG / BARCODE UNIT</th>
-                    <th className="py-2.5 px-3">DARI → KEPADA</th>
-                    <th className="py-2.5 px-3 text-right">DURASI PAKAI</th>
-                    <th className="py-2.5 px-3 text-center">STATUS</th>
-                    <th className="py-2.5 px-3 text-right">AKSI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {historyList.map((h) => (
-                    <tr key={h.id} className="hover:bg-slate-50">
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                        {h.handoverNumber}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <div className="font-medium text-slate-900">
+            <>
+              {/* Mobile Card View (< 768px) */}
+              <div className="md:hidden divide-y divide-slate-200">
+                {historyList.map((h) => (
+                  <div key={h.id} className="p-3.5 space-y-2 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-mono font-bold text-slate-900">{h.handoverNumber}</div>
+                        <div className="text-[13px] font-bold text-slate-900 mt-0.5">
                           {h.loanItem.tool?.name || h.loanItem.inventory?.name}
                         </div>
                         {h.toolUnit && (
-                          <div className="font-mono text-[11px] text-[#1E40AF] font-semibold">
-                            {h.toolUnit.unitCode}
-                          </div>
+                          <div className="font-mono text-xs font-semibold text-[#1E40AF]">{h.toolUnit.unitCode}</div>
                         )}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-700">
-                        {h.fromEmployee.name} → <span className="font-semibold text-slate-900">{h.toEmployee.name}</span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-bold tabular-nums">
-                        {h.usedMinutes} menit
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                            h.status === 'ACCEPTED'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : h.status === 'PENDING'
-                              ? 'bg-amber-50 text-amber-800 border-amber-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}
+                      </div>
+                      <span
+                        className={`shrink-0 text-xs font-bold uppercase ${
+                          h.status === 'ACCEPTED'
+                            ? 'text-emerald-800'
+                            : h.status === 'PENDING'
+                            ? 'text-[#92400E]'
+                            : 'text-slate-600'
+                        }`}
+                      >
+                        {h.status}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-700">
+                      {h.fromEmployee.name} &rarr; <strong className="text-slate-900">{h.toEmployee.name}</strong>
+                      <span className="ml-2 font-bold tabular-nums text-slate-900">({h.usedMinutes} mnt)</span>
+                    </div>
+
+                    {h.status === 'PENDING' && h.fromEmployee.id === myEmployeeId && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCancelHandover(h.id)}
+                          className="min-h-[40px] px-3 py-1.5 text-xs font-semibold text-[#991B1B] bg-white border border-slate-300 hover:bg-red-50 rounded cursor-pointer"
                         >
-                          {h.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        {h.status === 'PENDING' && h.fromEmployee.id === myEmployeeId ? (
-                          <button
-                            type="button"
-                            onClick={() => handleCancelHandover(h.id)}
-                            className="text-red-700 hover:underline font-semibold cursor-pointer"
-                          >
-                            Batalkan
-                          </button>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
+                          Batalkan Pengalihan
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[760px]">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3">NO. SERAH TERIMA</th>
+                      <th className="py-2.5 px-3">BARANG / BARCODE UNIT</th>
+                      <th className="py-2.5 px-3">DARI &rarr; KEPADA</th>
+                      <th className="py-2.5 px-3 text-right">DURASI PAKAI</th>
+                      <th className="py-2.5 px-3 text-center">STATUS</th>
+                      <th className="py-2.5 px-3 text-right">AKSI</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {historyList.map((h) => (
+                      <tr key={h.id} className="hover:bg-slate-50">
+                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                          {h.handoverNumber}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="font-medium text-slate-900">
+                            {h.loanItem.tool?.name || h.loanItem.inventory?.name}
+                          </div>
+                          {h.toolUnit && (
+                            <div className="font-mono text-[11px] text-[#1E40AF] font-semibold">
+                              {h.toolUnit.unitCode}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-700">
+                          {h.fromEmployee.name} &rarr; <span className="font-semibold text-slate-900">{h.toEmployee.name}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-bold tabular-nums">
+                          {h.usedMinutes} menit
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span
+                            className={`text-xs font-bold uppercase ${
+                              h.status === 'ACCEPTED'
+                                ? 'text-emerald-800'
+                                : h.status === 'PENDING'
+                                ? 'text-[#92400E]'
+                                : 'text-slate-600'
+                            }`}
+                          >
+                            {h.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          {h.status === 'PENDING' && h.fromEmployee.id === myEmployeeId ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelHandover(h.id)}
+                              className="text-[#991B1B] hover:underline font-semibold cursor-pointer"
+                            >
+                              Batalkan
+                            </button>
+                          ) : (
+                            <span className="text-slate-600">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

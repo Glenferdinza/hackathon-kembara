@@ -37,6 +37,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     if (!session || !session.id) {
       return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
     }
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(session.role)) {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya Admin Tool Room yang berhak mengubah data inventaris.' }, { status: 403 });
+    }
     const { id } = await context.params;
     const body = await request.json();
 
@@ -52,9 +55,15 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
     if (totalStock !== undefined && existing.trackingType !== 'INDIVIDUAL') {
       const newTotal = parseInt(totalStock, 10);
-      const diff = newTotal - existing.totalStock;
+      const lockedStock = existing.borrowedStock + existing.repairStock + existing.scrapStock;
+      if (isNaN(newTotal) || newTotal < lockedStock) {
+        return NextResponse.json(
+          { error: `Total stok tidak boleh kurang dari jumlah sedang dipinjam/servis/afkir (${lockedStock} unit).` },
+          { status: 400 }
+        );
+      }
       total = newTotal;
-      available = Math.max(0, existing.availableStock + diff);
+      available = Math.max(0, newTotal - lockedStock);
     }
 
     const updated = await prisma.inventory.update({

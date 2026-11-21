@@ -146,13 +146,15 @@ export async function POST(request: Request) {
 
     const created = await prisma.$transaction(async (tx) => {
       let remainingAfter = loanItem.toolUnit?.remainingLifeMinutes ?? 0;
+      let recordedUsedMinutes = parsedMinutes;
 
       if (loanItem.toolUnitId && loanItem.toolUnit) {
-        remainingAfter = Math.max(0, loanItem.toolUnit.remainingLifeMinutes - parsedMinutes);
+        recordedUsedMinutes = Math.min(parsedMinutes, loanItem.toolUnit.remainingLifeMinutes);
+        remainingAfter = Math.max(0, loanItem.toolUnit.remainingLifeMinutes - recordedUsedMinutes);
         await tx.toolUnit.update({
           where: { id: loanItem.toolUnitId },
           data: {
-            usedLifeMinutes: { increment: parsedMinutes },
+            usedLifeMinutes: { increment: recordedUsedMinutes },
             remainingLifeMinutes: remainingAfter,
           },
         });
@@ -162,7 +164,7 @@ export async function POST(request: Request) {
             toolUnitId: loanItem.toolUnitId,
             employeeId: activeHolderId,
             loanTransactionId: loanItem.loanTransactionId,
-            usedMinutes: parsedMinutes,
+            usedMinutes: recordedUsedMinutes,
             remainingAfter,
             actionType: 'HANDOVER',
             notes: conditionNotes?.trim() || `Pemakaian sebelum dialihkan ke ${targetEmp.name}`,
@@ -197,7 +199,7 @@ export async function POST(request: Request) {
           toolUnitId: loanItem.toolUnitId,
           fromEmployeeId: activeHolderId,
           toEmployeeId: targetEmp.id,
-          usedMinutes: parsedMinutes,
+          usedMinutes: recordedUsedMinutes,
           proofImageData: proofImageData || null,
           conditionNotes: conditionNotes?.trim() || null,
           status: 'PENDING',

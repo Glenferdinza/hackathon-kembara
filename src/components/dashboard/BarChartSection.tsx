@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  type MouseHandlerDataParam,
 } from 'recharts';
 
 interface BarData {
@@ -88,6 +89,7 @@ function BarCustomTooltip({ active, payload }: BarTooltipProps) {
 
 export function BarChartSection({ data }: BarChartSectionProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('horizontal');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Format, calculate percentage, and sort descending by total stock
   const formattedData: FormattedBarItem[] = [...data]
@@ -102,6 +104,26 @@ export function BarChartSection({ data }: BarChartSectionProps) {
       };
     })
     .sort((a, b) => b.total - a.total);
+
+  const selectedItem = selectedCategory
+    ? formattedData.find((d) => d.name === selectedCategory) ?? null
+    : null;
+
+  const handleChartClick = (state: MouseHandlerDataParam) => {
+    let clickedName: string | null = null;
+    if (state.activeLabel !== undefined && state.activeLabel !== null) {
+      clickedName =
+        formattedData.find((d) => d.shortName === String(state.activeLabel))?.name ?? null;
+    }
+    if (!clickedName && state.activeTooltipIndex !== undefined && state.activeTooltipIndex !== null) {
+      const idx = Number(state.activeTooltipIndex);
+      if (Number.isInteger(idx) && idx >= 0 && idx < formattedData.length) {
+        clickedName = formattedData[idx].name;
+      }
+    }
+    if (!clickedName) return;
+    setSelectedCategory((prev) => (prev === clickedName ? null : clickedName));
+  };
 
   return (
     <div className="w-full">
@@ -123,7 +145,10 @@ export function BarChartSection({ data }: BarChartSectionProps) {
           </label>
           <select
             value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as ViewMode)}
+            onChange={(e) => {
+              setViewMode(e.target.value as ViewMode);
+              setSelectedCategory(null);
+            }}
             className="bg-white border border-slate-300 rounded px-2.5 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
           >
             <option value="horizontal">Grafik Horizontal</option>
@@ -141,6 +166,8 @@ export function BarChartSection({ data }: BarChartSectionProps) {
               layout="vertical"
               data={formattedData}
               margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
+              accessibilityLayer={false}
+              onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={false} />
               <XAxis
@@ -158,13 +185,19 @@ export function BarChartSection({ data }: BarChartSectionProps) {
                 axisLine={{ stroke: '#CBD5E1' }}
                 tickLine={false}
               />
-              <Tooltip content={<BarCustomTooltip />} />
+              <Tooltip
+                content={<BarCustomTooltip />}
+                isAnimationActive={false}
+                allowEscapeViewBox={{ x: false, y: true }}
+                cursor={{ fill: '#F1F5F9' }}
+                wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }}
+              />
               <Legend
                 wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
                 iconType="square"
               />
-              <Bar dataKey="available" stackId="stok" name="Stok Tersedia" fill="#1E40AF" barSize={16} />
-              <Bar dataKey="borrowed" stackId="stok" name="Sedang Dipinjam" fill="#D97706" radius={[0, 2, 2, 0]} barSize={16} />
+              <Bar dataKey="available" stackId="stok" name="Stok Tersedia" fill="#1E40AF" barSize={16} cursor="pointer" />
+              <Bar dataKey="borrowed" stackId="stok" name="Sedang Dipinjam" fill="#D97706" radius={[0, 2, 2, 0]} barSize={16} cursor="pointer" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -177,6 +210,8 @@ export function BarChartSection({ data }: BarChartSectionProps) {
             <BarChart
               data={formattedData}
               margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
+              accessibilityLayer={false}
+              onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
               <XAxis
@@ -195,16 +230,60 @@ export function BarChartSection({ data }: BarChartSectionProps) {
                 tickLine={false}
                 axisLine={{ stroke: '#CBD5E1' }}
               />
-              <Tooltip content={<BarCustomTooltip />} />
+              <Tooltip
+                content={<BarCustomTooltip />}
+                isAnimationActive={false}
+                allowEscapeViewBox={{ x: false, y: true }}
+                cursor={{ fill: '#F1F5F9' }}
+                wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }}
+              />
               <Legend
                 verticalAlign="top"
                 wrapperStyle={{ fontSize: '11px', paddingBottom: '10px' }}
                 iconType="square"
               />
-              <Bar dataKey="available" stackId="stok" name="Stok Tersedia" fill="#1E40AF" barSize={20} />
-              <Bar dataKey="borrowed" stackId="stok" name="Sedang Dipinjam" fill="#D97706" radius={[2, 2, 0, 0]} barSize={20} />
+              <Bar dataKey="available" stackId="stok" name="Stok Tersedia" fill="#1E40AF" barSize={20} cursor="pointer" />
+              <Bar dataKey="borrowed" stackId="stok" name="Sedang Dipinjam" fill="#D97706" radius={[2, 2, 0, 0]} barSize={20} cursor="pointer" />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Reserved 1-line inspection bar below chart so plot position never shifts on click */}
+      {viewMode !== 'table' && (
+        <div className="mt-2 pt-2 border-t border-slate-100 min-h-[34px] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          {selectedItem ? (
+            <>
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-w-0">
+                <span
+                  className="font-semibold text-slate-900 truncate"
+                  title={selectedItem.fullName}
+                >
+                  {selectedItem.fullName}
+                </span>
+                <span className="text-slate-700 tabular-nums whitespace-nowrap shrink-0">
+                  Total <strong className="text-slate-900">{selectedItem.total.toLocaleString('id-ID')}</strong>
+                </span>
+                <span className="text-[#1E40AF] tabular-nums whitespace-nowrap shrink-0">
+                  Tersedia <strong>{selectedItem.available.toLocaleString('id-ID')}</strong> ({selectedItem.percentAvailable}%)
+                </span>
+                <span className="text-amber-700 tabular-nums whitespace-nowrap shrink-0">
+                  Dipinjam <strong>{selectedItem.borrowed.toLocaleString('id-ID')}</strong>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory(null)}
+                className="px-2.5 py-0.5 text-[11px] font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-100 cursor-pointer shrink-0 self-end sm:self-auto whitespace-nowrap"
+              >
+                Tutup
+              </button>
+            </>
+          ) : (
+            <span className="text-[11px] text-slate-500">
+              Klik batang kategori untuk mengunci rincian
+            </span>
+          )}
         </div>
       )}
 

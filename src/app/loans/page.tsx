@@ -7,6 +7,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { SkeletonTable } from '@/components/ui/SkeletonTable';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { invalidateDashboardSummaryCache } from '@/lib/dashboard-client';
 
 interface Employee {
   id: string;
@@ -61,6 +62,7 @@ interface SelectedItem {
   availableStock: number;
   unit: string;
   quantity: number;
+  toolUnitId?: string;
 }
 
 type LoanView = 'PIC' | 'ITEMS' | 'CONFIRM';
@@ -88,16 +90,18 @@ export default function LoansPage() {
   const [newEmpName, setNewEmpName] = useState('');
   const [newEmpDept, setNewEmpDept] = useState('Machining CNC');
   const [newEmpShift, setNewEmpShift] = useState('Shift 1 (Pagi)');
-  const [newEmpPhone, setNewEmpPhone] = useState('08123456789');
+  const [newEmpPhone, setNewEmpPhone] = useState('');
   const [isSubmittingNewEmp, setIsSubmittingNewEmp] = useState(false);
 
-  // 2. State Katalog Barang (Ringkas 5 baris per halaman agar tidak memanjang ke bawah)
+  // 2. State Katalog Barang (Pencarian & Paging Server-Side agar seluruh 1.400+ item dapat ditemukan)
   const [activeCatalogTab, setActiveCatalogTab] = useState<'TOOL' | 'INVENTORY'>('TOOL');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogPage, setCatalogPage] = useState(1);
   const catalogPageSize = 5;
   const [availableTools, setAvailableTools] = useState<CatalogItem[]>([]);
   const [availableInventories, setAvailableInventories] = useState<CatalogItem[]>([]);
+  const [totalToolsCount, setTotalToolsCount] = useState(0);
+  const [totalInventoriesCount, setTotalInventoriesCount] = useState(0);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
   // 3. Daftar Alat yang Dipinjam
@@ -106,7 +110,7 @@ export default function LoansPage() {
   // 4. Durasi (Dropdown 1 Warna), Tenggat, & Catatan
   const [expectedReturnDate, setExpectedReturnDate] = useState(() => computePresetDateStr(8));
   const [activePreset, setActivePreset] = useState<number>(8);
-  const [purpose, setPurpose] = useState('Pengerjaan Part Machining & Moulding Shift Kerja');
+  const [purpose, setPurpose] = useState('');
   const [notes, setNotes] = useState('');
 
   // 5. Submit & Bukti Transaksi Selesai
@@ -119,7 +123,7 @@ export default function LoansPage() {
     setExpectedReturnDate(computePresetDateStr(hours));
   };
 
-  // Load Daftar Karyawan
+  // Load Daftar Karyawan (Zero silent auto-select borrower; hanya pre-select bila ada ?emp= atau ?nik=)
   useEffect(() => {
     fetch('/api/employees')
       .then((res) => res.json())
@@ -136,42 +140,63 @@ export default function LoansPage() {
             if (matched) {
               setEmployee(matched);
             }
-          } else if (json.data.length > 0) {
-            setEmployee(json.data[0]);
           }
         }
       })
       .catch(() => {});
   }, []);
 
-  // Load Katalog Tool & Inventaris
-  const fetchCatalog = async () => {
+  // Load Katalog Tool & Inventaris secara server-side + dukung ?item= dan ?unitId=
+  const fetchCatalog = React.useCallback(async () => {
     setIsLoadingCatalog(true);
     try {
+      const q = encodeURIComponent(catalogSearch.trim());
       const [toolRes, invRes] = await Promise.all([
-        fetch('/api/tools?limit=150&status=AKTIF'),
-        fetch('/api/inventories?limit=150&status=AKTIF'),
+        fetch(`/api/tools?limit=${catalogPageSize}&page=${activeCatalogTab === 'TOOL' ? catalogPage : 1}&status=AKTIF&search=${q}`),
+        fetch(`/api/inventories?limit=${catalogPageSize}&page=${activeCatalogTab === 'INVENTORY' ? catalogPage : 1}&status=AKTIF&search=${q}`),
       ]);
-
-      let loadedTools: CatalogItem[] = [];
-      let loadedInventories: CatalogItem[] = [];
 
       if (toolRes.ok) {
         const json = await toolRes.json();
-        loadedTools = json.data || [];
-        setAvailableTools(loadedTools);
+        setAvailableTools(json.data || []);
+        setTotalToolsCount(json.pagination?.total ?? (json.data || []).length);
       }
       if (invRes.ok) {
         const json = await invRes.json();
-        loadedInventories = json.data || [];
-        setAvailableInventories(loadedInventories);
+        setAvailableInventories(json.data || []);
+        setTotalInventoriesCount(json.pagination?.total ?? (json.data || []).length);
       }
+    } catch {
+      // silent
+    } finally {
+      setIsLoadingCatalog(false);
+    }
+  }, [activeCatalogTab, catalogPage, catalogPageSize, catalogSearch]);
 
-      if (typeof window !== 'undefined') {
-        const urlItem = new URLSearchParams(window.location.search).get('item');
-        if (urlItem) {
-          const cleanCode = urlItem.trim().toUpperCase();
-          const matchedTool = loadedTools.find((t) => t.code?.toUpperCase() === cleanCode);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchCatalog();
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [fetchCatalog]);
+
+  // Preload URL ?item=CODE&unitId=... sekali saat halaman dibuka
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const urlItem = params.get('item');
+    const urlUnitId = params.get('unitId') || undefined;
+    if (!urlItem) return;
+
+    const cleanCode = urlItem.trim().toUpperCase();
+    const preload = async () => {
+      try {
+        const toolRes = await fetch(`/api/tools?search=${encodeURIComponent(cleanCode)}&limit=10&status=AKTIF`);
+        if (toolRes.ok) {
+          const json = await toolRes.json();
+          const matchedTool = (json.data || []).find((t: CatalogItem) => t.code?.toUpperCase() === cleanCode);
           if (matchedTool && matchedTool.availableStock > 0) {
             setActiveCatalogTab('TOOL');
             setSelectedItems((prev) => {
@@ -187,51 +212,44 @@ export default function LoansPage() {
                   availableStock: matchedTool.availableStock,
                   unit: matchedTool.unit || 'PCS',
                   quantity: 1,
+                  toolUnitId: urlUnitId,
                 },
               ];
             });
             setCurrentView('ITEMS');
-          } else {
-            const matchedInv = loadedInventories.find((i) => i.code?.toUpperCase() === cleanCode);
-            if (matchedInv && matchedInv.availableStock > 0) {
-              setActiveCatalogTab('INVENTORY');
-              setSelectedItems((prev) => {
-                if (prev.some((i) => i.id === matchedInv.id && i.itemType === 'INVENTORY')) return prev;
-                return [
-                  ...prev,
-                  {
-                    id: matchedInv.id,
-                    itemType: 'INVENTORY',
-                    code: matchedInv.code,
-                    name: matchedInv.name,
-                    location: matchedInv.location || 'Rak Utama',
-                    availableStock: matchedInv.availableStock,
-                    unit: matchedInv.unit || 'UNIT',
-                    quantity: 1,
-                  },
-                ];
-              });
-              setCurrentView('ITEMS');
-            }
+            return;
           }
         }
+        const invRes = await fetch(`/api/inventories?search=${encodeURIComponent(cleanCode)}&limit=10&status=AKTIF`);
+        if (invRes.ok) {
+          const json = await invRes.json();
+          const matchedInv = (json.data || []).find((i: CatalogItem) => i.code?.toUpperCase() === cleanCode);
+          if (matchedInv && matchedInv.availableStock > 0) {
+            setActiveCatalogTab('INVENTORY');
+            setSelectedItems((prev) => {
+              if (prev.some((i) => i.id === matchedInv.id && i.itemType === 'INVENTORY')) return prev;
+              return [
+                ...prev,
+                {
+                  id: matchedInv.id,
+                  itemType: 'INVENTORY',
+                  code: matchedInv.code,
+                  name: matchedInv.name,
+                  location: matchedInv.location || 'Rak Utama',
+                  availableStock: matchedInv.availableStock,
+                  unit: matchedInv.unit || 'UNIT',
+                  quantity: 1,
+                },
+              ];
+            });
+            setCurrentView('ITEMS');
+          }
+        }
+      } catch {
+        // silent
       }
-    } catch {
-      // silent
-    } finally {
-      setIsLoadingCatalog(false);
-    }
-  };
-
-  useEffect(() => {
-    let active = true;
-    const timer = window.setTimeout(() => {
-      if (active) void fetchCatalog();
-    }, 0);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
     };
+    void preload();
   }, []);
 
   const handleSelectEmployeeByNik = (nik: string) => {
@@ -246,6 +264,7 @@ export default function LoansPage() {
   };
 
   const filteredEmployeesList = employeesList.filter((emp) => {
+    if (emp.status === 'NONAKTIF') return false;
     if (!empSearchQuery) return true;
     const q = empSearchQuery.toLowerCase();
     return emp.nik.toLowerCase().includes(q) || emp.name.toLowerCase().includes(q) || emp.department.toLowerCase().includes(q);
@@ -265,6 +284,12 @@ export default function LoansPage() {
     );
 
     if (found) {
+      if (found.status === 'NONAKTIF') {
+        setRfidScanStatus('ERROR');
+        setRfidScanMessage(`Karyawan ${found.name} (${found.nik}) berstatus NONAKTIF.`);
+        showToast(`Karyawan ${found.name} berstatus NONAKTIF dan tidak diizinkan meminjam.`, 'error');
+        return;
+      }
       setEmployee(found);
       setEmpSearchQuery('');
       setRfidScanStatus('SUCCESS');
@@ -349,23 +374,10 @@ export default function LoansPage() {
     }
   };
 
-  // Filter Katalog
-  const currentCatalogList = activeCatalogTab === 'TOOL' ? availableTools : availableInventories;
-  const filteredCatalog = currentCatalogList.filter((item: CatalogItem) => {
-    const search = catalogSearch.toLowerCase();
-    return (
-      item.code?.toLowerCase().includes(search) ||
-      item.name?.toLowerCase().includes(search) ||
-      item.location?.toLowerCase().includes(search) ||
-      (item.category?.name && item.category.name.toLowerCase().includes(search))
-    );
-  });
-
-  const totalCatalogPages = Math.ceil(filteredCatalog.length / catalogPageSize) || 1;
-  const paginatedCatalog = filteredCatalog.slice(
-    (catalogPage - 1) * catalogPageSize,
-    catalogPage * catalogPageSize
-  );
+  // Katalog server-side per tab
+  const paginatedCatalog = activeCatalogTab === 'TOOL' ? availableTools : availableInventories;
+  const totalFilteredCatalog = activeCatalogTab === 'TOOL' ? totalToolsCount : totalInventoriesCount;
+  const totalCatalogPages = Math.ceil(totalFilteredCatalog / catalogPageSize) || 1;
 
   const handleAddItem = (item: CatalogItem, type: 'TOOL' | 'INVENTORY') => {
     if (item.availableStock <= 0) {
@@ -442,12 +454,13 @@ export default function LoansPage() {
       const payload = {
         employeeId: employee.id,
         expectedReturnDate: new Date(expectedReturnDate).toISOString(),
-        purpose,
+        purpose: purpose.trim() || 'Peminjaman Operasional Produksi',
         notes,
         items: selectedItems.map((i) => ({
           id: i.id,
           itemType: i.itemType,
           quantity: i.quantity,
+          toolUnitId: i.toolUnitId,
         })),
       };
 
@@ -473,6 +486,7 @@ export default function LoansPage() {
       });
 
       setSelectedItems([]);
+      invalidateDashboardSummaryCache();
       fetchCatalog();
       showToast('Peminjaman perkakas berhasil dicatat.', 'info');
     } catch (err: unknown) {
@@ -487,7 +501,7 @@ export default function LoansPage() {
     setCompletedTx(null);
     setSelectedItems([]);
     setDeadlinePreset(8);
-    setPurpose('Pengerjaan Part Machining & Moulding Shift Kerja');
+    setPurpose('');
     setNotes('');
     setCurrentView('PIC');
   };
@@ -498,7 +512,7 @@ export default function LoansPage() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <h1 className="text-base lg:text-lg font-semibold font-heading text-slate-900 tracking-tight">
+            <h1 className="text-sm sm:text-base lg:text-lg font-semibold font-heading text-slate-900 tracking-tight">
               Peminjaman Perkakas &amp; Inventaris
             </h1>
             <p className="text-xs text-slate-500">
@@ -657,32 +671,27 @@ export default function LoansPage() {
                       </select>
                     </div>
 
-                    {/* Tombol Scan RFID dengan icon scan dan hover tooltip */}
+                    {/* Tombol Scan RFID */}
                     <div className="md:col-span-3 flex items-center gap-2">
-                      <div className="relative group flex-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsRfidModalOpen(true);
-                            setRfidScanStatus('IDLE');
-                            setRfidScanMessage('');
-                            setRfidInputCode('');
-                          }}
-                          title="Scan RFID / Barcode Kartu"
-                          className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-[#1E40AF] hover:text-[#1E40AF] rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-                        >
-                          <Scan className="w-4 h-4 text-[#1E40AF]" />
-                          <span>Scan RFID</span>
-                        </button>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex px-2 py-1 bg-slate-900 text-white text-[11px] font-medium rounded shadow-sm whitespace-nowrap z-20">
-                          Scan RFID / Barcode Kartu
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRfidModalOpen(true);
+                          setRfidScanStatus('IDLE');
+                          setRfidScanMessage('');
+                          setRfidInputCode('');
+                        }}
+                        title="Scan RFID / Barcode Kartu"
+                        className="flex-1 min-h-[42px] sm:min-h-0 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-[#1E40AF] hover:text-[#1E40AF] rounded transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <Scan className="w-4 h-4 text-[#1E40AF]" />
+                        <span>Scan RFID</span>
+                      </button>
 
                       <button
                         type="button"
                         onClick={() => setIsQuickAddEmpOpen(true)}
-                        className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors whitespace-nowrap cursor-pointer"
+                        className="min-h-[42px] sm:min-h-0 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded transition-colors whitespace-nowrap cursor-pointer"
                       >
                         + Baru
                       </button>
@@ -778,10 +787,10 @@ export default function LoansPage() {
                         setActiveCatalogTab(e.target.value as 'TOOL' | 'INVENTORY');
                         setCatalogPage(1);
                       }}
-                      className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                      className="bg-white border border-slate-300 rounded px-2.5 py-2 sm:py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
                     >
-                      <option value="TOOL">Tool Mesin ({availableTools.length})</option>
-                      <option value="INVENTORY">Inventaris ({availableInventories.length})</option>
+                      <option value="TOOL">Tool Mesin ({totalToolsCount})</option>
+                      <option value="INVENTORY">Inventaris ({totalInventoriesCount})</option>
                     </select>
                   </div>
 
@@ -799,13 +808,13 @@ export default function LoansPage() {
                         }
                       }}
                       placeholder="Cari kode barang, nama alat, atau rak..."
-                      className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF]"
+                      className="w-full bg-white border border-slate-300 rounded px-3 py-2 sm:py-1.5 text-xs text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1E40AF]"
                     />
                   </div>
                 </div>
 
-                {/* Tabel Katalog Ringkas (5 Baris per Halaman) */}
-                <div className="overflow-x-auto border border-slate-200 rounded">
+                {/* Daftar Katalog (Mobile Cards + Desktop Table) */}
+                <div className="border border-slate-200 rounded overflow-hidden">
                   {isLoadingCatalog ? (
                     <SkeletonTable rows={5} cols={5} className="p-2" />
                   ) : paginatedCatalog.length === 0 ? (
@@ -816,17 +825,9 @@ export default function LoansPage() {
                       onAction={() => setCatalogSearch('')}
                     />
                   ) : (
-                    <table className="w-full text-left text-xs min-w-[520px]">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
-                          <th className="py-2 px-3 whitespace-nowrap">KODE</th>
-                          <th className="py-2 px-3">NAMA BARANG</th>
-                          <th className="py-2 px-3 whitespace-nowrap">LOKASI RAK</th>
-                          <th className="py-2 px-3 text-right whitespace-nowrap text-[#1E40AF]">TERSEDIA</th>
-                          <th className="py-2 px-3 text-right whitespace-nowrap w-28">PILIH</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
+                    <>
+                      {/* Mobile Card View (< 768px) */}
+                      <div className="md:hidden divide-y divide-slate-200">
                         {paginatedCatalog.map((item: CatalogItem) => {
                           const selectedIdx = selectedItems.findIndex(
                             (si) => si.id === item.id && si.itemType === activeCatalogTab
@@ -835,47 +836,38 @@ export default function LoansPage() {
                           const selectedQty = isSelected ? selectedItems[selectedIdx].quantity : 0;
 
                           return (
-                            <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                                {item.code}
-                              </td>
-                              <td className="py-2 px-3 font-medium text-slate-900">
-                                <div className="truncate max-w-[220px]">{item.name}</div>
-                              </td>
-                              <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
-                                {item.location || 'Rak Utama'}
-                              </td>
-                              <td className="py-2 px-3 text-right font-bold text-[#1E40AF] tabular-nums whitespace-nowrap">
-                                {item.availableStock} {item.unit || 'PCS'}
-                              </td>
-                              <td className="py-2 px-3 text-right whitespace-nowrap">
+                            <div key={item.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-mono font-bold text-slate-900 tabular-nums">{item.code}</div>
+                                <div className="text-[13px] font-bold text-slate-900 leading-snug mt-0.5">
+                                  {item.name}
+                                </div>
+                                <div className="text-xs text-slate-600 mt-0.5 tabular-nums">
+                                  Rak {item.location || 'Utama'} |{' '}
+                                  <strong className={item.availableStock > 0 ? 'text-[#1E40AF]' : 'text-[#991B1B]'}>
+                                    Siap {item.availableStock} {item.unit || 'PCS'}
+                                  </strong>
+                                </div>
+                              </div>
+                              <div className="shrink-0">
                                 {isSelected ? (
                                   <div className="inline-flex items-center gap-1">
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateQty(selectedIdx, selectedQty - 1)}
-                                      className="w-6 h-6 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                      aria-label={`Kurangi ${item.name}`}
+                                      className="w-10 h-10 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-sm cursor-pointer"
                                     >
                                       -
                                     </button>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={item.availableStock}
-                                      value={selectedQty}
-                                      onChange={(e) => {
-                                        const val = parseInt(e.target.value, 10);
-                                        if (!isNaN(val)) {
-                                          handleUpdateQty(selectedIdx, Math.min(item.availableStock, Math.max(1, val)));
-                                        }
-                                      }}
-                                      aria-label={`Jumlah ${item.name}`}
-                                      className="w-11 h-6 text-center font-bold text-slate-900 bg-white border border-slate-300 rounded text-xs tabular-nums focus:outline-none focus:border-[#1E40AF]"
-                                    />
+                                    <span className="w-8 text-center font-bold text-slate-900 tabular-nums">
+                                      {selectedQty}
+                                    </span>
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateQty(selectedIdx, selectedQty + 1)}
-                                      className="w-6 h-6 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                      aria-label={`Tambah ${item.name}`}
+                                      className="w-10 h-10 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-sm cursor-pointer"
                                     >
                                       +
                                     </button>
@@ -885,21 +877,109 @@ export default function LoansPage() {
                                     type="button"
                                     onClick={() => handleAddItem(item, activeCatalogTab)}
                                     disabled={item.availableStock <= 0}
-                                    className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                                    className={`min-h-[44px] min-w-[76px] px-3 py-2 text-xs font-semibold rounded transition-colors cursor-pointer ${
                                       item.availableStock <= 0
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                        ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
                                         : 'text-white bg-[#1E40AF] hover:bg-blue-800'
                                     }`}
                                   >
                                     + Pilih
                                   </button>
                                 )}
-                              </td>
-                            </tr>
+                              </div>
+                            </div>
                           );
                         })}
-                      </tbody>
-                    </table>
+                      </div>
+
+                      {/* Desktop Table (>= 768px) */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-left text-xs min-w-[520px]">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold font-heading">
+                              <th className="py-2 px-3 whitespace-nowrap">KODE</th>
+                              <th className="py-2 px-3">NAMA BARANG</th>
+                              <th className="py-2 px-3 whitespace-nowrap">LOKASI RAK</th>
+                              <th className="py-2 px-3 text-right whitespace-nowrap text-[#1E40AF]">TERSEDIA</th>
+                              <th className="py-2 px-3 text-right whitespace-nowrap w-28">PILIH</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {paginatedCatalog.map((item: CatalogItem) => {
+                              const selectedIdx = selectedItems.findIndex(
+                                (si) => si.id === item.id && si.itemType === activeCatalogTab
+                              );
+                              const isSelected = selectedIdx >= 0;
+                              const selectedQty = isSelected ? selectedItems[selectedIdx].quantity : 0;
+
+                              return (
+                                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                                  <td className="py-2 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                    {item.code}
+                                  </td>
+                                  <td className="py-2 px-3 font-medium text-slate-900">
+                                    <div className="truncate max-w-[220px]">{item.name}</div>
+                                  </td>
+                                  <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                                    {item.location || 'Rak Utama'}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-bold text-[#1E40AF] tabular-nums whitespace-nowrap">
+                                    {item.availableStock} {item.unit || 'PCS'}
+                                  </td>
+                                  <td className="py-2 px-3 text-right whitespace-nowrap">
+                                    {isSelected ? (
+                                      <div className="inline-flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateQty(selectedIdx, selectedQty - 1)}
+                                          className="w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                        >
+                                          -
+                                        </button>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          max={item.availableStock}
+                                          value={selectedQty}
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            if (!isNaN(val)) {
+                                              handleUpdateQty(selectedIdx, Math.min(item.availableStock, Math.max(1, val)));
+                                            }
+                                          }}
+                                          aria-label={`Jumlah ${item.name}`}
+                                          className="w-11 h-7 text-center font-bold text-slate-900 bg-white border border-slate-300 rounded text-xs tabular-nums focus:outline-none focus:border-[#1E40AF]"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateQty(selectedIdx, selectedQty + 1)}
+                                          className="w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddItem(item, activeCatalogTab)}
+                                        disabled={item.availableStock <= 0}
+                                        className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
+                                          item.availableStock <= 0
+                                            ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                                            : 'text-white bg-[#1E40AF] hover:bg-blue-800'
+                                        }`}
+                                      >
+                                        + Pilih
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -907,14 +987,14 @@ export default function LoansPage() {
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span>
                     Halaman <strong className="text-slate-900">{catalogPage}</strong> dari{' '}
-                    <strong className="text-slate-900">{totalCatalogPages}</strong> ({filteredCatalog.length} barang)
+                    <strong className="text-slate-900">{totalCatalogPages}</strong> ({totalFilteredCatalog} barang)
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setCatalogPage((p) => Math.max(1, p - 1))}
                       disabled={catalogPage <= 1}
-                      className="min-w-[28px] h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
+                      className="min-w-[40px] h-10 sm:min-w-[28px] sm:h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
                     >
                       &lt;
                     </button>
@@ -922,7 +1002,7 @@ export default function LoansPage() {
                       type="button"
                       onClick={() => setCatalogPage((p) => Math.min(totalCatalogPages, p + 1))}
                       disabled={catalogPage >= totalCatalogPages}
-                      className="min-w-[28px] h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
+                      className="min-w-[40px] h-10 sm:min-w-[28px] sm:h-7 px-2 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:cursor-not-allowed text-slate-700 font-bold cursor-pointer"
                     >
                       &gt;
                     </button>
@@ -963,7 +1043,8 @@ export default function LoansPage() {
                             <button
                               type="button"
                               onClick={() => handleUpdateQty(idx, item.quantity - 1)}
-                              className="w-5 h-5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-[11px] cursor-pointer"
+                              aria-label={`Kurangi ${item.name}`}
+                              className="w-8 h-8 sm:w-6 sm:h-6 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer"
                             >
                               -
                             </button>
@@ -979,12 +1060,13 @@ export default function LoansPage() {
                                 }
                               }}
                               aria-label={`Jumlah ${item.name}`}
-                              className="w-10 h-5 text-center font-bold text-[#1E40AF] bg-white border border-slate-300 rounded text-[11px] tabular-nums focus:outline-none focus:border-[#1E40AF]"
+                              className="w-11 h-8 sm:h-6 text-center font-bold text-[#1E40AF] bg-white border border-slate-300 rounded text-xs tabular-nums focus:outline-none focus:border-[#1E40AF]"
                             />
                             <button
                               type="button"
                               onClick={() => handleUpdateQty(idx, item.quantity + 1)}
-                              className="w-5 h-5 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-[11px] cursor-pointer"
+                              aria-label={`Tambah ${item.name}`}
+                              className="w-8 h-8 sm:w-6 sm:h-6 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer"
                             >
                               +
                             </button>
@@ -1343,8 +1425,8 @@ export default function LoansPage() {
                   type="text"
                   value={newEmpPhone}
                   onChange={(e) => setNewEmpPhone(e.target.value)}
-                  placeholder="08123456789"
-                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF]"
+                  placeholder="Contoh 081234567890"
+                  className="w-full bg-white border border-slate-300 rounded px-2.5 py-2 sm:py-1.5 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-[#1E40AF]"
                 />
               </div>
               <div className="pt-2 border-t border-slate-200 flex items-center justify-end gap-2">

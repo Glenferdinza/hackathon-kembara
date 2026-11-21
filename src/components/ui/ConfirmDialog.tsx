@@ -73,9 +73,8 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
       if (!isOpen) return;
       if (e.key === 'Escape') {
         handleCancel();
-      } else if (e.key === 'Enter') {
-        handleConfirm();
       }
+      // Jangan auto-confirm via tombol Enter global agar suffix Enter dari barcode scanner USB tidak memicu transaksi secara tidak sengaja.
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -84,8 +83,8 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
   const badgeConfig = {
     danger: {
       badge: 'KONFIRMASI PENGHAPUSAN / TINDAKAN KRUSIAL',
-      badgeClass: 'text-slate-600',
-      btnClass: 'bg-slate-900 hover:bg-slate-800 text-white',
+      badgeClass: 'text-[#991B1B]',
+      btnClass: 'bg-[#991B1B] hover:bg-[#7F1D1D] text-white',
     },
     warning: {
       badge: 'PERINGATAN OPERASIONAL',

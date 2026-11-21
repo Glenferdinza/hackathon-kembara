@@ -1,8 +1,24 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
+import { signSessionToken, verifySessionToken } from './session-token';
 
 const SESSION_COOKIE = 'ypti_erp_session';
+
+async function resolveSecureCookieFlag(): Promise<boolean> {
+  if (process.env.FORCE_SECURE_COOKIE === 'true') return true;
+  if (process.env.FORCE_SECURE_COOKIE === 'false') return false;
+  try {
+    const h = await headers();
+    const proto = h.get('x-forwarded-proto') || '';
+    if (proto.toLowerCase().includes('https')) return true;
+    const origin = h.get('origin') || '';
+    if (origin.startsWith('https://')) return true;
+  } catch {
+    // ignore headers access errors
+  }
+  return false;
+}
 
 export interface AdminSession {
   id: string;
@@ -119,7 +135,7 @@ export async function getSession(): Promise<AdminSession | null> {
   if (!sessionValue) return null;
 
   try {
-    const parsed = JSON.parse(sessionValue) as AdminSession;
+    const parsed = await verifySessionToken<AdminSession>(sessionValue);
     if (!parsed?.id) return null;
 
     // Timeout guard 2500ms agar tidak menggantung jika cold-start Supabase lambat di edge
@@ -218,10 +234,14 @@ export async function loginAdmin(
     employeeNik: user.employee?.nik ?? null,
   };
 
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, JSON.stringify(sessionData), {
+  const [cookieStore, signedToken, isSecure] = await Promise.all([
+    cookies(),
+    signSessionToken(sessionData),
+    resolveSecureCookieFlag(),
+  ]);
+  cookieStore.set(SESSION_COOKIE, signedToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
@@ -234,6 +254,103 @@ export async function loginAdmin(
         adminId: user.id,
         adminName: user.name,
         details: `Pengguna ${user.name} (ID ${user.email}, ${user.role}) masuk ke dalam sistem.`,
+      },
+    })
+    .catch(() => {});
+
+  return { success: true, user: sessionData };
+}
+
+export async function updateOwnAccountProfile(
+  userId: string,
+  payload: { name?: string; currentPassword?: string; newPassword?: string }
+): Promise<{ success: boolean; error?: string; user?: AdminSession }> {
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      employee: {
+        select: { id: true, nik: true, department: true },
+      },
+    },
+  });
+
+  if (!dbUser || dbUser.status === 'NONAKTIF') {
+    return { success: false, error: 'Akun pengguna tidak ditemukan atau berstatus nonaktif.' };
+  }
+
+  const updateData: { name?: string; passwordHash?: string } = {};
+  const trimmedName = typeof payload.name === 'string' ? payload.name.trim() : '';
+  const currentPassword = typeof payload.currentPassword === 'string' ? payload.currentPassword : '';
+  const newPassword = typeof payload.newPassword === 'string' ? payload.newPassword : '';
+
+  if (trimmedName && dbUser.role !== 'OPERATOR' && trimmedName !== dbUser.name) {
+    if (trimmedName.length < 2) {
+      return { success: false, error: 'Nama tampilan minimal terdiri dari 2 karakter.' };
+    }
+    updateData.name = trimmedName;
+  }
+
+  if (newPassword) {
+    if (!currentPassword) {
+      return { success: false, error: 'Kata sandi saat ini wajib diisi untuk mengganti sandi.' };
+    }
+    const isMatch = await bcrypt.compare(currentPassword, dbUser.passwordHash);
+    if (!isMatch) {
+      return { success: false, error: 'Kata sandi saat ini tidak sesuai.' };
+    }
+    if (newPassword.length < 6) {
+      return { success: false, error: 'Kata sandi baru minimal terdiri dari 6 karakter.' };
+    }
+    const salt = await bcrypt.genSalt(10);
+    updateData.passwordHash = await bcrypt.hash(newPassword, salt);
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: false, error: 'Tidak ada perubahan nama atau kata sandi untuk disimpan.' };
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: dbUser.id },
+    data: updateData,
+  });
+
+  const sessionData: AdminSession = {
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    role: updated.role,
+    department: updated.department || dbUser.employee?.department || 'Tool Room & Central Warehouse',
+    status: updated.status || 'AKTIF',
+    employeeId: updated.employeeId ?? dbUser.employee?.id ?? null,
+    employeeNik: dbUser.employee?.nik ?? null,
+  };
+
+  const [cookieStore, signedToken, isSecure] = await Promise.all([
+    cookies(),
+    signSessionToken(sessionData),
+    resolveSecureCookieFlag(),
+  ]);
+  cookieStore.set(SESSION_COOKIE, signedToken, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  });
+
+  await prisma.auditLog
+    .create({
+      data: {
+        action: 'PERBARUI_PROFIL_MANDIRI',
+        adminId: updated.id,
+        adminName: updated.name,
+        details: `Pengguna ${updated.name} (ID ${updated.email}) memperbarui ${
+          updateData.name && updateData.passwordHash
+            ? 'nama dan kata sandi'
+            : updateData.passwordHash
+            ? 'kata sandi'
+            : 'nama tampilan'
+        } secara mandiri.`,
       },
     })
     .catch(() => {});

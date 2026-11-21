@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
@@ -15,10 +16,10 @@ export async function GET(request: Request) {
       const where: Record<string, unknown> = {};
       if (search) {
         where.OR = [
-          { transactionNumber: { contains: search } },
-          { employee: { name: { contains: search } } },
-          { employee: { nik: { contains: search } } },
-          { purpose: { contains: search } },
+          { transactionNumber: { contains: search, mode: 'insensitive' } },
+          { employee: { name: { contains: search, mode: 'insensitive' } } },
+          { employee: { nik: { contains: search, mode: 'insensitive' } } },
+          { purpose: { contains: search, mode: 'insensitive' } },
         ];
       }
 
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
         totalQtyBorrowed: number;
       }> = {};
 
-      allLoanItems.forEach((item: any) => {
+      allLoanItems.forEach((item) => {
         const itemObj = item.tool || item.inventory;
         if (!itemObj) return;
         const key = itemObj.code;
@@ -86,10 +87,10 @@ export async function GET(request: Request) {
             name: itemObj.name,
             category: itemObj.category?.name || '-',
             type: itemObj.category?.name || '-',
-            brand: itemObj.brand || '-',
+            brand: item.inventory?.brand || '-',
             totalStock: itemObj.totalStock,
             availableStock: itemObj.availableStock,
-            minStock: itemObj.minStock || 2,
+            minStock: itemObj.minStock ?? 0,
             timesBorrowed: 0,
             totalQtyBorrowed: 0,
           };
@@ -116,12 +117,13 @@ export async function GET(request: Request) {
 
     // 3. KETERLAMBATAN PER PEKERJA (HAL. 8 - TAB 3)
     if (tab === 'delinquency') {
+      const now = new Date();
       const employees = await prisma.employee.findMany({
         include: {
           loans: {
             where: {
               OR: [
-                { status: 'TERLAMBAT' },
+                { status: { not: 'SELESAI' } },
                 {
                   status: 'SELESAI',
                   actualReturnDate: { not: null },
@@ -137,33 +139,42 @@ export async function GET(request: Request) {
         },
       });
 
-      const delinquencyData = employees.map((emp) => {
-        const overdueLoans = emp.loans.filter((l) => l.status === 'TERLAMBAT');
-        const pastLateLoans = emp.loans.filter(
-          (l) => l.status === 'SELESAI' && l.actualReturnDate && l.actualReturnDate > l.expectedReturnDate
-        );
-        const totalLateOccurrences = overdueLoans.length + pastLateLoans.length;
+      const delinquencyData = employees
+        .map((emp) => {
+          const overdueLoans = emp.loans.filter(
+            (l) => l.status !== 'SELESAI' && new Date(l.expectedReturnDate) < now
+          );
+          const pastLateLoans = emp.loans.filter(
+            (l) => l.status === 'SELESAI' && l.actualReturnDate && l.actualReturnDate > l.expectedReturnDate
+          );
+          const totalLateOccurrences = overdueLoans.length + pastLateLoans.length;
 
-        return {
-          id: emp.id,
-          nik: emp.nik,
-          name: emp.name,
-          department: emp.department,
-          shift: emp.shift || '-',
-          phone: emp.phone || '-',
-          status: emp.status,
-          currentOverdueCount: overdueLoans.length,
-          pastLateCount: pastLateLoans.length,
-          totalLateCount: totalLateOccurrences,
-          overdueDetails: overdueLoans.map((l) => ({
-            loanNumber: l.transactionNumber,
-            expectedReturn: l.expectedReturnDate,
-            items: l.items.map((i) => i.tool?.name || i.inventory?.name).join(', '),
-          })),
-        };
-      })
-      .filter((d) => d.totalLateCount > 0 || (search ? d.name.toLowerCase().includes(search.toLowerCase()) || d.nik.toLowerCase().includes(search.toLowerCase()) : false))
-      .sort((a, b) => b.currentOverdueCount - a.currentOverdueCount || b.totalLateCount - a.totalLateCount);
+          return {
+            id: emp.id,
+            nik: emp.nik,
+            name: emp.name,
+            department: emp.department,
+            shift: emp.shift || '-',
+            phone: emp.phone || '-',
+            status: emp.status,
+            currentOverdueCount: overdueLoans.length,
+            pastLateCount: pastLateLoans.length,
+            totalLateCount: totalLateOccurrences,
+            overdueDetails: overdueLoans.map((l) => ({
+              loanNumber: l.transactionNumber,
+              expectedReturn: l.expectedReturnDate,
+              items: l.items.map((i) => i.tool?.name || i.inventory?.name).join(', '),
+            })),
+          };
+        })
+        .filter(
+          (d) =>
+            d.totalLateCount > 0 &&
+            (!search ||
+              d.name.toLowerCase().includes(search.toLowerCase()) ||
+              d.nik.toLowerCase().includes(search.toLowerCase()))
+        )
+        .sort((a, b) => b.currentOverdueCount - a.currentOverdueCount || b.totalLateCount - a.totalLateCount);
 
       return NextResponse.json({
         data: delinquencyData,
@@ -217,7 +228,7 @@ export async function GET(request: Request) {
       const conditionSummary = {
         totalReturns: returns.length,
         baikCount: returns.filter((r) => r.condition === 'BAIK').length,
-        ausCount: returns.filter((r) => r.condition === 'AUS').length,
+        ausCount: returns.filter((r) => r.condition === 'PERLU_ASAH' || r.condition === 'AUS').length,
         rusakCount: returns.filter((r) => r.condition === 'RUSAK').length,
         hilangCount: returns.filter((r) => r.condition === 'HILANG').length,
       };
@@ -238,9 +249,9 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (search) {
       where.OR = [
-        { details: { contains: search } },
-        { adminName: { contains: search } },
-        { action: { contains: search } },
+        { details: { contains: search, mode: 'insensitive' } },
+        { adminName: { contains: search, mode: 'insensitive' } },
+        { action: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -270,6 +281,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || !session.id) {
+      return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(session.role)) {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya Admin Tool Room yang dapat menyelesaikan servis.' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { action, id, itemType } = body;
 
@@ -284,6 +303,25 @@ export async function POST(request: Request) {
           throw new Error('Perkakas tidak memiliki antrean servis/regrind aktif.');
         }
         const restoredQty = tool.repairStock;
+
+        // Sinkronkan ToolUnit yang sedang PERLU_ASAH / RUSAK agar tidak desinkronisasi
+        const repairUnits = await tx.toolUnit.findMany({
+          where: { toolId: id, status: { in: ['PERLU_ASAH', 'RUSAK'] } },
+          take: restoredQty,
+          orderBy: { unitCode: 'asc' },
+        });
+        for (const u of repairUnits) {
+          await tx.toolUnit.update({
+            where: { id: u.id },
+            data: {
+              remainingLifeMinutes: u.maxLifeMinutes,
+              resharpenCount: { increment: 1 },
+              status: 'TERSEDIA',
+              notes: `Selesai asah/servis massal & reset umur pakai (${u.maxLifeMinutes} menit)`,
+            },
+          });
+        }
+
         const updated = await tx.tool.update({
           where: { id },
           data: {
@@ -295,7 +333,8 @@ export async function POST(request: Request) {
         await tx.auditLog.create({
           data: {
             action: 'SELESAI_SERVIS',
-            adminName: 'Admin Tool Room',
+            adminId: session.id,
+            adminName: session.name || 'Admin Tool Room',
             details: `Servis / Regrind selesai untuk ${tool.code} (${tool.name}). ${restoredQty} unit dikembalikan ke stok tersedia.`,
           },
         });
@@ -317,7 +356,8 @@ export async function POST(request: Request) {
         await tx.auditLog.create({
           data: {
             action: 'SELESAI_SERVIS',
-            adminName: 'Admin Tool Room',
+            adminId: session.id,
+            adminName: session.name || 'Admin Tool Room',
             details: `Servis selesai untuk ${inv.code} (${inv.name}). ${restoredQty} unit dikembalikan ke stok tersedia.`,
           },
         });

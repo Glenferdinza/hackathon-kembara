@@ -17,17 +17,22 @@ export async function GET(request: Request) {
 
     if (search) {
       where.OR = [
-        { transactionNumber: { contains: search } },
-        { employee: { name: { contains: search } } },
-        { employee: { nik: { contains: search } } },
-        { purpose: { contains: search } },
-        { items: { some: { toolUnit: { unitCode: { contains: search.toUpperCase() } } } } },
-        { items: { some: { currentHolder: { name: { contains: search } } } } },
+        { transactionNumber: { contains: search, mode: 'insensitive' } },
+        { employee: { name: { contains: search, mode: 'insensitive' } } },
+        { employee: { nik: { contains: search, mode: 'insensitive' } } },
+        { purpose: { contains: search, mode: 'insensitive' } },
+        { items: { some: { toolUnit: { unitCode: { contains: search.toUpperCase(), mode: 'insensitive' } } } } },
+        { items: { some: { currentHolder: { name: { contains: search, mode: 'insensitive' } } } } },
       ];
     }
 
     if (status) {
-      where.status = status;
+      if (status === 'TERLAMBAT') {
+        where.status = { not: 'SELESAI' };
+        where.expectedReturnDate = { lt: now };
+      } else {
+        where.status = status;
+      }
     }
 
     if (employeeId) {
@@ -123,9 +128,15 @@ export async function POST(request: Request) {
 
     // Generate unique transaction number with year and sequence: LOAN-YYYYMM-XXXX
     const datePrefix = new Date().toISOString().slice(0, 7).replace('-', '');
-    const count = await prisma.loanTransaction.count();
-    const seq = String(count + 1).padStart(4, '0');
-    const transactionNumber = `LOAN-${datePrefix}-${seq}`;
+    const prefix = `LOAN-${datePrefix}-`;
+    const latestLoan = await prisma.loanTransaction.findFirst({
+      where: { transactionNumber: { startsWith: prefix } },
+      orderBy: { transactionNumber: 'desc' },
+      select: { transactionNumber: true },
+    });
+    const lastSeq = latestLoan ? parseInt(latestLoan.transactionNumber.slice(prefix.length), 10) : 0;
+    const seq = String((Number.isFinite(lastSeq) ? lastSeq : 0) + 1).padStart(4, '0');
+    const transactionNumber = `${prefix}${seq}`;
 
     // Execute atomic transaction: Check stock -> Deduct available -> Add borrowed -> Create loan
     const result = await prisma.$transaction(async (tx) => {
@@ -133,6 +144,9 @@ export async function POST(request: Request) {
       const employee = await tx.employee.findUnique({ where: { id: employeeId } });
       if (!employee) {
         throw new Error('Data peminjam tidak ditemukan.');
+      }
+      if (employee.status === 'NONAKTIF') {
+        throw new Error(`Karyawan ${employee.name} berstatus NONAKTIF dan tidak diizinkan meminjam.`);
       }
 
       const itemCreateData = [];
@@ -156,22 +170,86 @@ export async function POST(request: Request) {
             throw new Error(`Stok "${tool.name}" tidak mencukupi! Tersedia: ${tool.availableStock}, Diminta: ${qty}.`);
           }
 
-          // Atomically update Tool stock: Total stays SAME, available decreases, borrowed increases
-          await tx.tool.update({
-            where: { id: tool.id },
-            data: {
-              availableStock: tool.availableStock - qty,
-              borrowedStock: tool.borrowedStock + qty,
-            },
-          });
+          const totalUnitsForTool = await tx.toolUnit.count({ where: { toolId: tool.id } });
+          if (totalUnitsForTool > 0) {
+            let assignedUnits = [] as Array<{ id: string }>;
 
-          itemCreateData.push({
-            itemType: 'TOOL',
-            toolId: tool.id,
-            quantity: qty,
-            returnedQuantity: 0,
-            status: 'DIPINJAM',
-          });
+            if (item.toolUnitId) {
+              const specificUnit = await tx.toolUnit.findUnique({ where: { id: String(item.toolUnitId) } });
+              if (!specificUnit || specificUnit.toolId !== tool.id) {
+                throw new Error(`Unit barcode yang dipilih tidak sesuai dengan master "${tool.name}".`);
+              }
+              if (specificUnit.status !== 'TERSEDIA') {
+                throw new Error(`Unit ${specificUnit.unitCode} berstatus ${specificUnit.status} dan tidak dapat dipinjam.`);
+              }
+              assignedUnits = [{ id: specificUnit.id }];
+              if (qty > 1) {
+                const extraUnits = await tx.toolUnit.findMany({
+                  where: { toolId: tool.id, status: 'TERSEDIA', id: { not: specificUnit.id } },
+                  orderBy: { unitCode: 'asc' },
+                  take: qty - 1,
+                  select: { id: true },
+                });
+                assignedUnits.push(...extraUnits);
+              }
+            } else {
+              assignedUnits = await tx.toolUnit.findMany({
+                where: { toolId: tool.id, status: 'TERSEDIA' },
+                orderBy: { unitCode: 'asc' },
+                take: qty,
+                select: { id: true },
+              });
+            }
+
+            if (assignedUnits.length < qty) {
+              throw new Error(
+                `Unit fisik "${tool.name}" yang siap pinjam hanya ${assignedUnits.length} unit (sebagian sedang dikunci di antrean request operator).`
+              );
+            }
+
+            await tx.toolUnit.updateMany({
+              where: { id: { in: assignedUnits.map((u) => u.id) } },
+              data: { status: 'DIPINJAM' },
+            });
+
+            await tx.tool.update({
+              where: { id: tool.id },
+              data: {
+                availableStock: tool.availableStock - qty,
+                borrowedStock: tool.borrowedStock + qty,
+              },
+            });
+
+            for (const unit of assignedUnits) {
+              itemCreateData.push({
+                itemType: 'TOOL',
+                toolId: tool.id,
+                toolUnitId: unit.id,
+                currentHolderId: employee.id,
+                quantity: 1,
+                returnedQuantity: 0,
+                status: 'DIPINJAM',
+              });
+            }
+          } else {
+            // Legacy tool tanpa record ToolUnit individual
+            await tx.tool.update({
+              where: { id: tool.id },
+              data: {
+                availableStock: tool.availableStock - qty,
+                borrowedStock: tool.borrowedStock + qty,
+              },
+            });
+
+            itemCreateData.push({
+              itemType: 'TOOL',
+              toolId: tool.id,
+              currentHolderId: employee.id,
+              quantity: qty,
+              returnedQuantity: 0,
+              status: 'DIPINJAM',
+            });
+          }
         } else if (item.itemType === 'INVENTORY') {
           const inv = await tx.inventory.findUnique({ where: { id: item.id } });
           if (!inv) {
@@ -196,6 +274,7 @@ export async function POST(request: Request) {
           itemCreateData.push({
             itemType: 'INVENTORY',
             inventoryId: inv.id,
+            currentHolderId: employee.id,
             quantity: qty,
             returnedQuantity: 0,
             status: 'DIPINJAM',
@@ -285,6 +364,9 @@ export async function PATCH(request: Request) {
 
     if (!loan) {
       return NextResponse.json({ error: 'Transaksi tidak ditemukan.' }, { status: 404 });
+    }
+    if (loan.status === 'SELESAI') {
+      return NextResponse.json({ error: 'Transaksi yang sudah selesai tidak dapat diperpanjang.' }, { status: 400 });
     }
 
     const updated = await prisma.loanTransaction.update({

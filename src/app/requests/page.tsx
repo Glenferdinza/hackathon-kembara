@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { BarcodeScannerModal } from '@/components/qr/QrScannerModal';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { invalidateDashboardSummaryCache } from '@/lib/dashboard-client';
 
 interface AvailableUnit {
   id: string;
@@ -49,7 +50,7 @@ export default function AdminRequestsQueuePage() {
   const { confirm } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<LoanReq[]>([]);
-  const [statusFilter, setStatusFilter] = useState('MENUNGGU_ADMIN');
+  const [statusFilter, setStatusFilter] = useState('');
 
   // Preparation modal state
   const [preparingReq, setPreparingReq] = useState<LoanReq | null>(null);
@@ -285,8 +286,19 @@ export default function AdminRequestsQueuePage() {
       return;
     }
 
-    // Jika berada di daftar antrean, cocokkan No. Request atau lookup ToolUnit -> buka modal request terkait
-    const waitingRequests = requests.filter((r) => r.status === 'MENUNGGU_ADMIN');
+    // Jika berada di daftar antrean, cocokkan No. Request atau lookup ToolUnit -> buka modal request terkait (lintas filter tab)
+    let waitingRequests = requests.filter((r) => r.status === 'MENUNGGU_ADMIN');
+    if (statusFilter !== 'MENUNGGU_ADMIN') {
+      try {
+        const wRes = await fetch('/api/loan-requests?status=MENUNGGU_ADMIN');
+        if (wRes.ok) {
+          const wJson = await wRes.json();
+          waitingRequests = wJson.data || [];
+        }
+      } catch {
+        // fallback ke list lokal
+      }
+    }
     const matchedReqByNo = waitingRequests.find((r) => r.requestNumber.toUpperCase() === code);
     if (matchedReqByNo) {
       await handleOpenPrepareModal(matchedReqByNo);
@@ -394,6 +406,7 @@ export default function AdminRequestsQueuePage() {
           `Request ${preparingReq.requestNumber} siap diambil! Menunggu konfirmasi Terima dari Operator.`,
           'success'
         );
+        invalidateDashboardSummaryCache();
         closePrepareModal();
         fetchRequests();
       }
@@ -425,6 +438,7 @@ export default function AdminRequestsQueuePage() {
       });
       if (res.ok) {
         showToast(`Request ${req.requestNumber} ditolak.`, 'info');
+        invalidateDashboardSummaryCache();
         fetchRequests();
       }
     } catch {
@@ -439,43 +453,48 @@ export default function AdminRequestsQueuePage() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
                 Antrean Request Pinjam Operator
               </h1>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-xs font-semibold text-[#1E40AF]">
                 Scanner USB Otomatis Aktif
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-600 mt-0.5">
               Daftar permintaan pinjaman dari operator lantai produksi. Ambil barang di rak, scan barcode unit langsung via USB atau kamera, lalu klik OK.
             </p>
           </div>
           <RefreshButton onRefresh={fetchRequests} loading={loading} />
         </div>
 
-        {/* Filter Status Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-slate-200">
-          {[
-            { key: 'MENUNGGU_ADMIN', label: 'Menunggu Diproses' },
-            { key: 'SIAP_DIAMBIL', label: 'Siap Diambil (Menunggu Operator)' },
-            { key: 'DITERIMA', label: 'Sudah Diterima' },
-            { key: 'DITOLAK', label: 'Ditolak' },
-            { key: '', label: 'Semua Status' },
-          ].map((tab) => (
-            <button
-              key={tab.key || 'ALL'}
-              type="button"
-              onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded border cursor-pointer transition-colors ${
-                statusFilter === tab.key
-                  ? 'bg-[#1E40AF] text-white border-[#1E40AF]'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-              }`}
+        {/* Filter Status Bar (Single Dropdown) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label
+              htmlFor="request-status-filter"
+              className="text-xs text-slate-600 font-medium whitespace-nowrap"
             >
-              {tab.label}
-            </button>
-          ))}
+              Filter Status
+            </label>
+            <select
+              id="request-status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 rounded px-2.5 py-2 sm:py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+            >
+              <option value="">Semua Status</option>
+              <option value="MENUNGGU_ADMIN">Menunggu Diproses</option>
+              <option value="SIAP_DIAMBIL">Siap Diambil (Menunggu Operator)</option>
+              <option value="DITERIMA">Sudah Diterima</option>
+              <option value="DITOLAK">Ditolak</option>
+            </select>
+          </div>
+          {!loading && (
+            <span className="text-xs text-slate-600 tabular-nums whitespace-nowrap">
+              {requests.length.toLocaleString('id-ID')} antrean
+            </span>
+          )}
         </div>
 
         {loading ? (
@@ -483,100 +502,184 @@ export default function AdminRequestsQueuePage() {
         ) : requests.length === 0 ? (
           <EmptyState
             title="Antrean Kosong"
-            description="Belum ada permintaan peminjaman pada status filter yang dipilih."
+            description="Belum ada permintaan pinjaman pada status filter yang dipilih."
           />
         ) : (
-          <div className="overflow-x-auto bg-white border border-slate-200 rounded">
-            <table className="w-full text-left text-xs min-w-[820px]">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3">NO. REQUEST</th>
-                  <th className="py-2.5 px-3">PEMOHON (OPERATOR)</th>
-                  <th className="py-2.5 px-3">BARANG &amp; UNIT BARCODE</th>
-                  <th className="py-2.5 px-3">KEPERLUAN &amp; TENGGAT</th>
-                  <th className="py-2.5 px-3 text-center">STATUS</th>
-                  <th className="py-2.5 px-3 text-right">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {requests.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                      {req.requestNumber}
-                      <div className="text-[10px] font-sans font-normal text-slate-400">
+          <>
+            {/* Mobile Card View (< 768px) */}
+            <div className="md:hidden space-y-2.5">
+              {requests.map((req) => (
+                <div key={req.id} className="bg-white border border-slate-200 rounded p-3.5 space-y-2.5 text-xs">
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div>
+                      <div className="font-mono font-bold text-slate-900">{req.requestNumber}</div>
+                      <div className="text-[11px] text-slate-600 tabular-nums">
                         {new Date(req.createdAt).toLocaleString('id-ID')}
                       </div>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-slate-900">{req.employee.name}</div>
-                      <div className="text-[11px] font-mono text-slate-500">
-                        {req.employee.nik} | {req.employee.shift || req.employee.department}
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 space-y-1">
-                      {req.items.map((it) => (
-                        <div key={it.id} className="text-slate-800">
-                          <span className="font-semibold">{it.tool?.name || it.inventory?.name}</span>{' '}
+                    </div>
+                    <span
+                      className={`text-xs font-bold uppercase ${
+                        req.status === 'DITERIMA'
+                          ? 'text-emerald-800'
+                          : req.status === 'SIAP_DIAMBIL'
+                          ? 'text-[#1E40AF]'
+                          : req.status === 'MENUNGGU_ADMIN'
+                          ? 'text-[#92400E]'
+                          : 'text-slate-600'
+                      }`}
+                    >
+                      {req.status}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="text-[13px] font-bold text-slate-900">{req.employee.name}</div>
+                    <div className="font-mono text-xs text-slate-600">
+                      {req.employee.nik} | {req.employee.shift || req.employee.department}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 border-t border-slate-100 pt-2">
+                    {req.items.map((it) => (
+                      <div key={it.id} className="text-xs text-slate-800">
+                        <span className="font-semibold">{it.tool?.name || it.inventory?.name}</span>{' '}
+                        <span className="tabular-nums font-bold">
                           ({it.requestedQty} {it.tool?.unit || it.inventory?.unit})
-                          <div className="text-[10px] text-slate-500">
-                            Rak: {it.tool?.location || it.inventory?.location}
-                            {it.assignedUnits && it.assignedUnits.length > 0 && (
-                              <span className="ml-2 font-mono font-semibold text-[#1E40AF]">
-                                Unit Barcode: {it.assignedUnits.map((u) => u.unitCode).join(', ')}
-                              </span>
-                            )}
-                          </div>
+                        </span>
+                        <div className="text-[11px] text-slate-600">
+                          Rak {it.tool?.location || it.inventory?.location}
+                          {it.assignedUnits && it.assignedUnits.length > 0 && (
+                            <span className="block font-mono font-semibold text-[#1E40AF] mt-0.5">
+                              Unit {it.assignedUnits.map((u) => u.unitCode).join(', ')}
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <div className="text-slate-800">{req.purpose || '-'}</div>
-                      <div className="text-[11px] text-slate-500 tabular-nums">
-                        Tenggat {new Date(req.expectedReturnDate).toLocaleString('id-ID')}
                       </div>
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                          req.status === 'DITERIMA'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : req.status === 'SIAP_DIAMBIL'
-                            ? 'bg-blue-50 text-[#1E40AF] border-blue-200'
-                            : req.status === 'MENUNGGU_ADMIN'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}
+                    ))}
+                  </div>
+
+                  <div className="text-xs text-slate-600 border-t border-slate-100 pt-2">
+                    <div>{req.purpose || '-'}</div>
+                    <div className="tabular-nums mt-0.5">
+                      Tenggat {new Date(req.expectedReturnDate).toLocaleString('id-ID')}
+                    </div>
+                  </div>
+
+                  {req.status === 'MENUNGGU_ADMIN' && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPrepareModal(req)}
+                        className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded cursor-pointer"
                       >
-                        {req.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right whitespace-nowrap space-x-2">
-                      {req.status === 'MENUNGGU_ADMIN' ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPrepareModal(req)}
-                            className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded cursor-pointer"
-                          >
-                            Scan Barcode &amp; Siapkan
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRejectRequest(req)}
-                            className="text-red-700 hover:underline font-semibold cursor-pointer"
-                          >
-                            Tolak
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
+                        Scan Barcode &amp; Siapkan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRejectRequest(req)}
+                        className="min-h-[44px] px-3.5 py-2 text-xs font-semibold text-[#991B1B] bg-white border border-slate-300 hover:bg-red-50 rounded cursor-pointer"
+                      >
+                        Tolak
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto bg-white border border-slate-200 rounded">
+              <table className="w-full text-left text-xs min-w-[820px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-3">NO. REQUEST</th>
+                    <th className="py-2.5 px-3">PEMOHON (OPERATOR)</th>
+                    <th className="py-2.5 px-3">BARANG &amp; UNIT BARCODE</th>
+                    <th className="py-2.5 px-3">KEPERLUAN &amp; TENGGAT</th>
+                    <th className="py-2.5 px-3 text-center">STATUS</th>
+                    <th className="py-2.5 px-3 text-right">AKSI</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {requests.map((req) => (
+                    <tr key={req.id} className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                        {req.requestNumber}
+                        <div className="text-[11px] font-sans font-normal text-slate-600">
+                          {new Date(req.createdAt).toLocaleString('id-ID')}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-slate-900">{req.employee.name}</div>
+                        <div className="text-[11px] font-mono text-slate-600">
+                          {req.employee.nik} | {req.employee.shift || req.employee.department}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 space-y-1">
+                        {req.items.map((it) => (
+                          <div key={it.id} className="text-slate-800">
+                            <span className="font-semibold">{it.tool?.name || it.inventory?.name}</span>{' '}
+                            ({it.requestedQty} {it.tool?.unit || it.inventory?.unit})
+                            <div className="text-[11px] text-slate-600">
+                              Rak {it.tool?.location || it.inventory?.location}
+                              {it.assignedUnits && it.assignedUnits.length > 0 && (
+                                <span className="ml-2 font-mono font-semibold text-[#1E40AF]">
+                                  Unit {it.assignedUnits.map((u) => u.unitCode).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-slate-800">{req.purpose || '-'}</div>
+                        <div className="text-[11px] text-slate-600 tabular-nums">
+                          Tenggat {new Date(req.expectedReturnDate).toLocaleString('id-ID')}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <span
+                          className={`text-xs font-bold uppercase ${
+                            req.status === 'DITERIMA'
+                              ? 'text-emerald-800'
+                              : req.status === 'SIAP_DIAMBIL'
+                              ? 'text-[#1E40AF]'
+                              : req.status === 'MENUNGGU_ADMIN'
+                              ? 'text-[#92400E]'
+                              : 'text-slate-600'
+                          }`}
+                        >
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap space-x-2">
+                        {req.status === 'MENUNGGU_ADMIN' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPrepareModal(req)}
+                              className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded cursor-pointer"
+                            >
+                              Scan Barcode &amp; Siapkan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRejectRequest(req)}
+                              className="text-[#991B1B] hover:underline font-semibold cursor-pointer"
+                            >
+                              Tolak
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-slate-600">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -593,13 +696,13 @@ export default function AdminRequestsQueuePage() {
             <div className="px-5 py-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-heading font-bold text-slate-900">
-                  Siapkan &amp; Scan Barcode Unit — {preparingReq.requestNumber}
+                  Siapkan &amp; Scan Barcode Unit ({preparingReq.requestNumber})
                 </h2>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-600">
                   Pemohon {preparingReq.employee.name} ({preparingReq.employee.nik}) | Tembak scanner USB langsung ke stiker barcode wadah perkakas.
                 </p>
               </div>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white text-slate-700 border border-slate-200 self-start sm:self-auto shrink-0">
+              <span className="text-[11px] font-semibold text-[#1E40AF] self-start sm:self-auto shrink-0">
                 USB Auto-Scan Siap
               </span>
             </div>
@@ -617,22 +720,22 @@ export default function AdminRequestsQueuePage() {
                         <div className="font-bold text-slate-900">
                           {item.tool?.name || item.inventory?.name}
                         </div>
-                        <div className="text-[11px] text-slate-500">
+                        <div className="text-[11px] text-slate-600">
                           Rak {item.tool?.location || item.inventory?.location} | Diminta {item.requestedQty} {item.tool?.unit || item.inventory?.unit}
                         </div>
                       </div>
                       {item.itemType === 'TOOL' ? (
                         <span
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border tabular-nums shrink-0 ${
+                          className={`text-xs font-bold tabular-nums shrink-0 ${
                             pickedIds.length === item.requestedQty
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                              ? 'text-emerald-800'
+                              : 'text-[#92400E]'
                           }`}
                         >
                           {pickedIds.length} / {item.requestedQty} Unit Barcode
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                        <span className="text-xs font-semibold text-slate-700 shrink-0">
                           Inventaris Siap ({item.requestedQty})
                         </span>
                       )}

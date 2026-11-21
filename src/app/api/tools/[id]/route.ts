@@ -72,9 +72,16 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
     if (totalStock !== undefined) {
       const newTotal = parseInt(totalStock, 10);
+      const lockedStock = existing.borrowedStock + existing.repairStock + existing.scrapStock;
+      if (isNaN(newTotal) || newTotal < lockedStock) {
+        return NextResponse.json(
+          { error: `Total stok tidak boleh kurang dari unit sedang dipinjam/servis/afkir (${lockedStock} unit).` },
+          { status: 400 }
+        );
+      }
       const diff = newTotal - existing.totalStock;
       total = newTotal;
-      available = Math.max(0, existing.availableStock + diff);
+      available = Math.max(0, newTotal - lockedStock);
       if (diff > 0) addedQty = diff;
     }
 

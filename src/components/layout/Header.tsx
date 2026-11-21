@@ -3,19 +3,84 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AlertCircle, ChevronDown, Clock, Info, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import { fetchHeaderSummary } from '@/lib/dashboard-client';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+
+const READ_NOTIFS_STORAGE_KEY = 'ypti_read_notif_ids';
+const DISMISSED_NOTIFS_STORAGE_KEY = 'ypti_dismissed_notif_keys';
+
+function loadReadNotifIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(READ_NOTIFS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.map(String)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveReadNotifIds(ids: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(READ_NOTIFS_STORAGE_KEY, JSON.stringify(Array.from(ids).slice(-100)));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+function loadDismissedNotifKeys(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DISMISSED_NOTIFS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.map(String)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDismissedNotifKeys(keys: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(DISMISSED_NOTIFS_STORAGE_KEY, JSON.stringify(Array.from(keys).slice(-150)));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+interface HeaderUserSummary {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  employeeId?: string | null;
+  employeeNik?: string | null;
+}
 
 interface HeaderProps {
   onToggleSidebar: () => void;
   onToggleMobileMenu?: () => void;
   userName?: string;
   userRole?: string;
+  userIdCode?: string;
+  userDepartment?: string;
+  employeeNik?: string | null;
+  onUserUpdated?: (user: HeaderUserSummary) => void;
 }
 
 interface NotificationItem {
   id: string;
+  dismissKey: string;
   title: string;
   message: string;
   type: string;
+  urgent: boolean;
   isRead: boolean;
   link?: string;
   createdAt: string;
@@ -201,11 +266,31 @@ const MENU_SUGGESTIONS = [
   },
 ];
 
-export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole }: HeaderProps) {
+export function Header({
+  onToggleSidebar,
+  onToggleMobileMenu,
+  userName,
+  userRole,
+  userIdCode,
+  userDepartment,
+  employeeNik,
+  onUserUpdated,
+}: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => new Set());
 
   // Global search state + live autocomplete recommendations
   const [globalSearch, setGlobalSearch] = useState('');
@@ -227,15 +312,16 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const notificationsContainerRef = useRef<HTMLDivElement>(null);
+  const accountContainerRef = useRef<HTMLDivElement>(null);
 
   const effectiveRole = userRole || 'SUPER_ADMIN';
   const displayName = userName || 'Agung Setiawan';
   const displayRole =
     effectiveRole === 'SUPER_ADMIN'
-      ? 'Super Admin (Boss)'
+      ? 'Super Admin'
       : effectiveRole === 'OPERATOR'
       ? 'Operator Produksi'
-      : 'Admin';
+      : 'Admin Tool Room';
   const initials = displayName
     .split(' ')
     .map((p) => p[0])
@@ -243,7 +329,7 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
     .slice(0, 2)
     .toUpperCase();
 
-  // Close search & notifications dropdowns when clicking outside
+  // Close search, notifications & account popovers when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -258,10 +344,118 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
       ) {
         setShowNotifications(false);
       }
+      if (
+        accountContainerRef.current &&
+        !accountContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowAccountMenu(false);
+      }
+    };
+    const handleEscapeKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowNotifications(false);
+        setShowAccountMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
   }, []);
+
+  const openProfileModal = () => {
+    setShowAccountMenu(false);
+    setProfileName(displayName);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setProfileError('');
+    setShowProfileModal(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError('');
+
+    const trimmedName = profileName.trim();
+    const wantsNameChange = effectiveRole !== 'OPERATOR' && trimmedName !== displayName;
+    const wantsPasswordChange = newPassword.length > 0;
+
+    if (effectiveRole !== 'OPERATOR' && trimmedName.length < 2) {
+      setProfileError('Nama tampilan minimal terdiri dari 2 karakter.');
+      return;
+    }
+
+    if (wantsPasswordChange) {
+      if (!currentPassword) {
+        setProfileError('Masukkan kata sandi saat ini untuk verifikasi.');
+        return;
+      }
+      if (newPassword.length < 6) {
+        setProfileError('Kata sandi baru minimal terdiri dari 6 karakter.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setProfileError('Konfirmasi kata sandi baru tidak cocok.');
+        return;
+      }
+    }
+
+    if (!wantsNameChange && !wantsPasswordChange) {
+      setProfileError('Belum ada perubahan nama atau kata sandi untuk disimpan.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: wantsNameChange ? trimmedName : undefined,
+          currentPassword: wantsPasswordChange ? currentPassword : undefined,
+          newPassword: wantsPasswordChange ? newPassword : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setProfileError(json.error || 'Gagal menyimpan perubahan akun.');
+        return;
+      }
+      if (json.user && onUserUpdated) {
+        onUserUpdated(json.user);
+      }
+      setShowProfileModal(false);
+      showToast('Pengaturan akun berhasil diperbarui.', 'success');
+    } catch {
+      setProfileError('Terjadi kesalahan jaringan saat memperbarui akun.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleHeaderLogout = async () => {
+    setShowAccountMenu(false);
+    const ok = await confirm({
+      title: 'Konfirmasi Keluar Sistem',
+      message: 'Apakah Anda yakin ingin mengakhiri sesi akses pada perangkat ini?',
+      confirmText: 'Keluar Sistem',
+      cancelText: 'Batal',
+      type: 'danger',
+    });
+    if (!ok) return;
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('ypti_erp_active_user');
+      }
+      await fetch('/api/auth', { method: 'DELETE' });
+      router.push('/login');
+    } catch {
+      router.push('/login');
+    }
+  };
 
   // Debounced live search fetch from /api/search (Admin & Super Admin)
   useEffect(() => {
@@ -462,54 +656,124 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
+        const readIds = loadReadNotifIds();
+        const storedDismissed = loadDismissedNotifKeys();
+
         if (effectiveRole === 'OPERATOR') {
           const res = await fetch('/api/operator/summary');
           if (res.ok) {
             const data = await res.json();
             const items: NotificationItem[] = [];
             (data.incomingHandovers || []).forEach((h: { id: string; handoverNumber: string; fromEmployee?: { name?: string }; toolUnit?: { unitCode?: string } }) => {
+              const id = `hov-${h.id}`;
               items.push({
-                id: `hov-${h.id}`,
+                id,
+                dismissKey: id,
                 title: `Menunggu Terima Shift (${h.handoverNumber})`,
                 message: `Pengalihan dari ${h.fromEmployee?.name || 'Operator'} untuk unit ${h.toolUnit?.unitCode || 'Tool'}`,
-                type: 'WARNING',
-                isRead: false,
+                type: 'DANGER',
+                urgent: true,
+                isRead: readIds.has(id),
                 link: '/operator',
                 createdAt: new Date().toISOString(),
               });
             });
             (data.readyRequests || []).forEach((r: { id: string; requestNumber: string }) => {
+              const id = `req-${r.id}`;
               items.push({
-                id: `req-${r.id}`,
+                id,
+                dismissKey: id,
                 title: `Barang Siap Diambil (${r.requestNumber})`,
                 message: 'Admin Tool Room telah memindai unit perkakas. Cek dan klik Terima.',
-                type: 'INFO',
-                isRead: false,
+                type: 'DANGER',
+                urgent: true,
+                isRead: readIds.has(id),
                 link: '/operator',
                 createdAt: new Date().toISOString(),
               });
             });
+            if (typeof data.criticalLifeCount === 'number' && data.criticalLifeCount > 0) {
+              const id = `op-crit-${data.criticalLifeCount}`;
+              items.push({
+                id,
+                dismissKey: id,
+                title: `Umur Pakai Kritis (${data.criticalLifeCount} unit)`,
+                message: 'Perkakas yang Anda pegang mendekati batas umur pakai. Segera kembalikan ke Tool Room.',
+                type: 'DANGER',
+                urgent: true,
+                isRead: readIds.has(id),
+                link: '/operator',
+                createdAt: new Date().toISOString(),
+              });
+            }
+            (data.recentNotifications || []).forEach((rn: { id: string; title: string; message: string; type: string; link?: string | null; createdAt: string }) => {
+              const lowerTitle = rn.title.toLowerCase();
+              if (lowerTitle.includes('waiting list pengalihan shift') || lowerTitle.includes('barang siap diambil')) {
+                return;
+              }
+              const id = `op-db-${rn.id}`;
+              items.push({
+                id,
+                dismissKey: id,
+                title: rn.title,
+                message: rn.message,
+                type: rn.type || 'INFO',
+                urgent: false,
+                isRead: readIds.has(id),
+                link: rn.link || '/operator',
+                createdAt: rn.createdAt,
+              });
+            });
+            setDismissedKeys(storedDismissed);
             setNotifications(items);
           }
           return;
         }
 
-        const res = await fetch('/api/dashboard');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.actionItems) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const items = data.actionItems.map((item: any, idx: number) => ({
-              id: `notif-${idx}`,
+        const data = await fetchHeaderSummary();
+        if (data) {
+          const items: NotificationItem[] = (data.actionItems || []).map((item) => {
+            const id = `notif-${item.id}`;
+            const isUrgent = Boolean(item.urgent ?? item.type === 'DANGER');
+            return {
+              id,
+              dismissKey: item.dismissKey || id,
               title: item.title,
               message: item.description,
               type: item.type,
-              isRead: false,
+              urgent: isUrgent,
+              isRead: readIds.has(id),
               link: item.link,
               createdAt: new Date().toISOString(),
-            }));
-            setNotifications(items);
-          }
+            };
+          });
+
+          // Include recent non-urgent admin event notifications so they can be inspected and dismissed cleanly
+          (data.notifications || []).slice(0, 5).forEach((dn) => {
+            const lowerTitle = dn.title.toLowerCase();
+            if (
+              lowerTitle.includes('transaksi terlambat') ||
+              lowerTitle.includes('request pinjam baru') ||
+              lowerTitle.includes('umur pakai kritis')
+            ) {
+              return;
+            }
+            const id = `db-${dn.id}`;
+            items.push({
+              id,
+              dismissKey: id,
+              title: dn.title,
+              message: dn.message,
+              type: dn.type || 'INFO',
+              urgent: false,
+              isRead: readIds.has(id),
+              link: dn.link || '/',
+              createdAt: dn.createdAt,
+            });
+          });
+
+          setDismissedKeys(storedDismissed);
+          setNotifications(items);
         }
       } catch {
         // silent fallback
@@ -517,7 +781,46 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
     };
 
     fetchNotifs();
-  }, [effectiveRole]);
+  }, [effectiveRole, pathname]);
+
+  const markNotifRead = (id: string) => {
+    const nextRead = loadReadNotifIds();
+    nextRead.add(id);
+    saveReadNotifIds(nextRead);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+  };
+
+  const dismissNotif = (dismissKey: string, id: string) => {
+    const nextDismissed = loadDismissedNotifKeys();
+    nextDismissed.add(dismissKey);
+    saveDismissedNotifKeys(nextDismissed);
+    setDismissedKeys(nextDismissed);
+
+    const nextRead = loadReadNotifIds();
+    nextRead.add(id);
+    saveReadNotifIds(nextRead);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+  };
+
+  const visibleNotifications = useMemo(
+    () => notifications.filter((n) => n.urgent || !dismissedKeys.has(n.dismissKey)),
+    [notifications, dismissedKeys]
+  );
+
+  const dismissAllNonUrgent = () => {
+    const nextDismissed = loadDismissedNotifKeys();
+    const nextRead = loadReadNotifIds();
+    visibleNotifications.forEach((n) => {
+      if (!n.urgent) {
+        nextDismissed.add(n.dismissKey);
+        nextRead.add(n.id);
+      }
+    });
+    saveDismissedNotifKeys(nextDismissed);
+    saveReadNotifIds(nextRead);
+    setDismissedKeys(nextDismissed);
+    setNotifications((prev) => prev.map((n) => (!n.urgent ? { ...n, isRead: true } : n)));
+  };
 
   const getBreadcrumbs = () => {
     switch (pathname) {
@@ -559,7 +862,9 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
   };
 
   const breadcrumbs = getBreadcrumbs();
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const urgentCount = visibleNotifications.filter((n) => n.urgent).length;
+  const dismissibleCount = visibleNotifications.filter((n) => !n.urgent).length;
+  const unreadCount = visibleNotifications.filter((n) => n.urgent || !n.isRead).length;
 
   const getCategoryHeading = (cat: FlatSuggestion['category']) => {
     switch (cat) {
@@ -607,7 +912,7 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
       <div ref={searchContainerRef} className="relative flex-1 min-w-0 max-w-lg mx-1 sm:mx-4">
         <form onSubmit={handleGlobalSearchSubmit} className="relative flex items-center w-full">
           <svg
-            className="w-3.5 h-3.5 text-slate-400 absolute left-3 pointer-events-none"
+            className="w-3.5 h-3.5 text-slate-600 absolute left-3 pointer-events-none"
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
@@ -632,11 +937,11 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
             onKeyDown={handleSearchKeyDown}
             placeholder={
               effectiveRole === 'OPERATOR'
-                ? 'Cari menu, kode tool, atau inventaris...'
-                : 'Cari menu, kode tool, inventaris, NIK, atau transaksi...'
+                ? 'Cari menu & panduan...'
+                : 'Cari kode, NIK, menu...'
             }
             aria-label="Pencarian cepat global"
-            className="w-full bg-slate-50 border border-slate-200 rounded pl-8 pr-7 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors"
+            className="w-full bg-slate-50 border border-slate-200 rounded pl-8 pr-9 py-1.5 text-xs text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1E40AF] focus:bg-white transition-colors"
           />
           {globalSearch && (
             <button
@@ -647,7 +952,7 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
                 searchInputRef.current?.focus();
               }}
               aria-label="Bersihkan kata kunci"
-              className="absolute right-2.5 text-slate-400 hover:text-slate-700 text-xs font-semibold cursor-pointer"
+              className="absolute right-0.5 min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-600 hover:text-slate-900 text-sm font-semibold cursor-pointer"
             >
               &times;
             </button>
@@ -725,7 +1030,10 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
       <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
         <div ref={notificationsContainerRef} className="relative">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => {
+              setShowAccountMenu(false);
+              setShowNotifications((prev) => !prev);
+            }}
             className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
             aria-label="Lihat notifikasi"
             title="Pemberitahuan Sistem"
@@ -739,53 +1047,133 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
               />
             </svg>
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-semibold text-white bg-[#1E40AF] rounded-full ring-2 ring-white tabular-nums">
+              <span
+                className={`absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-semibold text-white rounded-full ring-2 ring-white tabular-nums ${
+                  urgentCount > 0 ? 'bg-[#991B1B]' : 'bg-[#1E40AF]'
+                }`}
+              >
                 {unreadCount}
               </span>
             )}
           </button>
 
           {showNotifications && (
-            <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-full sm:mt-2 sm:w-80 bg-white border border-slate-200 rounded-md shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+            <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-full sm:mt-2 sm:w-96 bg-white border border-slate-200 rounded-md shadow-lg py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between gap-2">
                 <span className="text-xs font-heading font-semibold text-slate-800">Pemberitahuan Sistem</span>
-                <span className="text-[10px] text-slate-500 font-medium">{unreadCount} baru</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[11px] text-slate-600 font-medium tabular-nums">
+                    {urgentCount > 0 ? `${urgentCount} wajib` : `${unreadCount} baru`}
+                  </span>
+                  {dismissibleCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={dismissAllNonUrgent}
+                      className="text-[11px] font-semibold text-[#1E40AF] hover:underline cursor-pointer"
+                    >
+                      Bersihkan info
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-400">
+              <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                {visibleNotifications.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-500">
                     Tidak ada notifikasi aktif saat ini.
                   </div>
                 ) : (
-                  notifications.map((n) => (
-                    <Link
+                  visibleNotifications.map((n) => (
+                    <div
                       key={n.id}
-                      href={n.link || '#'}
-                      onClick={() => setShowNotifications(false)}
-                      className="block p-3 hover:bg-slate-50 transition-colors"
+                      className={`flex items-stretch hover:bg-slate-50 transition-colors ${
+                        n.isRead && !n.urgent ? 'opacity-75' : ''
+                      }`}
                     >
-                      <div className="flex items-start gap-2">
-                        <span
-                          className={`text-[10px] font-semibold uppercase shrink-0 mt-0.5 ${
-                            n.type === 'DANGER'
-                              ? 'text-slate-900'
-                              : n.type === 'WARNING'
-                              ? 'text-slate-700'
-                              : 'text-[#1E40AF]'
-                          }`}
-                        >
-                          [{n.type === 'DANGER' ? 'URGENT' : n.type === 'WARNING' ? 'TENGGAT' : 'INFO'}]
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-800 leading-snug truncate">
-                            {n.title}
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
-                            {n.message}
-                          </p>
+                      <Link
+                        href={n.link || '#'}
+                        onClick={() => {
+                          markNotifRead(n.id);
+                          setShowNotifications(false);
+                        }}
+                        className="group flex-1 min-w-0 p-3 flex items-center justify-between gap-2.5 text-left"
+                      >
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <span
+                            className="shrink-0 mt-0.5"
+                            title={
+                              n.urgent
+                                ? 'Wajib diselesaikan'
+                                : n.type === 'DANGER'
+                                ? 'Peringatan Penting'
+                                : n.type === 'WARNING'
+                                ? 'Peringatan / Tenggat'
+                                : 'Informasi'
+                            }
+                          >
+                            {n.urgent || n.type === 'DANGER' ? (
+                              <AlertCircle
+                                className="w-4 h-4 text-[#991B1B]"
+                                aria-label={n.urgent ? 'Wajib diselesaikan' : 'Peringatan Penting'}
+                              />
+                            ) : n.type === 'WARNING' ? (
+                              <Clock
+                                className="w-4 h-4 text-[#92400E]"
+                                aria-label="Peringatan atau Tenggat"
+                              />
+                            ) : (
+                              <Info
+                                className="w-4 h-4 text-[#1E40AF]"
+                                aria-label="Informasi"
+                              />
+                            )}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-800 leading-snug truncate">
+                              {n.title}
+                            </p>
+                            <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">
+                              {n.message}
+                            </p>
+                            {n.urgent && (
+                              <p className="text-[10px] font-semibold text-[#991B1B] mt-0.5">
+                                Wajib diselesaikan
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </Link>
+                        <svg
+                          className="w-4 h-4 text-slate-400 group-hover:text-[#1E40AF] group-hover:translate-x-0.5 transition-all shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </Link>
+                      {!n.urgent && (
+                        <button
+                          type="button"
+                          onClick={() => dismissNotif(n.dismissKey, n.id)}
+                          aria-label={`Tutup notifikasi ${n.title}`}
+                          title="Tutup notifikasi"
+                          className="px-2.5 flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 border-l border-slate-100 cursor-pointer shrink-0"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   ))
                 )}
               </div>
@@ -793,20 +1181,219 @@ export function Header({ onToggleSidebar, onToggleMobileMenu, userName, userRole
           )}
         </div>
 
-        <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-          <div className="w-7 h-7 rounded bg-slate-200 text-slate-700 font-semibold text-[11px] flex items-center justify-center border border-slate-300">
-            {initials || 'AD'}
-          </div>
-          <div className="hidden sm:flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-900 leading-tight">
-              {displayName}
-            </span>
-            <span className="text-[10px] text-slate-500 leading-tight">
-              {displayRole}
-            </span>
-          </div>
+        <div ref={accountContainerRef} className="relative pl-2 border-l border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              setShowNotifications(false);
+              setShowAccountMenu((prev) => !prev);
+            }}
+            aria-expanded={showAccountMenu}
+            aria-label="Menu Akun Pengguna"
+            title={`${displayName} (${displayRole})`}
+            className="flex items-center gap-2 py-1 px-1.5 rounded hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded bg-slate-200 text-slate-800 font-semibold text-[11px] flex items-center justify-center border border-slate-300 shrink-0">
+              {initials || 'AD'}
+            </div>
+            <div className="hidden sm:flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-900 leading-tight">
+                {displayName}
+              </span>
+              <span className="text-[11px] text-slate-600 leading-tight">
+                {displayRole}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500 hidden sm:block shrink-0" aria-hidden="true" />
+          </button>
+
+          {showAccountMenu && (
+            <div className="fixed sm:absolute right-3 sm:right-0 top-14 sm:top-full sm:mt-2 w-64 bg-white border border-slate-200 rounded-md shadow-lg py-1.5 z-50">
+              <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-900 truncate">
+                    {displayName}
+                  </span>
+                  <span className="text-[11px] font-semibold text-[#1E40AF] shrink-0">
+                    {displayRole}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-600 tabular-nums truncate">
+                  ID {employeeNik || userIdCode || '-'}
+                  {userDepartment ? ` · ${userDepartment}` : ''}
+                </div>
+              </div>
+
+              <div className="py-1 divide-y divide-slate-100">
+                <button
+                  type="button"
+                  onClick={openProfileModal}
+                  className="w-full min-h-[42px] sm:min-h-0 px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4 text-slate-500 shrink-0" aria-hidden="true" />
+                  <span>Pengaturan Akun &amp; Sandi</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHeaderLogout}
+                  className="w-full min-h-[42px] sm:min-h-0 px-3.5 py-2 text-left text-xs font-semibold text-[#991B1B] hover:bg-[#FEF2F2] flex items-center gap-2.5 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>Keluar dari Sistem</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Modal Pengaturan Akun & Ubah Kata Sandi Mandiri */}
+      {showProfileModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          onClick={() => !savingProfile && setShowProfileModal(false)}
+        >
+          <div
+            className="bg-white border border-slate-200 rounded shadow-xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#1E40AF]" aria-hidden="true" />
+                <h2 className="text-xs font-heading font-semibold text-slate-900 uppercase tracking-wider">
+                  Pengaturan Akun Pengguna
+                </h2>
+              </div>
+              <button
+                type="button"
+                disabled={savingProfile}
+                onClick={() => setShowProfileModal(false)}
+                className="text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="p-4 space-y-3.5 text-xs">
+              <div className="pb-2.5 border-b border-slate-100 flex items-center justify-between gap-2 text-slate-600">
+                <div>
+                  <div className="font-semibold text-slate-900">{displayRole}</div>
+                  <div className="text-[11px] text-slate-600 tabular-nums">
+                    ID Pengguna {employeeNik || userIdCode || '-'}
+                  </div>
+                </div>
+                <div className="w-9 h-9 rounded bg-slate-100 text-slate-800 font-semibold text-xs flex items-center justify-center border border-slate-200">
+                  {initials || 'AD'}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="account-display-name"
+                  className="block font-semibold text-slate-700 mb-1"
+                >
+                  Nama Tampilan
+                </label>
+                <input
+                  id="account-display-name"
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  disabled={effectiveRole === 'OPERATOR'}
+                  className={`w-full px-3 py-2 border rounded text-xs ${
+                    effectiveRole === 'OPERATOR'
+                      ? 'bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed'
+                      : 'bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-[#1E40AF]'
+                  }`}
+                />
+                {effectiveRole === 'OPERATOR' && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Nama operator mengikuti Data Master Karyawan. Anda tetap dapat memperbarui kata sandi di bawah ini.
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                <div className="font-semibold text-slate-800">Ubah Kata Sandi (Opsional)</div>
+                <div>
+                  <label
+                    htmlFor="account-current-pw"
+                    className="block text-[11px] font-medium text-slate-700 mb-1"
+                  >
+                    Kata Sandi Saat Ini
+                  </label>
+                  <input
+                    id="account-current-pw"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Masukkan kata sandi lama..."
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-[#1E40AF]"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label
+                      htmlFor="account-new-pw"
+                      className="block text-[11px] font-medium text-slate-700 mb-1"
+                    >
+                      Kata Sandi Baru
+                    </label>
+                    <input
+                      id="account-new-pw"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Minimal 6 karakter"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-[#1E40AF]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="account-confirm-pw"
+                      className="block text-[11px] font-medium text-slate-700 mb-1"
+                    >
+                      Konfirmasi Sandi Baru
+                    </label>
+                    <input
+                      id="account-confirm-pw"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Ulangi sandi baru"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:border-[#1E40AF]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {profileError && (
+                <div className="p-2.5 bg-[#FEF2F2] border border-red-200 rounded text-xs font-medium text-[#991B1B]">
+                  {profileError}
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={savingProfile}
+                  onClick={() => setShowProfileModal(false)}
+                  className="min-h-[40px] px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="min-h-[40px] px-4 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded disabled:opacity-60 cursor-pointer"
+                >
+                  {savingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

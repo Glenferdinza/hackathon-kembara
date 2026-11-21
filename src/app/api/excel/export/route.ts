@@ -82,7 +82,12 @@ export async function GET(request: Request) {
         orderBy: { loanDate: 'desc' },
       });
 
-      const loanRows = loans.map((l, idx) => {
+      const filteredLoans =
+        type === 'overdue'
+          ? loans.filter((l) => l.status !== 'SELESAI' && new Date(l.expectedReturnDate).getTime() < now.getTime())
+          : loans;
+
+      const loanRows = filteredLoans.map((l, idx) => {
         const expTime = new Date(l.expectedReturnDate).getTime();
         const diffHours = Math.round((expTime - now.getTime()) / (1000 * 60 * 60));
         let computedStatus = l.status;

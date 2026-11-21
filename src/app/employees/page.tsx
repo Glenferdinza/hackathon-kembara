@@ -294,8 +294,8 @@ export default function EmployeesPage() {
         {/* Header - Flowchart Hal. 7: Data Anggota */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
                 Data Karyawan
               </h1>
               <span className="text-xs font-medium text-slate-500 tabular-nums">
@@ -307,11 +307,12 @@ export default function EmployeesPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
             <RefreshButton onRefresh={fetchEmployees} loading={loading} />
             <button
+              type="button"
               onClick={handleOpenAdd}
-              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors"
+              className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-[#1D4ED8] rounded transition-colors inline-flex items-center justify-center whitespace-nowrap cursor-pointer"
             >
               + Tambah Anggota
             </button>
@@ -335,11 +336,11 @@ export default function EmployeesPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-white border border-slate-300 rounded px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
+              className="flex-1 sm:flex-initial min-w-0 max-w-full bg-white border border-slate-300 rounded px-2.5 py-2 sm:py-1.5 text-xs text-slate-700 focus:outline-none focus:border-[#1E40AF]"
             >
               <option value="">Semua Status</option>
-              <option value="AKTIF">AKTIF</option>
-              <option value="NONAKTIF">NONAKTIF / DIBLOKIR</option>
+              <option value="AKTIF">Aktif</option>
+              <option value="NONAKTIF">Nonaktif / Diblokir</option>
             </select>
             {(search || statusFilter) && (
               <button
@@ -366,135 +367,186 @@ export default function EmployeesPage() {
             className="border-t border-slate-200 mt-2"
           />
         ) : (
-          <div className="overflow-x-auto border-t border-slate-200 mt-2">
-            <table className="w-full text-left text-xs min-w-[950px]">
-              <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
-                <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">NIK</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">NAMA LENGKAP</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">PERAN / JABATAN</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">SHIFT / JADWAL KERJA</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">AKUN PORTAL</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">VERSI KARTU</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                      {emp.nik}
-                    </td>
-                    <td className="py-2.5 px-3 font-medium text-slate-900 whitespace-nowrap">
-                      {emp.name}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
-                      {emp.role || 'Operator CNC'}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
-                      {emp.department}
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      {isMachineDept(emp.department) ? (
-                        <span className="text-slate-800 font-medium">{emp.shift || 'Shift 1 (Pagi)'}</span>
-                      ) : (
-                        <span className="text-slate-500 font-normal">Non-Shift (Reguler)</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
-                      {emp.phone || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => handleSyncOperatorAccount(emp)}
-                        title={emp.user ? 'Klik untuk reset sandi Operator' : 'Klik untuk aktifkan akun login Operator'}
-                        className={`px-2 py-0.5 rounded text-[11px] font-semibold border cursor-pointer transition-colors ${
-                          emp.user
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                        }`}
-                      >
-                        {emp.user ? 'Akun Aktif' : '+ Aktifkan Login'}
-                      </button>
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <span className="text-xs font-medium text-slate-700 tabular-nums">
-                        v{emp.cardVersion || 1}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap text-xs font-semibold">
-                      {emp.status === 'AKTIF' ? (
-                        <span className="text-[#1E40AF]">{emp.status}</span>
-                      ) : (
-                        <span className="text-slate-500">{emp.status}</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCard(emp)}
-                          aria-label="Pratinjau Kartu Identitas"
-                          title="Pratinjau Kartu Identitas"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"
-                            />
-                          </svg>
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Pratinjau Kartu Identitas
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(emp)}
-                          aria-label="Edit Data Anggota"
-                          title="Edit Data Anggota"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-                            />
-                          </svg>
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Edit Data Anggota
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReplaceCard(emp)}
-                          aria-label="Terbitkan Kartu Pengganti Baru"
-                          title="Terbitkan Kartu Pengganti Baru"
-                          className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                            />
-                          </svg>
-                          <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                            Ganti Kartu Baru
-                          </span>
-                        </button>
+          <div className="border-t border-slate-200 mt-2">
+            {/* Mobile Card View (< 768px) */}
+            <div className="md:hidden divide-y divide-slate-200 bg-white border-x border-b border-slate-200 rounded-b">
+              {employees.map((emp) => (
+                <div key={emp.id} className="p-3.5 space-y-2.5 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono font-bold text-slate-900 tabular-nums">{emp.nik}</div>
+                      <div className="text-[13px] font-bold text-slate-900 mt-0.5">{emp.name}</div>
+                      <div className="text-xs text-slate-600 mt-0.5">
+                        {emp.role || 'Operator CNC'} | {emp.department}
                       </div>
-                    </td>
+                      <div className="text-xs text-slate-600 mt-0.5 tabular-nums">
+                        {isMachineDept(emp.department) ? (emp.shift || 'Shift 1 (Pagi)') : 'Non-Shift (Reguler)'} | WA {emp.phone || '-'}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`text-xs font-bold ${emp.status === 'AKTIF' ? 'text-[#1E40AF]' : 'text-slate-600'}`}>
+                        {emp.status}
+                      </span>
+                      <div className="text-[11px] text-slate-600 tabular-nums mt-0.5">Kartu v{emp.cardVersion || 1}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSyncOperatorAccount(emp)}
+                      className="min-h-[42px] px-2.5 py-1.5 rounded border border-slate-300 bg-white font-semibold text-xs text-slate-800 hover:bg-slate-50 cursor-pointer"
+                    >
+                      {emp.user ? 'Reset Akun Portal' : '+ Aktifkan Login'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCard(emp)}
+                      className="min-h-[42px] px-2.5 py-1.5 rounded border border-slate-300 bg-white font-semibold text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Kartu ID
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(emp)}
+                      className="min-h-[42px] px-2.5 py-1.5 rounded border border-slate-300 bg-white font-semibold text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Edit Data
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReplaceCard(emp)}
+                      className="min-h-[42px] px-2.5 py-1.5 rounded border border-slate-300 bg-white font-semibold text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Ganti Kartu
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[950px]">
+                <thead className="border-b-2 border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider bg-slate-50/50">
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">NIK</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">NAMA LENGKAP</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">PERAN / JABATAN</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">SHIFT / JADWAL KERJA</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">KONTAK WHATSAPP</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">AKUN PORTAL</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">VERSI KARTU</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {employees.map((emp) => (
+                    <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                        {emp.nik}
+                      </td>
+                      <td className="py-2.5 px-3 font-medium text-slate-900 whitespace-nowrap">
+                        {emp.name}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {emp.role || 'Operator CNC'}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {emp.department}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {isMachineDept(emp.department) ? (
+                          <span className="text-slate-800 font-medium">{emp.shift || 'Shift 1 (Pagi)'}</span>
+                        ) : (
+                          <span className="text-slate-600 font-normal">Non-Shift (Reguler)</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
+                        {emp.phone || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleSyncOperatorAccount(emp)}
+                          title={emp.user ? 'Klik untuk reset sandi Operator' : 'Klik untuk aktifkan akun login Operator'}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold border cursor-pointer transition-colors ${
+                            emp.user
+                              ? 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          {emp.user ? 'Akun Aktif' : '+ Aktifkan Login'}
+                        </button>
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <span className="text-xs font-medium text-slate-700 tabular-nums">
+                          v{emp.cardVersion || 1}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap text-xs font-semibold">
+                        {emp.status === 'AKTIF' ? (
+                          <span className="text-[#1E40AF]">{emp.status}</span>
+                        ) : (
+                          <span className="text-slate-600">{emp.status}</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCard(emp)}
+                            aria-label="Pratinjau Kartu Identitas"
+                            title="Pratinjau Kartu Identitas"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(emp)}
+                            aria-label="Edit Data Anggota"
+                            title="Edit Data Anggota"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReplaceCard(emp)}
+                            aria-label="Terbitkan Kartu Pengganti Baru"
+                            title="Terbitkan Kartu Pengganti Baru"
+                            className="w-8 h-8 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

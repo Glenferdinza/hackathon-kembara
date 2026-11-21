@@ -57,29 +57,52 @@ function DonutCustomTooltip({ active, payload, total }: DonutTooltipProps) {
 }
 
 export function DonutChartSection({ data }: DonutChartSectionProps) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [lockedIndex, setLockedIndex] = useState<number | null>(null);
 
+  const activeIndex = hoveredIndex ?? lockedIndex;
   const total = data.reduce((acc, cur) => acc + cur.value, 0);
 
   const availableItem = data.find((d) => d.name === 'Stok Tersedia');
-  const availablePercent = formatDonutPct(availableItem?.value || 0, total);
+  const displayItem = lockedIndex !== null && data[lockedIndex] ? data[lockedIndex] : availableItem;
+  const displayPercent = formatDonutPct(displayItem?.value || 0, total);
+  const displayLabel =
+    lockedIndex !== null && data[lockedIndex]
+      ? data[lockedIndex].name.replace(/^Stok\s+/i, '')
+      : 'Tersedia';
+
+  const handleToggleLock = (index: number) => {
+    setHoveredIndex(null);
+    setLockedIndex((prev) => (prev === index ? null : index));
+  };
 
   return (
     <div className="w-full flex flex-col justify-between">
-      <div className="pb-2.5 border-b border-slate-200">
-        <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-          Komposisi Fisik Barang
-        </h2>
-        <p className="text-[11px] text-slate-500">
-          Status aktual seluruh aset perkakas &amp; inventaris
-        </p>
+      <div className="pb-2.5 border-b border-slate-200 flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            Komposisi Fisik Barang
+          </h2>
+          <p className="text-[11px] text-slate-500">
+            Status aktual seluruh aset perkakas &amp; inventaris
+          </p>
+        </div>
+        {lockedIndex !== null && (
+          <button
+            type="button"
+            onClick={() => setLockedIndex(null)}
+            className="text-[11px] font-medium text-slate-600 hover:text-slate-900 underline cursor-pointer shrink-0"
+          >
+            Reset
+          </button>
+        )}
       </div>
 
       <div className="pt-2 flex flex-col items-center">
         {/* Donut Chart with center percentage */}
         <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart accessibilityLayer={false}>
               <Pie
                 data={data}
                 cx="50%"
@@ -88,8 +111,9 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
                 outerRadius={64}
                 paddingAngle={3}
                 dataKey="value"
-                onMouseEnter={(_, index) => setActiveIndex(index)}
-                onMouseLeave={() => setActiveIndex(null)}
+                onMouseEnter={(_, index) => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                onClick={(_, index) => handleToggleLock(index)}
               >
                 {data.map((entry, index) => (
                   <Cell
@@ -104,49 +128,55 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
               </Pie>
               <Tooltip
                 content={<DonutCustomTooltip total={total} />}
-                wrapperStyle={{ zIndex: 50 }}
+                isAnimationActive={false}
+                wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }}
               />
             </PieChart>
           </ResponsiveContainer>
 
-          {/* Center text: smoothly hides during hover so the tooltip box NEVER collides with center numbers */}
+          {/* Center text: hides only during hover so floating tooltip never overlaps center numbers */}
           <div
-            className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-150 ${
-              activeIndex !== null ? 'opacity-0' : 'opacity-100'
+            className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none transition-opacity duration-150 px-3 text-center ${
+              hoveredIndex !== null ? 'opacity-0' : 'opacity-100'
             }`}
           >
             <span className="text-lg font-bold text-slate-900 tabular-nums leading-tight">
-              {availablePercent}
+              {displayPercent}
             </span>
-            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-              Tersedia
+            <span className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5 truncate max-w-full">
+              {displayLabel}
             </span>
           </div>
         </div>
 
-        {/* Legend list with full width and clear unclipped text */}
+        {/* Legend list with full width and click-to-lock support */}
         <div className="w-full mt-2 pt-2 border-t border-slate-100 space-y-1">
           {data.map((item, index) => {
             const itemPct = formatDonutPct(item.value, total);
+            const isHighlighted = activeIndex === index;
             return (
-              <div
+              <button
                 key={item.name}
-                onMouseEnter={() => setActiveIndex(index)}
-                onMouseLeave={() => setActiveIndex(null)}
-                className={`flex items-center justify-between text-xs py-1 px-2 rounded transition-colors cursor-pointer ${
-                  activeIndex === index
+                type="button"
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                onClick={() => handleToggleLock(index)}
+                className={`w-full flex items-center justify-between text-xs py-1.5 px-2 rounded transition-colors cursor-pointer text-left ${
+                  isHighlighted
                     ? 'bg-slate-100 font-semibold'
                     : 'hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <span
                     className="w-2.5 h-2.5 rounded-xs shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-slate-800 font-medium whitespace-nowrap">{item.name}</span>
+                  <span className="text-slate-800 font-medium whitespace-nowrap truncate">
+                    {item.name}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1.5 tabular-nums whitespace-nowrap">
+                <div className="flex items-center gap-1.5 tabular-nums whitespace-nowrap shrink-0">
                   <span className="font-bold text-slate-900">
                     {item.value.toLocaleString('id-ID')}
                   </span>
@@ -154,7 +184,7 @@ export function DonutChartSection({ data }: DonutChartSectionProps) {
                     ({itemPct})
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
 

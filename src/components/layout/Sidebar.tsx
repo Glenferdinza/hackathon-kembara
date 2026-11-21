@@ -2,8 +2,9 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useConfirm } from '@/components/ui/ConfirmDialog';
+import Image from 'next/image';
+import { HelpCircle, Download } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 interface SidebarProps {
   overdueCount?: number;
@@ -33,29 +34,6 @@ export function Sidebar({
   userRole = 'SUPER_ADMIN',
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { confirm } = useConfirm();
-
-  const handleLogout = async () => {
-    const ok = await confirm({
-      title: 'Konfirmasi Keluar dari Sistem',
-      message: 'Apakah Anda yakin ingin keluar dari sesi aplikasi Tool Room PT YPTI?',
-      confirmText: 'Keluar Sekarang',
-      cancelText: 'Tetap di Sini',
-      type: 'warning',
-    });
-    if (!ok) return;
-
-    try {
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('ypti_erp_active_user');
-      }
-      await fetch('/api/auth', { method: 'DELETE' });
-      router.push('/login');
-    } catch {
-      router.push('/login');
-    }
-  };
 
   const navGroups: { group: string; items: NavItem[] }[] = [
     {
@@ -197,12 +175,12 @@ export function Sidebar({
         id="mobile-navigation-drawer"
         className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-[#E2E8F0] flex flex-col print:hidden transition-transform duration-300 ease-in-out ${
           isMobileOpen
-            ? 'translate-x-0 pointer-events-auto'
-            : '-translate-x-full pointer-events-none'
+            ? 'translate-x-0 pointer-events-auto visible'
+            : '-translate-x-full pointer-events-none invisible'
         } ${
           isOpen
-            ? 'lg:translate-x-0 lg:pointer-events-auto'
-            : 'lg:-translate-x-full lg:pointer-events-none'
+            ? 'lg:translate-x-0 lg:pointer-events-auto lg:visible'
+            : 'lg:-translate-x-full lg:pointer-events-none lg:invisible'
         }`}
       >
         <div className="h-16 px-4 sm:px-6 flex items-center justify-between border-b border-[#E2E8F0] bg-white shrink-0">
@@ -211,9 +189,12 @@ export function Sidebar({
             onClick={closeMobileDrawer}
             className="flex items-center"
           >
-            <img
+            <Image
               src="/ypti-logo.png"
               alt="PT YPTI Logo"
+              width={168}
+              height={36}
+              priority
               className="h-9 w-auto max-w-[168px] object-contain"
             />
           </Link>
@@ -265,31 +246,46 @@ export function Sidebar({
           className="px-3 pt-2.5 border-t border-[#E2E8F0] bg-slate-50 lg:pb-3"
           style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}
         >
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-1.5 lg:flex lg:items-center lg:justify-between">
+            <div className="contents lg:flex lg:items-center lg:gap-1.5">
               <Link
                 href="/help"
                 onClick={closeMobileDrawer}
-                className="py-1.5 px-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors"
+                aria-label="Panduan & Bantuan"
+                className={`group relative flex items-center justify-center gap-1.5 min-h-[44px] lg:min-h-0 lg:w-9 lg:h-9 rounded border transition-colors ${
+                  pathname === '/help'
+                    ? 'bg-blue-50 text-[#1E40AF] border-blue-200'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                }`}
               >
-                Bantuan
+                <HelpCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="text-xs font-medium lg:hidden">Bantuan</span>
+                <span className="hidden lg:block pointer-events-none absolute bottom-full left-0 mb-2 px-2 py-1 rounded bg-slate-900 text-white text-xs font-medium whitespace-nowrap shadow-sm opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50">
+                  Bantuan
+                </span>
               </Link>
+
               <Link
                 href="/download"
                 onClick={closeMobileDrawer}
-                className="py-1.5 px-1.5 text-xs text-slate-600 hover:text-[#1E40AF] font-medium transition-colors"
+                aria-label="Unduh Aplikasi Desktop & PWA"
+                className={`group relative flex items-center justify-center gap-1.5 min-h-[44px] lg:min-h-0 lg:w-9 lg:h-9 rounded border transition-colors ${
+                  pathname === '/download'
+                    ? 'bg-blue-50 text-[#1E40AF] border-blue-200'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-[#1E40AF]'
+                }`}
               >
-                Unduh App
+                <Download className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="text-xs font-medium lg:hidden">Unduh App</span>
+                <span className="hidden lg:block pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-slate-900 text-white text-xs font-medium whitespace-nowrap shadow-sm opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50">
+                  Unduh App
+                </span>
               </Link>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="py-1.5 px-2 text-xs text-slate-600 hover:text-slate-900 font-semibold transition-colors cursor-pointer"
-            >
-              Keluar
-            </button>
+            <span className="hidden lg:inline text-[11px] font-medium text-slate-500 whitespace-nowrap">
+              PT YPTI ERP
+            </span>
           </div>
         </div>
       </aside>

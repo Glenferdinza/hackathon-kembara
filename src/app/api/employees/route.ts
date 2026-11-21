@@ -38,9 +38,9 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (search) {
       where.OR = [
-        { nik: { contains: search } },
-        { name: { contains: search } },
-        { department: { contains: search } },
+        { nik: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { department: { contains: search, mode: 'insensitive' } },
       ];
     }
 

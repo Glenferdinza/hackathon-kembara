@@ -217,7 +217,7 @@ export default function UsersAccessPage() {
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <h1 className="text-base lg:text-lg font-semibold font-heading text-slate-900 tracking-tight">
+            <h1 className="text-sm sm:text-base lg:text-lg font-semibold font-heading text-slate-900 tracking-tight">
               Manajemen Akun &amp; Hak Akses
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -248,12 +248,12 @@ export default function UsersAccessPage() {
               className="flex-1 bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF]"
             />
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid grid-cols-1 sm:flex sm:items-center gap-2">
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
                 aria-label="Filter Role Akses"
-                className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                className="w-full sm:w-auto max-w-full bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-2 sm:py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
               >
                 <option value="">Semua Level Akses</option>
                 <option value="SUPER_ADMIN">Super Admin</option>
@@ -264,7 +264,7 @@ export default function UsersAccessPage() {
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 aria-label="Filter Status Akun"
-                className="flex-1 sm:flex-initial min-w-0 bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                className="w-full sm:w-auto max-w-full bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded px-3 py-2 sm:py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
               >
                 <option value="">Semua Status</option>
                 <option value="AKTIF">Status Aktif</option>
@@ -273,8 +273,8 @@ export default function UsersAccessPage() {
             </div>
           </div>
 
-          {/* Users Table */}
-          <div className="overflow-x-auto border border-slate-200 rounded">
+          {/* Users List (Mobile Cards + Desktop Table) */}
+          <div className="border border-slate-200 rounded overflow-hidden">
             {loading ? (
               <div className="p-3">
                 <SkeletonTable rows={4} cols={6} />
@@ -291,93 +291,129 @@ export default function UsersAccessPage() {
                 }}
               />
             ) : (
-              <table className="w-full text-left text-xs min-w-[700px]">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider">
-                  <tr>
-                    <th className="py-2.5 px-3 whitespace-nowrap">ID LOGIN</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">NAMA PENGGUNA</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
-                    <th className="py-2.5 px-3 whitespace-nowrap">HAK AKSES</th>
-                    <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS LOGIN</th>
-                    <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+              <>
+                {/* Mobile Cards (< 768px) */}
+                <div className="md:hidden divide-y divide-slate-200 bg-white">
                   {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                        {u.email}
-                      </td>
-                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
-                        {u.name}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                        {u.department}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span
-                          className={`font-semibold text-xs ${
-                            u.role === 'SUPER_ADMIN' ? 'text-[#1E40AF]' : 'text-slate-800'
-                          }`}
-                        >
-                          {getRoleLabel(u.role)}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        {u.status === 'AKTIF' ? (
-                          <span className="text-xs font-semibold text-[#1E40AF]">
-                            AKTIF
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-slate-500">
-                            AKSES DICABUT
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(u)}
-                            aria-label="Edit Hak Akses"
-                            title="Edit Hak Akses"
-                            className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-                              />
-                            </svg>
-                            <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                              Edit Hak Akses
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUser(u)}
-                            aria-label="Hapus Akun"
-                            title="Hapus Akun"
-                            className="group relative w-7 h-7 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                              />
-                            </svg>
-                            <span className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute -top-8 right-0 px-2 py-1 rounded bg-slate-900 text-white text-[10px] font-medium whitespace-nowrap z-20 shadow-xs">
-                              Hapus Akun
-                            </span>
-                          </button>
+                    <div key={u.id} className="p-3.5 space-y-2 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-mono font-bold text-slate-900 tabular-nums">{u.email}</div>
+                          <div className="text-[13px] font-bold text-slate-900 mt-0.5">{u.name}</div>
+                          <div className="text-xs text-slate-600 mt-0.5">
+                            {getRoleLabel(u.role)} | {u.department}
+                          </div>
                         </div>
-                      </td>
-                    </tr>
+                        <span className={`shrink-0 text-xs font-semibold ${u.status === 'AKTIF' ? 'text-[#1E40AF]' : 'text-slate-600'}`}>
+                          {u.status === 'AKTIF' ? 'AKTIF' : 'DICABUT'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(u)}
+                          className="min-h-[42px] px-3 py-1.5 rounded border border-slate-300 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
+                        >
+                          Edit Hak Akses
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(u)}
+                          className="min-h-[42px] px-3 py-1.5 rounded border border-slate-300 bg-white text-[#991B1B] font-semibold text-xs hover:bg-red-50 cursor-pointer"
+                        >
+                          Hapus Akun
+                        </button>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+
+                {/* Desktop Table (>= 768px) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[700px]">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider">
+                      <tr>
+                        <th className="py-2.5 px-3 whitespace-nowrap">ID LOGIN</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">NAMA PENGGUNA</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">DEPARTEMEN</th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">HAK AKSES</th>
+                        <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS LOGIN</th>
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {users.map((u) => (
+                        <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                            {u.email}
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
+                            {u.name}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                            {u.department}
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span
+                              className={`font-semibold text-xs ${
+                                u.role === 'SUPER_ADMIN' ? 'text-[#1E40AF]' : 'text-slate-800'
+                              }`}
+                            >
+                              {getRoleLabel(u.role)}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {u.status === 'AKTIF' ? (
+                              <span className="text-xs font-semibold text-[#1E40AF]">
+                                AKTIF
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-slate-600">
+                                AKSES DICABUT
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(u)}
+                                aria-label="Edit Hak Akses"
+                                title="Edit Hak Akses"
+                                className="w-8 h-8 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u)}
+                                aria-label="Hapus Akun"
+                                title="Hapus Akun"
+                                className="w-8 h-8 rounded border border-slate-300 bg-white text-[#991B1B] hover:bg-red-50 hover:border-[#991B1B] flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -463,6 +499,24 @@ export default function UsersAccessPage() {
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-600">
                 {getRoleScopeSummary(formRole)}
               </div>
+
+              {editingUser && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Status Akun
+                  </label>
+                  <select
+                    value={formStatus}
+                    onChange={(e) =>
+                      setFormStatus(e.target.value as 'AKTIF' | 'NONAKTIF')
+                    }
+                    className="w-full bg-white border border-slate-300 text-slate-800 font-semibold rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
+                  >
+                    <option value="AKTIF">AKTIF (Dapat Masuk Sistem)</option>
+                    <option value="NONAKTIF">NONAKTIF (Akses Dibekukan)</option>
+                  </select>
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-1">

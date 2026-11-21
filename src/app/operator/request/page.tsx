@@ -48,12 +48,14 @@ export default function OperatorRequestPage() {
   });
   const [tools, setTools] = useState<CatalogItem[]>([]);
   const [inventories, setInventories] = useState<CatalogItem[]>([]);
+  const [totalTools, setTotalTools] = useState(0);
+  const [totalInventories, setTotalInventories] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
   const [cart, setCart] = useState<CartRequestItem[]>([]);
-  const [purpose, setPurpose] = useState('Pengerjaan Mesin Produksi Shift Kerja');
+  const [purpose, setPurpose] = useState('');
   const [expectedReturnDate, setExpectedReturnDate] = useState(() => computePresetDate(8));
   const [activePreset, setActivePreset] = useState<number>(8);
   const [submitting, setSubmitting] = useState(false);
@@ -66,47 +68,41 @@ export default function OperatorRequestPage() {
 
   useEffect(() => {
     let active = true;
-    const loadCatalog = async () => {
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
       try {
+        const q = encodeURIComponent(search.trim());
         const [toolRes, invRes] = await Promise.all([
-          fetch('/api/tools?limit=200&status=AKTIF'),
-          fetch('/api/inventories?limit=200&status=AKTIF'),
+          fetch(`/api/tools?limit=${pageSize}&page=${activeTab === 'TOOL' ? page : 1}&status=AKTIF&search=${q}`),
+          fetch(`/api/inventories?limit=${pageSize}&page=${activeTab === 'INVENTORY' ? page : 1}&status=AKTIF&search=${q}`),
         ]);
         if (!active) return;
         if (toolRes.ok) {
           const j = await toolRes.json();
           setTools(j.data || []);
+          setTotalTools(j.pagination?.total ?? (j.data || []).length);
         }
         if (invRes.ok) {
           const j = await invRes.json();
           setInventories(j.data || []);
+          setTotalInventories(j.pagination?.total ?? (j.data || []).length);
         }
       } catch {
         if (active) showToast('Gagal memuat katalog perkakas.', 'error');
       } finally {
         if (active) setLoading(false);
       }
-    };
-    loadCatalog();
+    }, 180);
+
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, [showToast]);
+  }, [activeTab, page, search, showToast]);
 
-  const currentList = activeTab === 'TOOL' ? tools : inventories;
-  const filtered = currentList.filter((item) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.code.toLowerCase().includes(q) ||
-      item.name.toLowerCase().includes(q) ||
-      item.location.toLowerCase().includes(q) ||
-      (item.category?.name || '').toLowerCase().includes(q)
-    );
-  });
-
-  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const paginated = activeTab === 'TOOL' ? tools : inventories;
+  const totalFilteredCount = activeTab === 'TOOL' ? totalTools : totalInventories;
+  const totalPages = Math.ceil(totalFilteredCount / pageSize) || 1;
 
   const handleAddToCart = (item: CatalogItem, itemType: 'TOOL' | 'INVENTORY') => {
     if (item.availableStock <= 0) {
@@ -234,7 +230,7 @@ export default function OperatorRequestPage() {
                       : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  Data Tool ({tools.length})
+                  Data Tool ({totalTools})
                 </button>
                 <button
                   type="button"
@@ -242,13 +238,13 @@ export default function OperatorRequestPage() {
                     setActiveTab('INVENTORY');
                     setPage(1);
                   }}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded border cursor-pointer transition-colors ${
+                  className={`min-h-[38px] sm:min-h-0 px-3 py-1.5 text-xs font-semibold rounded border cursor-pointer transition-colors ${
                     activeTab === 'INVENTORY'
                       ? 'bg-[#1E40AF] text-white border-[#1E40AF]'
                       : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  Data Inventaris ({inventories.length})
+                  Data Inventaris ({totalInventories})
                 </button>
               </div>
 
@@ -260,7 +256,7 @@ export default function OperatorRequestPage() {
                   setPage(1);
                 }}
                 placeholder="Cari kode, nama, atau rak..."
-                className="sm:w-56 bg-white border border-slate-300 rounded px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1E40AF]"
+                className="sm:w-56 bg-white border border-slate-300 rounded px-3 py-2 sm:py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-[#1E40AF]"
               />
             </div>
 
@@ -272,53 +268,84 @@ export default function OperatorRequestPage() {
                 description="Coba kata kunci lain atau ubah kategori antara Tool dan Inventaris."
               />
             ) : (
-              <div className="overflow-x-auto border border-slate-200 rounded">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
-                    <tr>
-                      <th className="py-2 px-3">KODE &amp; NAMA</th>
-                      <th className="py-2 px-3 text-center">STOK SIAP</th>
-                      <th className="py-2 px-3 text-right">AKSI</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {paginated.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50">
-                        <td className="py-2 px-3">
-                          <div className="font-bold text-slate-900">{item.name}</div>
-                          <div className="text-[11px] text-slate-500">
-                            <span className="font-mono font-semibold">{item.code}</span> | {item.location}
-                            {activeTab === 'TOOL' && item.maxLifeMinutes
-                              ? ` | Umur Std ${item.maxLifeMinutes.toLocaleString('id-ID')} mnt`
-                              : ''}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold tabular-nums">
-                          <span className={item.availableStock > 0 ? 'text-[#1E40AF]' : 'text-red-700'}>
-                            {item.availableStock} {item.unit}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-right">
-                          <button
-                            type="button"
-                            disabled={item.availableStock <= 0}
-                            onClick={() => handleAddToCart(item, activeTab)}
-                            className="px-2.5 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded disabled:bg-slate-300 cursor-pointer disabled:cursor-not-allowed"
-                          >
-                            + Pilih
-                          </button>
-                        </td>
+              <>
+                {/* Mobile Card List (< 768px) */}
+                <div className="md:hidden divide-y divide-slate-200 border border-slate-200 rounded">
+                  {paginated.map((item) => (
+                    <div key={item.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-bold text-slate-900 leading-snug">{item.name}</div>
+                        <div className="text-xs text-slate-600 mt-0.5 tabular-nums">
+                          <span className="font-mono font-semibold text-slate-800">{item.code}</span> | Rak {item.location}
+                        </div>
+                        <div className={`text-xs font-bold mt-1 tabular-nums ${item.availableStock > 0 ? 'text-[#1E40AF]' : 'text-[#991B1B]'}`}>
+                          Siap {item.availableStock} {item.unit}
+                          {activeTab === 'TOOL' && item.maxLifeMinutes
+                            ? ` | Std ${item.maxLifeMinutes.toLocaleString('id-ID')} mnt`
+                            : ''}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={item.availableStock <= 0}
+                        onClick={() => handleAddToCart(item, activeTab)}
+                        className="min-h-[44px] min-w-[76px] px-3 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded disabled:bg-slate-300 cursor-pointer disabled:cursor-not-allowed shrink-0"
+                      >
+                        + Pilih
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table (>= 768px) */}
+                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold">
+                      <tr>
+                        <th className="py-2 px-3">KODE &amp; NAMA</th>
+                        <th className="py-2 px-3 text-center">STOK SIAP</th>
+                        <th className="py-2 px-3 text-right">AKSI</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginated.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="py-2 px-3">
+                            <div className="font-bold text-slate-900">{item.name}</div>
+                            <div className="text-[11px] text-slate-600">
+                              <span className="font-mono font-semibold">{item.code}</span> | {item.location}
+                              {activeTab === 'TOOL' && item.maxLifeMinutes
+                                ? ` | Umur Std ${item.maxLifeMinutes.toLocaleString('id-ID')} mnt`
+                                : ''}
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 text-center font-bold tabular-nums">
+                            <span className={item.availableStock > 0 ? 'text-[#1E40AF]' : 'text-[#991B1B]'}>
+                              {item.availableStock} {item.unit}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            <button
+                              type="button"
+                              disabled={item.availableStock <= 0}
+                              onClick={() => handleAddToCart(item, activeTab)}
+                              className="px-2.5 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded disabled:bg-slate-300 cursor-pointer disabled:cursor-not-allowed"
+                            >
+                              + Pilih
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
 
             <Pagination
               currentPage={page}
               totalPages={totalPages}
-              totalItems={filtered.length}
+              totalItems={totalFilteredCount}
               pageSize={pageSize}
               onPageChange={(p) => setPage(p)}
               itemName="item katalog"
@@ -338,7 +365,7 @@ export default function OperatorRequestPage() {
                 <button
                   type="button"
                   onClick={() => setCart([])}
-                  className="text-[11px] text-slate-500 hover:text-slate-900 underline cursor-pointer"
+                  className="text-xs text-slate-600 hover:text-slate-900 underline cursor-pointer"
                 >
                   Kosongkan
                 </button>
@@ -346,7 +373,7 @@ export default function OperatorRequestPage() {
             </div>
 
             {cart.length === 0 ? (
-              <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded text-slate-500">
+              <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded text-slate-600">
                 Belum ada barang dipilih. Klik &quot;+ Pilih&quot; pada daftar katalog.
               </div>
             ) : (
@@ -355,7 +382,7 @@ export default function OperatorRequestPage() {
                   <div key={`${c.itemType}-${c.id}`} className="p-2.5 flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-slate-900 truncate">{c.name}</div>
-                      <div className="text-[11px] font-mono text-slate-500">
+                      <div className="text-[11px] font-mono text-slate-600">
                         {c.code} ({c.itemType})
                       </div>
                     </div>
@@ -363,7 +390,8 @@ export default function OperatorRequestPage() {
                       <button
                         type="button"
                         onClick={() => handleQtyChange(c.id, c.itemType, c.requestedQty - 1)}
-                        className="w-6 h-6 rounded border border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                        aria-label={`Kurangi ${c.name}`}
+                        className="w-10 h-10 sm:w-7 sm:h-7 rounded border border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
                       >
                         -
                       </button>
@@ -371,7 +399,8 @@ export default function OperatorRequestPage() {
                       <button
                         type="button"
                         onClick={() => handleQtyChange(c.id, c.itemType, c.requestedQty + 1)}
-                        className="w-6 h-6 rounded border border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                        aria-label={`Tambah ${c.name}`}
+                        className="w-10 h-10 sm:w-7 sm:h-7 rounded border border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
                       >
                         +
                       </button>
@@ -390,8 +419,8 @@ export default function OperatorRequestPage() {
                 required
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                placeholder="Contoh: CNC Milling Makino V33i - Moulding Cavity"
-                className="w-full bg-white border border-slate-300 rounded px-3 py-2 focus:outline-none focus:border-[#1E40AF]"
+                placeholder="Contoh CNC Milling Makino V33i - Moulding Cavity"
+                className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-[#1E40AF]"
               />
             </div>
 

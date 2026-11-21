@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { generateToolUnitsTx } from '@/lib/tool-units';
 import * as XLSX from 'xlsx';
 
 function sanitizeCell(val: unknown): string {
@@ -17,6 +18,9 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session || !session.id) {
       return NextResponse.json({ error: 'Sesi login tidak sah atau telah berakhir.' }, { status: 401 });
+    }
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(session.role)) {
+      return NextResponse.json({ error: 'Akses ditolak. Hanya Admin Tool Room yang dapat mengimpor data.' }, { status: 403 });
     }
 
     const formData = await request.formData();
@@ -50,6 +54,7 @@ export async function POST(request: Request) {
     if (type === 'tool') {
       const existingTools = await prisma.tool.findMany({ select: { code: true } });
       const existingCodes = new Set(existingTools.map((t) => t.code.toUpperCase()));
+      const seenInFile = new Set<string>();
 
       const parsedRows = rows.map((r, index) => {
         const code = sanitizeCell(r['KODE TOOL'] || r['KODE'] || r['code']).toUpperCase();
@@ -64,7 +69,9 @@ export async function POST(request: Request) {
         const errors: string[] = [];
         if (!code) errors.push('Kode tool wajib diisi');
         if (!name) errors.push('Nama tool wajib diisi');
-        if (existingCodes.has(code)) errors.push(`Kode ${code} sudah ada di database`);
+        if (code && existingCodes.has(code)) errors.push(`Kode ${code} sudah ada di database`);
+        if (code && seenInFile.has(code)) errors.push(`Kode ${code} duplikat di dalam file Excel`);
+        if (code) seenInFile.add(code);
 
         const categoryId = catMap[catCode] || defaultCatId;
         const totalStock = isNaN(parseInt(stockStr, 10)) ? 1 : Math.max(1, parseInt(stockStr, 10));
@@ -95,38 +102,47 @@ export async function POST(request: Request) {
         });
       }
 
-      // COMMIT MODE
+      // COMMIT MODE (atomik dalam $transaction + generate unit barcode QR)
       const validRows = parsedRows.filter((r) => r.isValid);
-      let importedCount = 0;
+      const importedCount = await prisma.$transaction(async (tx) => {
+        let count = 0;
+        for (const row of validRows) {
+          const createdTool = await tx.tool.create({
+            data: {
+              code: row.code,
+              name: row.name,
+              categoryId: row.categoryId,
+              specifications: row.specifications,
+              unit: row.unit,
+              totalStock: row.totalStock,
+              availableStock: row.totalStock,
+              borrowedStock: 0,
+              repairStock: 0,
+              scrapStock: 0,
+              location: row.location,
+              condition: row.condition,
+              status: 'AKTIF',
+            },
+          });
+          await generateToolUnitsTx(tx, {
+            toolId: createdTool.id,
+            toolCode: row.code,
+            count: row.totalStock,
+            maxLifeMinutes: 1200,
+          });
+          count++;
+        }
 
-      for (const row of validRows) {
-        await prisma.tool.create({
+        await tx.auditLog.create({
           data: {
-            code: row.code,
-            name: row.name,
-            categoryId: row.categoryId,
-            specifications: row.specifications,
-            unit: row.unit,
-            totalStock: row.totalStock,
-            availableStock: row.totalStock,
-            borrowedStock: 0,
-            repairStock: 0,
-            scrapStock: 0,
-            location: row.location,
-            condition: row.condition,
-            status: 'AKTIF',
+            action: 'IMPORT_EXCEL',
+            adminId: session.id,
+            adminName: session.name || 'Admin',
+            details: `Mengimpor ${count} master tool beserta unit barcode dari file ${file.name}`,
           },
         });
-        importedCount++;
-      }
 
-      await prisma.auditLog.create({
-        data: {
-          action: 'IMPORT_EXCEL',
-          adminId: session?.id,
-          adminName: session?.name || 'Admin',
-          details: `Mengimpor ${importedCount} master tool dari file ${file.name}`,
-        },
+        return count;
       });
 
       return NextResponse.json({
@@ -134,11 +150,17 @@ export async function POST(request: Request) {
         message: `Berhasil mengimpor ${importedCount} data master tool.`,
         importedCount,
         skippedCount: parsedRows.length - importedCount,
+        summary: {
+          createdCount: importedCount,
+          updatedCount: 0,
+          skippedCount: parsedRows.length - importedCount,
+        },
       });
     } else {
       // INVENTORY
       const existingInvs = await prisma.inventory.findMany({ select: { code: true } });
       const existingCodes = new Set(existingInvs.map((i) => i.code.toUpperCase()));
+      const seenInFile = new Set<string>();
 
       const parsedRows = rows.map((r, index) => {
         const code = sanitizeCell(r['KODE INVENTARIS'] || r['KODE']).toUpperCase();
@@ -156,7 +178,9 @@ export async function POST(request: Request) {
         const errors: string[] = [];
         if (!code) errors.push('Kode inventaris wajib diisi');
         if (!name) errors.push('Nama barang wajib diisi');
-        if (existingCodes.has(code)) errors.push(`Kode ${code} sudah ada di database`);
+        if (code && existingCodes.has(code)) errors.push(`Kode ${code} sudah ada di database`);
+        if (code && seenInFile.has(code)) errors.push(`Kode ${code} duplikat di dalam file Excel`);
+        if (code) seenInFile.add(code);
 
         const categoryId = catMap[catCode] || defaultCatId;
         const totalStock = trackingType === 'INDIVIDUAL' ? 1 : isNaN(parseInt(stockStr, 10)) ? 1 : Math.max(1, parseInt(stockStr, 10));
@@ -190,41 +214,44 @@ export async function POST(request: Request) {
         });
       }
 
-      // COMMIT MODE
+      // COMMIT MODE (atomik dalam $transaction)
       const validRows = parsedRows.filter((r) => r.isValid);
-      let importedCount = 0;
+      const importedCount = await prisma.$transaction(async (tx) => {
+        let count = 0;
+        for (const row of validRows) {
+          await tx.inventory.create({
+            data: {
+              code: row.code,
+              name: row.name,
+              categoryId: row.categoryId,
+              brand: row.brand,
+              model: row.model,
+              serialNumber: row.serialNumber,
+              trackingType: row.trackingType,
+              unit: row.unit,
+              totalStock: row.totalStock,
+              availableStock: row.totalStock,
+              borrowedStock: 0,
+              repairStock: 0,
+              scrapStock: 0,
+              location: row.location,
+              condition: row.condition,
+              status: 'AKTIF',
+            },
+          });
+          count++;
+        }
 
-      for (const row of validRows) {
-        await prisma.inventory.create({
+        await tx.auditLog.create({
           data: {
-            code: row.code,
-            name: row.name,
-            categoryId: row.categoryId,
-            brand: row.brand,
-            model: row.model,
-            serialNumber: row.serialNumber,
-            trackingType: row.trackingType,
-            unit: row.unit,
-            totalStock: row.totalStock,
-            availableStock: row.totalStock,
-            borrowedStock: 0,
-            repairStock: 0,
-            scrapStock: 0,
-            location: row.location,
-            condition: row.condition,
-            status: 'AKTIF',
+            action: 'IMPORT_EXCEL',
+            adminId: session.id,
+            adminName: session.name || 'Admin',
+            details: `Mengimpor ${count} master inventaris dari file ${file.name}`,
           },
         });
-        importedCount++;
-      }
 
-      await prisma.auditLog.create({
-        data: {
-          action: 'IMPORT_EXCEL',
-          adminId: session?.id,
-          adminName: session?.name || 'Admin',
-          details: `Mengimpor ${importedCount} master inventaris dari file ${file.name}`,
-        },
+        return count;
       });
 
       return NextResponse.json({
@@ -232,6 +259,11 @@ export async function POST(request: Request) {
         message: `Berhasil mengimpor ${importedCount} data master inventaris.`,
         importedCount,
         skippedCount: parsedRows.length - importedCount,
+        summary: {
+          createdCount: importedCount,
+          updatedCount: 0,
+          skippedCount: parsedRows.length - importedCount,
+        },
       });
     }
   } catch (err) {

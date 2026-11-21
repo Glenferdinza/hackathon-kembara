@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
@@ -213,6 +214,37 @@ export default function OperatorDashboardPage() {
     }
   };
 
+  const handleCancelWaitingRequest = async (reqId: string, requestNumber: string) => {
+    const ok = await confirm({
+      title: `Batalkan Request ${requestNumber}`,
+      message: 'Batalkan pengajuan pinjam yang masih menunggu diproses Admin Tool Room ini?',
+      confirmText: 'Ya, Batalkan Request',
+      cancelText: 'Tutup',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    setProcessingId(reqId);
+    try {
+      const res = await fetch(`/api/loan-requests/${reqId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CANCEL' }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showToast(json.error || 'Gagal membatalkan request.', 'error');
+      } else {
+        showToast(`Request ${requestNumber} berhasil dibatalkan.`, 'info');
+        fetchSummary();
+      }
+    } catch {
+      showToast('Terjadi kesalahan jaringan.', 'error');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <AppShell>
       <div className="space-y-5">
@@ -240,26 +272,26 @@ export default function OperatorDashboardPage() {
         {/* Ringkasan KPI Strip Flat */}
         <div className="grid grid-cols-2 lg:grid-cols-4 border border-slate-200 rounded bg-white overflow-hidden">
           <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0 border-b border-r lg:border-b-0 border-slate-200">
-            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Barang di Tangan Saya</div>
+            <div className="text-[11px] font-semibold text-slate-600 uppercase truncate">Barang di Tangan Saya</div>
             <div className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums mt-0.5">{heldItems.length}</div>
-            <div className="text-[10px] text-slate-400">Item pinjaman aktif</div>
+            <div className="text-[11px] text-slate-600">Item pinjaman aktif</div>
           </div>
           <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-200">
-            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Siap Diambil (Loket)</div>
+            <div className="text-[11px] font-semibold text-slate-600 uppercase truncate">Siap Diambil (Loket)</div>
             <div className="text-lg sm:text-xl font-bold text-[#1E40AF] tabular-nums mt-0.5">{readyRequests.length}</div>
-            <div className="text-[10px] text-slate-400">Menunggu tombol Terima</div>
+            <div className="text-[11px] text-slate-600">Menunggu tombol Terima</div>
           </div>
           <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0 border-r border-slate-200">
-            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Waiting List Shift</div>
+            <div className="text-[11px] font-semibold text-slate-600 uppercase truncate">Waiting List Shift</div>
             <div className="text-lg sm:text-xl font-bold text-slate-900 tabular-nums mt-0.5">{incomingHandovers.length}</div>
-            <div className="text-[10px] text-slate-400">Serah terima masuk</div>
+            <div className="text-[11px] text-slate-600">Serah terima masuk</div>
           </div>
           <div className="px-3 sm:px-4 py-2 sm:py-2.5 min-w-0">
-            <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase truncate">Umur Pakai Kritis</div>
-            <div className={`text-lg sm:text-xl font-bold tabular-nums mt-0.5 ${criticalLifeCount > 0 ? 'text-red-800' : 'text-slate-900'}`}>
+            <div className="text-[11px] font-semibold text-slate-600 uppercase truncate">Umur Pakai Kritis</div>
+            <div className={`text-lg sm:text-xl font-bold tabular-nums mt-0.5 ${criticalLifeCount > 0 ? 'text-[#991B1B]' : 'text-slate-900'}`}>
               {criticalLifeCount}
             </div>
-            <div className="text-[10px] text-slate-400">Perlu segera kembali ke rak</div>
+            <div className="text-[11px] text-slate-600">Perlu segera kembali ke rak</div>
           </div>
         </div>
 
@@ -271,12 +303,12 @@ export default function OperatorDashboardPage() {
                 <h2 className="text-xs font-bold font-heading text-slate-900 uppercase tracking-wider">
                   Barang Siap Diambil dari Tool Room ({readyRequests.length})
                 </h2>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-600">
                   Admin sudah memindai kode barcode unit tool. Periksa fisik barang lalu klik Terima Barang.
                 </p>
               </div>
-              <span className="self-start sm:self-auto shrink-0 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#1E40AF] border border-blue-200">
-                SIAP SERAH TERIMA
+              <span className="self-start sm:self-auto shrink-0 text-xs font-bold uppercase tracking-wider text-[#1E40AF]">
+                Siap Serah Terima
               </span>
             </div>
 
@@ -342,7 +374,7 @@ export default function OperatorDashboardPage() {
                   Periksa fisik barang dan sisa umur pakai sebelum menerima tanggung jawab pinjaman dari shift sebelumnya.
                 </p>
               </div>
-              <span className="self-start sm:self-auto shrink-0 px-2 py-0.5 rounded text-[11px] font-semibold bg-white text-amber-900 border border-amber-300">
+              <span className="self-start sm:self-auto shrink-0 text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
                 MENUNGGU PERSETUJUAN
               </span>
             </div>
@@ -436,16 +468,26 @@ export default function OperatorDashboardPage() {
             </div>
             <div className="divide-y divide-slate-100">
               {waitingAdminRequests.map((wr) => (
-                <div key={wr.id} className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
+                <div key={wr.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="min-w-0">
                     <span className="font-mono font-bold text-slate-900 mr-2">{wr.requestNumber}</span>
-                    <span className="text-slate-600">
+                    <span className="text-slate-700">
                       {wr.items.map((it) => `${it.tool?.name || it.inventory?.name} (${it.requestedQty})`).join(', ')}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
-                    MENUNGGU ADMIN
-                  </span>
+                  <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+                    <span className="text-xs font-semibold text-slate-600">
+                      Menunggu Admin
+                    </span>
+                    <button
+                      type="button"
+                      disabled={processingId === wr.id}
+                      onClick={() => handleCancelWaitingRequest(wr.id, wr.requestNumber)}
+                      className="min-h-[36px] sm:min-h-0 px-3 py-1.5 sm:py-1 text-xs font-semibold text-[#991B1B] bg-white border border-slate-300 hover:bg-red-50 rounded transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {processingId === wr.id ? 'Membatalkan...' : 'Batalkan'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -459,7 +501,7 @@ export default function OperatorDashboardPage() {
               <h2 className="text-xs font-bold font-heading text-slate-900 uppercase tracking-wider">
                 Perkakas &amp; Inventaris yang Sedang Anda Pegang ({heldItems.length})
               </h2>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-600">
                 Catat durasi pemakaian (menit) saat mengalihkan ke shift berikutnya atau sebelum mengembalikan ke Tool Room.
               </p>
             </div>
@@ -477,97 +519,178 @@ export default function OperatorDashboardPage() {
               onAction={() => router.push('/operator/request')}
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[760px]">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
-                  <tr>
-                    <th className="py-2.5 px-3">NO. PINJAMAN</th>
-                    <th className="py-2.5 px-3">KODE BARCODE / BARANG</th>
-                    <th className="py-2.5 px-3 text-center">QTY</th>
-                    <th className="py-2.5 px-3 w-52">SISA UMUR PAKAI (MENIT)</th>
-                    <th className="py-2.5 px-3">TENGGAT KEMBALI</th>
-                    <th className="py-2.5 px-3 text-right">AKSI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {heldItems.map((hi) => {
-                    const maxLife = hi.toolUnit?.maxLifeMinutes || 0;
-                    const remLife = hi.toolUnit?.remainingLifeMinutes || 0;
-                    const pct = maxLife > 0 ? Math.max(0, Math.min(100, Math.round((remLife / maxLife) * 100))) : 100;
-                    const alertPct = hi.tool?.lifeAlertPercent || 15;
-                    const isCritical = hi.toolUnit && pct <= alertPct;
-                    const pendingHov = hi.handovers?.[0];
+            <>
+              {/* Mobile Card View (< 768px) */}
+              <div className="md:hidden divide-y divide-slate-200">
+                {heldItems.map((hi) => {
+                  const maxLife = hi.toolUnit?.maxLifeMinutes || 0;
+                  const remLife = hi.toolUnit?.remainingLifeMinutes || 0;
+                  const pct = maxLife > 0 ? Math.max(0, Math.min(100, Math.round((remLife / maxLife) * 100))) : 100;
+                  const alertPct = hi.tool?.lifeAlertPercent || 15;
+                  const isCritical = hi.toolUnit && pct <= alertPct;
+                  const pendingHov = hi.handovers?.[0];
 
-                    return (
-                      <tr key={hi.id} className="hover:bg-slate-50">
-                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                          {hi.loanTransaction.transactionNumber}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <div className="font-semibold text-slate-900">
+                  return (
+                    <div key={hi.id} className="p-3.5 space-y-2.5 text-xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-mono text-[11px] font-bold text-slate-600">
+                            {hi.loanTransaction.transactionNumber}
+                          </div>
+                          <div className="text-[13px] font-bold text-slate-900 mt-0.5">
                             {hi.tool?.name || hi.inventory?.name}
                           </div>
-                          {hi.toolUnit ? (
-                            <div className="font-mono text-[11px] font-bold text-[#1E40AF]">
-                              Barcode: {hi.toolUnit.unitCode}
-                            </div>
-                          ) : (
-                            <div className="font-mono text-[11px] text-slate-500">
-                              {hi.inventory?.code}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-bold tabular-nums">
-                          {hi.quantity}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {hi.toolUnit ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[11px] tabular-nums">
-                                <span className={isCritical ? 'font-bold text-red-800' : 'font-semibold text-slate-800'}>
-                                  {remLife.toLocaleString('id-ID')} / {maxLife.toLocaleString('id-ID')} mnt
-                                </span>
-                                <span className="text-slate-500">{pct}%</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${isCritical ? 'bg-red-700' : 'bg-[#1E40AF]'}`}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              {isCritical && (
-                                <div className="text-[10px] font-bold text-red-800">
-                                  Mendekati habis — segera kembalikan ke Tool Room
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">Aset Inventaris</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 tabular-nums text-slate-700 whitespace-nowrap">
-                          {new Date(hi.loanTransaction.expectedReturnDate).toLocaleString('id-ID')}
-                        </td>
-                        <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                          {pendingHov ? (
-                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                              Menunggu {pendingHov.toEmployee.name}
+                          <div className="font-mono text-xs font-semibold text-[#1E40AF] mt-0.5">
+                            {hi.toolUnit ? hi.toolUnit.unitCode : hi.inventory?.code}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 font-bold text-slate-900 tabular-nums">
+                          {hi.quantity} Unit
+                        </div>
+                      </div>
+
+                      {hi.toolUnit && (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs tabular-nums">
+                            <span className={isCritical ? 'font-bold text-[#991B1B]' : 'font-semibold text-slate-700'}>
+                              Sisa {remLife.toLocaleString('id-ID')} / {maxLife.toLocaleString('id-ID')} mnt
                             </span>
-                          ) : (
-                            <Link
-                              href={`/operator/handover?itemId=${encodeURIComponent(hi.id)}`}
-                              className="text-[#1E40AF] hover:underline font-semibold"
-                            >
-                              Alihkan ke Shift 2
-                            </Link>
+                            <span className="font-semibold text-slate-700">{pct}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${isCritical ? 'bg-[#991B1B]' : 'bg-[#1E40AF]'}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          {isCritical && (
+                            <div className="text-xs font-bold text-[#991B1B]">
+                              Umur kritis, segera kembalikan ke Tool Room
+                            </div>
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                        <span className="text-xs text-slate-600 tabular-nums">
+                          Tenggat {new Date(hi.loanTransaction.expectedReturnDate).toLocaleDateString('id-ID', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {pendingHov ? (
+                          <span className="text-xs font-semibold text-[#92400E]">
+                            Menunggu {pendingHov.toEmployee.name}
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/operator/handover?itemId=${encodeURIComponent(hi.id)}`}
+                            className="min-h-[40px] inline-flex items-center px-3 py-1.5 text-xs font-semibold text-[#1E40AF] bg-white border border-slate-300 rounded hover:bg-slate-50"
+                          >
+                            Alihkan ke Shift 2
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop / Tablet Full Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[760px]">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-heading font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="py-2.5 px-3">NO. PINJAMAN</th>
+                      <th className="py-2.5 px-3">KODE BARCODE / BARANG</th>
+                      <th className="py-2.5 px-3 text-center">QTY</th>
+                      <th className="py-2.5 px-3 w-52">SISA UMUR PAKAI (MENIT)</th>
+                      <th className="py-2.5 px-3">TENGGAT KEMBALI</th>
+                      <th className="py-2.5 px-3 text-right">AKSI</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {heldItems.map((hi) => {
+                      const maxLife = hi.toolUnit?.maxLifeMinutes || 0;
+                      const remLife = hi.toolUnit?.remainingLifeMinutes || 0;
+                      const pct = maxLife > 0 ? Math.max(0, Math.min(100, Math.round((remLife / maxLife) * 100))) : 100;
+                      const alertPct = hi.tool?.lifeAlertPercent || 15;
+                      const isCritical = hi.toolUnit && pct <= alertPct;
+                      const pendingHov = hi.handovers?.[0];
+
+                      return (
+                        <tr key={hi.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                            {hi.loanTransaction.transactionNumber}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-slate-900">
+                              {hi.tool?.name || hi.inventory?.name}
+                            </div>
+                            {hi.toolUnit ? (
+                              <div className="font-mono text-[11px] font-bold text-[#1E40AF]">
+                                Barcode {hi.toolUnit.unitCode}
+                              </div>
+                            ) : (
+                              <div className="font-mono text-[11px] text-slate-600">
+                                {hi.inventory?.code}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold tabular-nums">
+                            {hi.quantity}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {hi.toolUnit ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between text-[11px] tabular-nums">
+                                  <span className={isCritical ? 'font-bold text-[#991B1B]' : 'font-semibold text-slate-800'}>
+                                    {remLife.toLocaleString('id-ID')} / {maxLife.toLocaleString('id-ID')} mnt
+                                  </span>
+                                  <span className="text-slate-600">{pct}%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${isCritical ? 'bg-[#991B1B]' : 'bg-[#1E40AF]'}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                                {isCritical && (
+                                  <div className="text-[11px] font-bold text-[#991B1B]">
+                                    Mendekati habis, segera kembalikan ke Tool Room
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-600">Aset Inventaris</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 tabular-nums text-slate-700 whitespace-nowrap">
+                            {new Date(hi.loanTransaction.expectedReturnDate).toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            {pendingHov ? (
+                              <span className="text-xs font-semibold text-[#92400E]">
+                                Menunggu {pendingHov.toEmployee.name}
+                              </span>
+                            ) : (
+                              <Link
+                                href={`/operator/handover?itemId=${encodeURIComponent(hi.id)}`}
+                                className="text-[#1E40AF] hover:underline font-semibold"
+                              >
+                                Alihkan ke Shift 2
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -593,7 +716,14 @@ export default function OperatorDashboardPage() {
               </button>
             </div>
             <div className="p-4 bg-slate-100 flex items-center justify-center">
-              <img src={previewProofImage} alt="Bukti pengalihan" className="max-h-[70vh] object-contain rounded" />
+              <Image
+                src={previewProofImage}
+                alt="Bukti pengalihan"
+                width={800}
+                height={600}
+                unoptimized
+                className="max-h-[70vh] w-auto h-auto object-contain rounded"
+              />
             </div>
           </div>
         </div>

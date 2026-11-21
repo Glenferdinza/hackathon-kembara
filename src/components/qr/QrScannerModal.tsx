@@ -230,7 +230,7 @@ function BarcodeScannerModalContent({
               {title}
             </span>
           </div>
-          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+          <span className="text-xs font-semibold text-[#1E40AF] shrink-0">
             {mode === 'CAMERA' && cameraActive ? 'KAMERA AKTIF' : 'SIAP SCAN'}
           </span>
         </div>

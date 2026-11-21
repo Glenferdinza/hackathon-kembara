@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { BarcodeScannerModal } from '@/components/qr/QrScannerModal';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { invalidateDashboardSummaryCache } from '@/lib/dashboard-client';
 
 interface ReturnEmployeeRef {
   id: string;
@@ -227,6 +228,7 @@ function ReturnsContent() {
             : 'Pengembalian parsial berhasil dicatat.',
           'success'
         );
+        invalidateDashboardSummaryCache();
         setSelectedLoan(null);
         fetchActiveLoans();
       }
@@ -264,11 +266,11 @@ function ReturnsContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-900 tracking-tight">
               Pengembalian &amp; Inspeksi Fisik
             </h1>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="text-xs font-semibold text-[#1E40AF]">
               Scanner USB Otomatis Aktif
             </span>
           </div>
@@ -344,95 +346,178 @@ function ReturnsContent() {
             onAction={search ? () => setSearch('') : undefined}
           />
         ) : (
-          <table className="w-full text-left text-xs min-w-[950px]">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
-                <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM</th>
-                <th className="py-2.5 px-3 whitespace-nowrap">DAFTAR BARANG DIPINJAM</th>
-                <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
-                <th className="py-2.5 px-3 whitespace-nowrap">TENGGAT KEMBALI</th>
-                <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
-                <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+          <>
+            {/* Mobile Card View (< 768px) */}
+            <div className="md:hidden divide-y divide-slate-200">
               {paginatedReturns.map((loan) => (
-                <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                    {loan.transactionNumber}
-                  </td>
-                  <td className="py-2.5 px-3 whitespace-nowrap">
-                    <div className="font-semibold text-slate-900">{loan.employee?.name}</div>
-                    <div className="text-[10px] text-slate-500 tabular-nums">
-                      {loan.employee?.nik} | {loan.employee?.department}
+                <div key={loan.id} className="p-3.5 space-y-2.5 text-xs">
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div>
+                      <div className="font-mono font-bold text-slate-900 tabular-nums">
+                        {loan.transactionNumber}
+                      </div>
+                      <div className="text-[13px] font-bold text-slate-900 mt-0.5">
+                        {loan.employee?.name}
+                      </div>
+                      <div className="text-xs text-slate-600 tabular-nums">
+                        {loan.employee?.nik} | {loan.employee?.department}
+                      </div>
                     </div>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <div className="space-y-1 max-w-sm">
-                      {loan.items.map((it) => {
-                        const remaining = it.quantity - it.returnedQuantity;
-                        const name = it.tool ? it.tool.name : it.inventory?.name;
-                        const code = it.toolUnit ? it.toolUnit.unitCode : (it.tool ? it.tool.code : it.inventory?.code);
-                        const holder = it.currentHolder && it.currentHolder.id !== loan.employee?.id ? it.currentHolder : null;
-                        return (
-                          <div key={it.id} className="flex items-center justify-between text-[11px] gap-2">
-                            <span className="truncate text-slate-800">
-                              <span className="font-mono font-bold text-slate-900 tabular-nums">{code}</span> {name}
-                              {holder && (
-                                <span className="ml-1 text-[10px] font-semibold text-[#1E40AF]">
-                                  (Shift: {holder.name})
-                                </span>
-                              )}
-                            </span>
-                            <span className="font-semibold text-[#1E40AF] shrink-0 tabular-nums">
-                              {remaining} / {it.quantity} unit
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
-                    {new Date(loan.loanDate).toLocaleDateString('id-ID')}
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
-                    {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
+                    <span
+                      className={`shrink-0 text-xs font-bold ${
+                        loan.computedStatus === 'TERLAMBAT'
+                          ? 'text-[#991B1B]'
+                          : loan.computedStatus === 'MENDEKATI_JATUH_TEMPO'
+                          ? 'text-[#92400E]'
+                          : 'text-slate-700'
+                      }`}
+                    >
+                      {loan.computedStatus === 'TERLAMBAT'
+                        ? 'Terlambat'
+                        : loan.computedStatus === 'MENDEKATI_JATUH_TEMPO'
+                        ? 'Hari Ini'
+                        : 'Dipinjam'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {loan.items.map((it) => {
+                      const remaining = it.quantity - it.returnedQuantity;
+                      const name = it.tool ? it.tool.name : it.inventory?.name;
+                      const code = it.toolUnit ? it.toolUnit.unitCode : (it.tool ? it.tool.code : it.inventory?.code);
+                      const holder = it.currentHolder && it.currentHolder.id !== loan.employee?.id ? it.currentHolder : null;
+                      return (
+                        <div key={it.id} className="flex items-center justify-between gap-2 text-xs">
+                          <span className="min-w-0 truncate text-slate-800">
+                            <span className="font-mono font-bold text-slate-900 tabular-nums">{code}</span> {name}
+                            {holder && (
+                              <span className="ml-1 text-[11px] font-semibold text-[#1E40AF]">
+                                (Shift {holder.name})
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-bold text-[#1E40AF] shrink-0 tabular-nums">
+                            {remaining}/{it.quantity}
+                          </span>
+                        </div>
+                      );
                     })}
-                  </td>
-                  <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                    {loan.computedStatus === 'TERLAMBAT' && (
-                      <span className="text-xs font-bold text-slate-900">
-                        Terlambat
-                      </span>
-                    )}
-                    {loan.computedStatus === 'MENDEKATI_JATUH_TEMPO' && (
-                      <span className="text-xs font-semibold text-[#1E40AF]">
-                        Hari Ini
-                      </span>
-                    )}
-                    {loan.computedStatus === 'DIPINJAM' && (
-                      <span className="text-xs font-medium text-slate-600">
-                        Dipinjam
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    <span className="text-xs text-slate-600 tabular-nums">
+                      Tenggat{' '}
+                      {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
                     <button
                       onClick={() => handleOpenReturnModal(loan)}
-                      className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors cursor-pointer"
+                      className="min-h-[42px] px-3.5 py-2 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors cursor-pointer"
                     >
                       Verifikasi Fisik
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop Table (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[950px]">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold font-heading uppercase tracking-wider">
+                  <tr>
+                    <th className="py-2.5 px-3 whitespace-nowrap">NO. TRANSAKSI</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">PEMINJAM</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">DAFTAR BARANG DIPINJAM</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">TGL PINJAM</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">TENGGAT KEMBALI</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">STATUS</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">AKSI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedReturns.map((loan) => (
+                    <tr key={loan.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                        {loan.transactionNumber}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="font-semibold text-slate-900">{loan.employee?.name}</div>
+                        <div className="text-[11px] text-slate-600 tabular-nums">
+                          {loan.employee?.nik} | {loan.employee?.department}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="space-y-1 max-w-sm">
+                          {loan.items.map((it) => {
+                            const remaining = it.quantity - it.returnedQuantity;
+                            const name = it.tool ? it.tool.name : it.inventory?.name;
+                            const code = it.toolUnit ? it.toolUnit.unitCode : (it.tool ? it.tool.code : it.inventory?.code);
+                            const holder = it.currentHolder && it.currentHolder.id !== loan.employee?.id ? it.currentHolder : null;
+                            return (
+                              <div key={it.id} className="flex items-center justify-between text-[11px] gap-2">
+                                <span className="truncate text-slate-800">
+                                  <span className="font-mono font-bold text-slate-900 tabular-nums">{code}</span> {name}
+                                  {holder && (
+                                    <span className="ml-1 text-[11px] font-semibold text-[#1E40AF]">
+                                      (Shift {holder.name})
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="font-semibold text-[#1E40AF] shrink-0 tabular-nums">
+                                  {remaining} / {it.quantity} unit
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
+                        {new Date(loan.loanDate).toLocaleDateString('id-ID')}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap tabular-nums">
+                        {new Date(loan.expectedReturnDate).toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        {loan.computedStatus === 'TERLAMBAT' && (
+                          <span className="text-xs font-bold text-[#991B1B]">
+                            Terlambat
+                          </span>
+                        )}
+                        {loan.computedStatus === 'MENDEKATI_JATUH_TEMPO' && (
+                          <span className="text-xs font-semibold text-[#92400E]">
+                            Hari Ini
+                          </span>
+                        )}
+                        {loan.computedStatus === 'DIPINJAM' && (
+                          <span className="text-xs font-medium text-slate-600">
+                            Dipinjam
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handleOpenReturnModal(loan)}
+                          className="px-3 py-1 text-xs font-semibold text-white bg-[#1E40AF] hover:bg-blue-800 rounded transition-colors cursor-pointer"
+                        >
+                          Verifikasi Fisik
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -589,7 +674,7 @@ function ReturnsContent() {
                               className="flex-1 sm:flex-initial min-w-0 w-full sm:w-auto bg-white border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#1E40AF] cursor-pointer"
                             >
                               <option value="BAIK">Baik (Siap Pakai)</option>
-                              <option value="PERLU_ASAH">Perlu Asah / Mendekati Habis</option>
+                              <option value="PERLU_ASAH">Perlu Asah (Kritis)</option>
                               <option value="RUSAK">Rusak / Perlu Servis</option>
                               <option value="HILANG">Hilang</option>
                             </select>

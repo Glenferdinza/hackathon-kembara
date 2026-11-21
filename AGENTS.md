@@ -61,6 +61,25 @@ Setiap kode antarmuka yang dihasilkan WAJIB lolos audit `npx impeccable detect s
 ### 7. DILARANG KERAS: EMOJI & SPAM IKON (ZERO EMOJIS & TEXT-FIRST)
 - Tidak boleh ada emoji dalam tombol, judul, badge, ataupun pesan error. Gunakan teks tegas dan bersih.
 
+### 8. STANDAR UX PSIKOLOGIS, MOBILE ERGONOMICS & AKSESIBILITAS (WAJIB)
+1. **Zero Alarm Fatigue pada Ambang Stok**:
+   - Dilarang memakai fallback ambang stok sembarangan (seperti `minStock || 5`) pada perkakas presisi berjumlah 1-2 unit.
+   - Status `Stok Menipis` hanya aktif bila `minStock > 0 && availableStock <= minStock` atau saat item berstok fisik mencapai `0` tersedia.
+2. **Zero Silent Borrower / Dummy Defaults & Dummy Metric Flash**:
+   - Halaman transaksi tidak boleh otomatis memilih pegawai pertama saat mount atau mengisi nomor HP dummy (`08123456789`).
+   - Halaman utama tidak boleh merender data angka dummy sementara (`INITIAL_DASHBOARD_DATA`) sebelum API asli selesai dimuat; gunakan `<SkeletonTable />` atau skeleton netral.
+3. **Konfirmasi Aman dari Scanner USB (`ConfirmDialog`)**:
+   - Dialog konfirmasi dilarang mengeksekusi aksi saat tombol `Enter` ditekan mentah pada window karena barcode scanner USB mengirim suffix `Enter`.
+   - Aksi berisiko/destruktif (`danger`) wajib memakai aksen Muted Rose `#991B1B`.
+4. **Mobile Card View (`md:hidden`) vs Teks Mikro**:
+   - Dilarang mengecilkan tabel multi-kolom menjadi `<12px` di layar HP (`<640px`).
+   - Sajikan daftar kartu mobile ringkas (`md:hidden`) berteks nyaman `12px-13px`, minimal target sentuh `44x44px`, dan kontras teks `>= 4.5:1` (hindari `text-slate-400` untuk label penting/placeholder).
+5. **Teks Status Datar vs Kontrol Interaktif Berbingkai**:
+   - Status pasif (`TERSEDIA`, `MENUNGGU_ADMIN`, `PENDING`, `Scanner USB Otomatis Aktif`, dsb.) tampil sebagai teks datar bersih tanpa kotak/pill latar belakang.
+   - Elemen interaktif yang dapat diklik (tombol, tab, input) tetap mempertahankan border tipis untuk kejelasan klik.
+6. **Drawer Mobile Aman Breakpoint**:
+   - Drawer sidebar mobile yang tertutup di bawah `1024px` wajib disembunyikan dari `Tab` keyboard dengan `invisible lg:visible` saat `!isMobileOpen`, bukan memakai `inert={!isMobileOpen}` secara naif yang dapat mematikan sidebar desktop.
+
 ---
 
 ## 4. ARSITEKTUR TEKNOLOGI & ATURAN BISNIS TERKINI
